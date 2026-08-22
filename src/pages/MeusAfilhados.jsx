@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { Users, Edit2, ArrowLeft, DollarSign, Plus } from 'lucide-react';
+import { Users, Edit2, ArrowLeft, DollarSign, Plus, XCircle } from 'lucide-react';
 
 export const MeusAfilhados = () => {
   const { pessoaProfile } = useAuth();
@@ -97,6 +97,12 @@ export const MeusAfilhados = () => {
           afilhado: perfil || null,
           acampamentos: acampamentosAfilhado
         };
+      });
+
+      afilhadosMapeados.sort((a, b) => {
+        const nomeA = a.afilhado?.nome || '';
+        const nomeB = b.afilhado?.nome || '';
+        return nomeA.localeCompare(nomeB);
       });
 
       setAfilhados(afilhadosMapeados);
@@ -342,7 +348,9 @@ export const MeusAfilhados = () => {
                               </Link>
                             ))
                           ) : (
-                            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Não vai para o acampamento</span>
+                            <span style={{ fontSize: '0.85rem', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.25rem' }}>
+                              Não vai para o acampamento <XCircle size={16} color='var(--error)' />
+                            </span>
                           )}
                         </div>
                       </td>

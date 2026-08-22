@@ -318,7 +318,7 @@ export const EditarPessoa = () => {
               depsToInsert.push(dep);
             }
           });
-        
+
         if (depsToInsert.length > 0) {
           await supabase.from('apc_dependente').insert(depsToInsert);
         }
@@ -384,37 +384,88 @@ export const EditarPessoa = () => {
           {formData.tipo_pessoa === 'AFILHADO' && (
             <div style={{ background: 'rgba(59, 130, 246, 0.05)', padding: '1.25rem', borderRadius: '8px', marginBottom: '2rem', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
               <h4 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem', color: 'var(--accent-primary)' }}>
-                Padrinhos
+                {userProfile?.perfil === 'ADMIN' || userProfile?.perfil === 'GESTOR' ? 'Padrinhos' : 'Meus Padrinhos'}
               </h4>
-              <div className="form-grid">
-                <div className="form-group">
-                  <label className="form-label">Selecione o Padrinho</label>
-                  <select
-                    className="form-input"
-                    value={formData.vinculo_padrinho_id}
-                    onChange={handlePadrinhoChange}
-                  >
-                    <option value="">-- Escolha um padrinho --</option>
-                    {padrinhos.map(p => (
-                      <option key={p.id} value={p.id}>{p.nome}</option>
-                    ))}
-                  </select>
-                </div>
 
-                <div className="form-group">
-                  <label className="form-label">Selecione a Madrinha</label>
-                  <select
-                    className="form-input"
-                    value={formData.vinculo_madrinha_id}
-                    onChange={handleMadrinhaChange}
-                  >
-                    <option value="">-- Escolha uma madrinha --</option>
-                    {madrinhas.map(m => (
-                      <option key={m.id} value={m.id}>{m.nome}</option>
-                    ))}
-                  </select>
+              {userProfile?.perfil === 'ADMIN' || userProfile?.perfil === 'GESTOR' ? (
+                <div className="form-grid">
+                  <div className="form-group">
+                    <label className="form-label">Selecione o Padrinho</label>
+                    <select
+                      className="form-input"
+                      value={formData.vinculo_padrinho_id}
+                      onChange={handlePadrinhoChange}
+                    >
+                      <option value="">-- Escolha um padrinho --</option>
+                      {padrinhos.map(p => (
+                        <option key={p.id} value={p.id}>{p.nome}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Selecione a Madrinha</label>
+                    <select
+                      className="form-input"
+                      value={formData.vinculo_madrinha_id}
+                      onChange={handleMadrinhaChange}
+                    >
+                      <option value="">-- Escolha uma madrinha --</option>
+                      {madrinhas.map(m => (
+                        <option key={m.id} value={m.id}>{m.nome}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <>
+
+                  {(!formData.vinculo_padrinho_id && !formData.vinculo_madrinha_id) ? (
+                    <div style={{ textAlign: 'center', padding: '1rem', color: 'var(--text-secondary)' }}>
+                      <p>Você ainda não foi vinculado a nenhum Padrinho/Madrinha.</p>
+                    </div>
+                  ) : (
+                    <div className="form-grid">
+                      {(() => {
+                        const padrinhoObj = padrinhos.find(p => p.id === formData.vinculo_padrinho_id);
+                        return padrinhoObj && (
+                          <div style={{ background: 'var(--bg-secondary)', borderRadius: '8px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                              <div style={{ width: '22px', height: '22px', borderRadius: '16px', background: 'var(--accent-primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', fontWeight: 'bold' }}>
+                                {padrinhoObj.nome.charAt(0).toUpperCase()}
+                              </div>
+                              <div>
+                                <h3 style={{ margin: 0, fontSize: '1rem' }}>{padrinhoObj.nome}</h3>
+                                <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.75rem' }}>{padrinhoObj.email || ''}</p>
+                              </div>
+                            </div>
+                            <p style={{ margin: 0, fontSize: '0.75rem' }}><strong>Telefone:</strong> {padrinhoObj.telefone || 'Não informado'}</p>
+                          </div>
+                        );
+                      })()}
+
+                      {(() => {
+                        const madrinhaObj = madrinhas.find(m => m.id === formData.vinculo_madrinha_id);
+                        return madrinhaObj && (
+                          <div style={{ background: 'var(--bg-secondary)', borderRadius: '8px' }}>
+                            <h5 style={{ marginTop: 0, marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.75rem', textTransform: 'uppercase' }}>Madrinha</h5>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                              <div style={{ width: '22px', height: '22px', borderRadius: '16px', background: 'var(--accent-secondary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', fontWeight: 'bold' }}>
+                                {madrinhaObj.nome.charAt(0).toUpperCase()}
+                              </div>
+                              <div>
+                                <h3 style={{ margin: 0, fontSize: '1rem' }}>{madrinhaObj.nome}</h3>
+                                <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.75rem' }}>{madrinhaObj.email || ''}</p>
+                              </div>
+                            </div>
+                            <p style={{ margin: 0, fontSize: '0.75rem' }}><strong>Telefone:</strong> {madrinhaObj.telefone || 'Não informado'}</p>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+                </>
+              )}
 
               {/* Checkboxes de Confirmação para Padrinhos/Madrinhas */}
               {formData.tipo_pessoa === 'AFILHADO' && eventosAtivos.length > 0 && pessoaProfile &&
@@ -541,16 +592,14 @@ export const EditarPessoa = () => {
                 onChange={handleChange}
               />
             </div>
-          </div>
-
-          <div className="form-grid">
             <div className="form-group">
-              <label className="form-label" htmlFor="tipo_pessoa">Tipo de Pessoa *</label>
+              <label className="form-label" htmlFor="tipo_pessoa">Tipo *</label>
               <select
                 id="tipo_pessoa"
                 name="tipo_pessoa"
                 className="form-input"
                 value={formData.tipo_pessoa}
+                disabled={userProfile?.perfil !== 'ADMIN' && userProfile?.perfil !== 'GESTOR'}
                 onChange={handleChange}
                 required
               >
@@ -560,7 +609,6 @@ export const EditarPessoa = () => {
                 <option value="VOLUNTARIO">Voluntário(a)</option>
               </select>
             </div>
-
             <div className="form-group">
               <label className="form-label" htmlFor="ano">Ano (Turma)</label>
               <input
@@ -569,12 +617,18 @@ export const EditarPessoa = () => {
                 type="number"
                 className="form-input"
                 placeholder="Ex: 2025"
+                disabled={userProfile?.perfil !== 'ADMIN' && userProfile?.perfil !== 'GESTOR'}
                 value={formData.ano}
                 onChange={handleChange}
               />
             </div>
+          </div>
 
-            {userProfile?.perfil === 'ADMIN' && (
+          {userProfile?.perfil === 'ADMIN' && (
+            <div className="form-grid">
+
+
+
               <div className="form-group" style={{ marginBottom: '2rem' }}>
                 <label className="form-label" htmlFor="user_id">Conta de Usuário (App) Vinculada</label>
                 <select
@@ -595,9 +649,9 @@ export const EditarPessoa = () => {
                   Selecione a conta que esta pessoa usará para fazer login no sistema.
                 </small>
               </div>
-            )}
-          </div>
 
+            </div>
+          )}
           {(formData.tipo_pessoa === 'PADRINHO' || formData.tipo_pessoa === 'MADRINHA') && (
             <div className="form-group">
               <label className="form-label" htmlFor="conjuge_id">Cônjuge (opcional)</label>
@@ -673,10 +727,10 @@ export const EditarPessoa = () => {
                             />
                           </td>
                           <td style={{ padding: '0.5rem', textAlign: 'center' }}>
-                            <button 
-                              type="button" 
-                              onClick={() => handleRemoveDependente(index)} 
-                              className="btn btn-secondary" 
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveDependente(index)}
+                              className="btn btn-secondary"
                               style={{ color: 'var(--danger)', padding: '0.4rem' }}
                               title="Remover"
                             >

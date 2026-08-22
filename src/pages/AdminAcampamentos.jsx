@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { Tent, Plus, Trash2, Edit2, Search, Filter, ArrowLeft, DollarSign, CheckCircle2, XCircle, Users } from 'lucide-react';
+import { Tent, Plus, Trash2, Edit2, Search, Filter, ArrowLeft, DollarSign, CheckCircle2, XCircle, Users, X } from 'lucide-react';
 import { useParams, Link } from 'react-router-dom';
 
 export const AdminAcampamentos = () => {
@@ -74,7 +74,7 @@ export const AdminAcampamentos = () => {
             id,
             equipe,
             apc_evento ( id, descricao ),
-            apc_pessoa ( id, nome, tipo_pessoa, conjuge_id, ano )
+            apc_pessoa ( id, nome, tipo_pessoa, conjuge_id, ano, apc_dependente ( id, nome, mascote ) )
           `)
           .eq('evento_id', evento_id)
           .order('created_at', { ascending: false });
@@ -687,16 +687,16 @@ export const AdminAcampamentos = () => {
                       <td>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                           <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.35rem' }}>
-                            <span style={{ fontWeight: '500', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                              {a.apc_pessoa?.nome} <CheckCircle2 size={14} color="var(--success)" title="Inscrito no Acampamento" />
+                            <span style={{ fontWeight: '500', display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'help' }} title="Sim, vai para o Acampamento">
+                              {a.apc_pessoa?.nome} <CheckCircle2 size={14} color="var(--success)" />
                             </span>
                             {a.apc_pessoa?.conjuge && (
-                              <span style={{ fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                              <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'help' }} title={a.conjuge_inscricao ? "Sim, vai para o Acampamento" : "Não vai para o Acampamento"}>
                                 {' e '} {a.apc_pessoa.conjuge.nome}
                                 {a.conjuge_inscricao ? (
-                                  <CheckCircle2 size={14} color="var(--success)" title="Inscrito no Acampamento" />
+                                  <CheckCircle2 size={14} color="var(--success)" />
                                 ) : (
-                                  <XCircle size={14} color="var(--text-secondary)" title="Não está inscrito" />
+                                  <X size={14} color="var(--error)" />
                                 )}
                               </span>
                             )}
@@ -716,7 +716,7 @@ export const AdminAcampamentos = () => {
                                     whiteSpace: 'nowrap',
                                   }}
                                 >
-                                  <Users size={12} color="#0d2fc9ff" /> {d.nome} {d.mascote ? <CheckCircle2 size={12} color="var(--success)" /> : <XCircle size={12} color="var(--text-secondary)" />}
+                                  <Users size={12} color="#0d2fc9ff" /> {d.nome} {d.mascote ? <CheckCircle2 size={14} color="var(--success)" /> : <X size={14} color="var(--error)" />}
                                 </span>
                               ))}
                             </div>

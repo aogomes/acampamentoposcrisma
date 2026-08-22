@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { Users, Info, Edit2 } from 'lucide-react';
+import { Users, Info, Edit2, Trash2, CheckCircle2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export const Dashboard = () => {
@@ -12,6 +12,10 @@ export const Dashboard = () => {
   const [pessoaProfile, setPessoaProfile] = useState(null);
   const [ano, setAno] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const [eventoAtivo, setEventoAtivo] = useState(null);
+  const [inscricaoAtual, setInscricaoAtual] = useState(null);
+  const [isUpdatingInscricao, setIsUpdatingInscricao] = useState(false);
 
   useEffect(() => {
     if (userProfile) {
@@ -34,6 +38,31 @@ export const Dashboard = () => {
       if (!pessoaErr && pessoaData) {
         currentPessoa = pessoaData;
         setPessoaProfile(currentPessoa);
+      }
+
+      // Buscar evento ativo
+      const { data: eventoData } = await supabase
+        .from('apc_evento')
+        .select('id, descricao, equipes')
+        .eq('status', 'ATIVO')
+        .order('data_inicio', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (eventoData) {
+        setEventoAtivo(eventoData);
+
+        // Buscar inscrição no evento ativo
+        if (currentPessoa) {
+          const { data: inscricaoData } = await supabase
+            .from('apc_acampamento')
+            .select('*')
+            .eq('evento_id', eventoData.id)
+            .eq('pessoa_id', currentPessoa.id)
+            .maybeSingle();
+
+          setInscricaoAtual(inscricaoData);
+        }
       }
 
       if (currentPessoa) {
@@ -103,6 +132,45 @@ export const Dashboard = () => {
     }
   };
 
+  const handleToggleInscricao = async (checked) => {
+    if (!eventoAtivo || !pessoaProfile) return;
+
+    setIsUpdatingInscricao(true);
+    try {
+      if (checked) {
+        // Criar inscrição
+        const { data, error } = await supabase
+          .from('apc_acampamento')
+          .insert([{
+            evento_id: eventoAtivo.id,
+            pessoa_id: pessoaProfile.id,
+            equipe: []
+          }])
+          .select()
+          .single();
+
+        if (error) throw error;
+        setInscricaoAtual(data);
+      } else {
+        // Remover inscrição
+        if (inscricaoAtual) {
+          const { error } = await supabase
+            .from('apc_acampamento')
+            .delete()
+            .eq('id', inscricaoAtual.id);
+
+          if (error) throw error;
+          setInscricaoAtual(null);
+        }
+      }
+    } catch (err) {
+      console.error('Erro ao atualizar inscrição:', err.message);
+      alert('Não foi possível atualizar a inscrição. Tente novamente.');
+    } finally {
+      setIsUpdatingInscricao(false);
+    }
+  };
+
   if (authLoading) {
     return <div className="main-content"><p>Verificando sessão...</p></div>;
   }
@@ -141,7 +209,7 @@ export const Dashboard = () => {
             Olá, <strong style={{ color: 'var(--text-primary)' }}>{userProfile.nome}</strong>!
           </p>
           <div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-            <span style={{
+            {/* <span style={{
               background: 'rgba(59, 130, 246, 0.1)',
               color: 'var(--accent-primary)',
               padding: '0.25rem 0.75rem',
@@ -150,7 +218,7 @@ export const Dashboard = () => {
               fontWeight: 'bold'
             }}>
               Perfil: {userProfile.perfil}
-            </span>
+            </span> */}
             {userProfile.perfil === 'PENDENTE' && (
               <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
                 (Aguardando aprovação do administrador)
@@ -161,25 +229,43 @@ export const Dashboard = () => {
       </div>
 
       <div className="glass-panel" style={{ padding: '2rem', marginBottom: '1rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <h4 style={{ fontWeight: 'bold', fontSize: '1rem' }}>Meus Dados</h4>
-          {pessoaProfile && (
+        <h4 style={{ fontWeight: 'bold', fontSize: '1rem', marginBottom: '1rem' }}>Meus Dados</h4>
+        <hr style={{ border: 'none', borderTop: '1px solid #d1dff0ff', marginBottom: '1rem' }} />
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginTop: '1rem', marginBottom: '1rem' }}>
+          <div>
+            <strong style={{ display: 'block', marginBottom: '0.25rem' }}>Nome Completo</strong>
+            {userProfile.nome || '-'}
+          </div>
+          <div>
+            <strong style={{ display: 'block', marginBottom: '0.25rem' }}>E-mail</strong>
+            {userProfile.email || '-'}
+          </div>
+          <div>
+            <strong style={{ display: 'block', marginBottom: '0.25rem' }}>Telefone</strong>
+            {pessoaProfile?.telefone || userProfile.telefone || '-'}
+          </div>
+          <div>
+            <strong style={{ display: 'block', marginBottom: '0.25rem' }}>Data de Nascimento</strong>
+            {pessoaProfile?.data_nascimento ? new Date(pessoaProfile.data_nascimento).toLocaleDateString('pt-BR') : '-'}
+          </div>
+        </div>
+
+        {pessoaProfile && (
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
             <Link
               to={`/editar-pessoa/${pessoaProfile.id}`}
-              className="btn btn-secondary"
-              style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem' }}
+              className="btn btn-primary"
+              style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}
             >
               <Edit2 size={16} />
-              <span className="d-none d-md-flex" style={{ marginLeft: '0.25rem' }}>Atualizar Dados</span>
+              <span style={{ marginLeft: '0.5rem' }}>Atualizar Dados</span>
             </Link>
-          )}
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-          <div><strong>E-mail:</strong> {userProfile.email || '-'}</div>
-          <div><strong>Telefone:</strong> {pessoaProfile?.telefone || userProfile.telefone || '-'}</div>
-          <div><strong>Nascimento:</strong> {pessoaProfile?.data_nascimento ? new Date(pessoaProfile.data_nascimento).toLocaleDateString('pt-BR') : '-'}</div>
-        </div>
+          </div>
+        )}
       </div>
+
+
 
       {(pessoaProfile?.tipo_pessoa === 'PADRINHO' || pessoaProfile?.tipo_pessoa === 'MADRINHA') && (
         <div className="glass-panel" style={{ padding: '2rem', marginBottom: '2rem' }}>
@@ -203,7 +289,7 @@ export const Dashboard = () => {
 
       {pessoaProfile?.tipo_pessoa === 'AFILHADO' && (
         <div className="glass-panel" style={{ padding: '2rem' }}>
-          <h4 style={{ fontWeight: 'bold', fontSize: '1rem', marginBottom: '1rem' }}>Meus Padrinhos</h4>
+          <h4 style={{ fontWeight: 'bold', fontSize: '1rem', marginBottom: '1rem' }}>Meus Padrinhos {ano && <span style={{ fontWeight: 'bold', color: 'var(--accent-primary)', marginBottom: '1rem' }}>Turma {ano}</span>}</h4>
 
           {loading ? (
             <p>Carregando...</p>
@@ -213,13 +299,12 @@ export const Dashboard = () => {
             </div>
           ) : (
             <>
-              {ano && <p style={{ fontWeight: 'bold', color: 'var(--accent-primary)', marginBottom: '1rem' }}>Turma {ano}</p>}
+
               <div className="form-grid">
                 {padrinho && (
                   <div style={{ background: 'var(--bg-secondary)', padding: '1.5rem', borderRadius: '8px' }}>
-                    <h5 style={{ marginTop: 0, marginBottom: '1rem', color: 'var(--text-secondary)', fontSize: '0.875rem', textTransform: 'uppercase' }}>Padrinho</h5>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
-                      <div style={{ width: '48px', height: '48px', borderRadius: '24px', background: 'var(--accent-primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', fontWeight: 'bold' }}>
+                      <div style={{ width: '32px', height: '32px', borderRadius: '24px', background: 'var(--accent-primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', fontWeight: 'bold' }}>
                         {padrinho.nome.charAt(0).toUpperCase()}
                       </div>
                       <div>
@@ -233,9 +318,8 @@ export const Dashboard = () => {
 
                 {madrinha && (
                   <div style={{ background: 'var(--bg-secondary)', padding: '1.5rem', borderRadius: '8px' }}>
-                    <h5 style={{ marginTop: 0, marginBottom: '1rem', color: 'var(--text-secondary)', fontSize: '0.875rem', textTransform: 'uppercase' }}>Madrinha</h5>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
-                      <div style={{ width: '48px', height: '48px', borderRadius: '24px', background: 'var(--accent-secondary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', fontWeight: 'bold' }}>
+                      <div style={{ width: '32px', height: '32px', borderRadius: '24px', background: 'var(--accent-secondary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', fontWeight: 'bold' }}>
                         {madrinha.nome.charAt(0).toUpperCase()}
                       </div>
                       <div>
@@ -252,12 +336,43 @@ export const Dashboard = () => {
         </div>
       )}
 
-      {/* {(userProfile.perfil === 'ADMIN' || userProfile.perfil === 'GESTOR') && (
-        <div className="glass-panel" style={{ padding: '2rem' }}>
-          <h4 style={{ fontWeight: 'bold', fontSize: '1.125rem', marginBottom: '1.5rem' }}>Visão da Coordenação</h4>
-          <p>Utilize os menus laterais para gerenciar os cadastros, eventos e realizar os vínculos do Acampamento.</p>
+      {eventoAtivo && pessoaProfile && (
+        <div className="glass-panel" style={{ padding: '2rem', marginBottom: '2rem', borderLeft: '4px solid var(--success)' }}>
+          <h4 style={{ fontWeight: 'bold', fontSize: '1rem', marginBottom: '1rem' }}>Confirmação para {eventoAtivo.descricao}</h4>
+          {inscricaoAtual ? (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(16, 185, 129, 0.1)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+              <span style={{ color: 'var(--success)', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <CheckCircle2 size={20} />
+                {pessoaProfile.tipo_pessoa.charAt(0) + pessoaProfile.tipo_pessoa.slice(1).toLowerCase()} está confirmado(a) no {eventoAtivo.descricao}
+              </span>
+              <button
+                onClick={() => handleToggleInscricao(false)}
+                disabled={isUpdatingInscricao}
+                className="btn btn-secondary"
+                style={{ padding: '0.4rem', color: 'var(--error)' }}
+                title="Remover confirmação"
+              >
+                <Trash2 size={18} />
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-secondary)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '1rem' }}>
+              <span style={{ color: 'var(--text-secondary)' }}>
+                Você ainda não confirmou presença no <strong style={{ color: 'var(--accent-primary)' }}>{eventoAtivo.descricao}</strong>.
+              </span>
+              <button
+                onClick={() => handleToggleInscricao(true)}
+                disabled={isUpdatingInscricao}
+                className="btn btn-primary"
+                style={{ padding: '0.5rem 1rem' }}
+              >
+                Confirmar Inscrição
+              </button>
+            </div>
+          )}
         </div>
-      )} */}
+      )}
+
     </div>
   );
 };
