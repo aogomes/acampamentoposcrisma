@@ -10,20 +10,33 @@ CREATE TABLE IF NOT EXISTS public.apc_perfil (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+-- Tabela de Dependentes (Filhos)
+DROP TABLE IF EXISTS public.apc_dependente CASCADE;
+CREATE TABLE IF NOT EXISTS public.apc_dependente (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    pessoa_id UUID REFERENCES public.apc_pessoa(id) ON DELETE CASCADE NOT NULL,
+    nome TEXT NOT NULL,
+    data_nascimento DATE,
+    mascote BOOLEAN DEFAULT false NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
 -- Tabela de Vínculos (Acampamento)
 DROP TABLE IF EXISTS public.apc_vinculo;
 CREATE TABLE IF NOT EXISTS public.apc_vinculo (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    padrinho_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-    madrinha_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-    afilhado_id UUID REFERENCES auth.users(id) ON DELETE CASCADE UNIQUE NOT NULL,
+    padrinho_id UUID REFERENCES public.apc_pessoa(id) ON DELETE SET NULL,
+    madrinha_id UUID REFERENCES public.apc_pessoa(id) ON DELETE SET NULL,
+    afilhado_id UUID REFERENCES public.apc_pessoa(id) ON DELETE CASCADE UNIQUE NOT NULL,
     ano INTEGER NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
 -- Habilitar Row Level Security (RLS)
 ALTER TABLE public.apc_perfil ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.apc_pessoa ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.apc_vinculo ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.apc_dependente ENABLE ROW LEVEL SECURITY;
 
 -- Políticas para apc_perfil
 -- 1. Qualquer usuário autenticado pode ver seu próprio perfil
@@ -38,12 +51,26 @@ ON public.apc_perfil FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Usuários podem atualizar seu perfil" 
 ON public.apc_perfil FOR UPDATE USING (auth.uid() = user_id);
 
--- 4. ADMIN pode ver todos os perfis
-CREATE POLICY "ADMIN pode ver todos os perfis" 
+-- 4. ADMIN e GESTOR podem ver todos os perfis
+CREATE POLICY "ADMIN e GESTOR podem ver todos os perfis" 
 ON public.apc_perfil FOR SELECT 
+USING ( public.is_admin_or_gestor() );
+
+-- Políticas para apc_dependente
+CREATE POLICY "Qualquer autenticado pode ver dependentes" 
+ON public.apc_dependente FOR SELECT USING (auth.uid() IS NOT NULL);
+
+CREATE POLICY "ADMIN e GESTOR tem acesso total aos dependentes" 
+ON public.apc_dependente FOR ALL 
+USING (public.is_admin_or_gestor());
+
+CREATE POLICY "Pessoas podem gerenciar seus proprios dependentes" 
+ON public.apc_dependente FOR ALL 
 USING (
-  EXISTS (
-    SELECT 1 FROM public.apc_perfil WHERE user_id = auth.uid() AND perfil = 'ADMIN'
+  pessoa_id IN (
+    SELECT id FROM public.apc_pessoa WHERE user_id = auth.uid()
+    UNION
+    SELECT id FROM public.apc_pessoa WHERE conjuge_id = (SELECT id FROM public.apc_pessoa WHERE user_id = auth.uid() LIMIT 1)
   )
 );
 

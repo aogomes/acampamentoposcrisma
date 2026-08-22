@@ -9,7 +9,11 @@ import { CadastroPessoa } from './pages/CadastroPessoa';
 import { EditarPessoa } from './pages/EditarPessoa';
 import { AdminCredenciamento } from './pages/AdminCredenciamento';
 import { AdminVinculos } from './pages/AdminVinculos';
-import { AdminNovoVinculo } from './pages/AdminNovoVinculo';
+import { AdminEventos } from './pages/AdminEventos';
+import { EditarEvento } from './pages/EditarEvento';
+import { AdminAcampamentos } from './pages/AdminAcampamentos';
+import { AdminPagamentos } from './pages/AdminPagamentos';
+import { MeusAfilhados } from './pages/MeusAfilhados';
 import './index.css';
 
 function App() {
@@ -46,6 +50,14 @@ function App() {
               </ProtectedRoute>
             } />
             
+            <Route path="/meus-afilhados" element={
+              <ProtectedRoute>
+                <Layout>
+                  <MeusAfilhados />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            
             <Route path="/admin/credenciamento" element={
               <ProtectedRoute>
                 <Layout>
@@ -62,10 +74,34 @@ function App() {
               </ProtectedRoute>
             } />
 
-            <Route path="/admin/vinculos/novo" element={
+            <Route path="/admin/eventos" element={
               <ProtectedRoute>
                 <Layout>
-                  <AdminNovoVinculo />
+                  <AdminEventos />
+                </Layout>
+              </ProtectedRoute>
+            } />
+
+            <Route path="/admin/eventos/:id" element={
+              <ProtectedRoute>
+                <Layout>
+                  <EditarEvento />
+                </Layout>
+              </ProtectedRoute>
+            } />
+
+            <Route path="/admin/acampamentos/:evento_id" element={
+              <ProtectedRoute>
+                <Layout>
+                  <AdminAcampamentos />
+                </Layout>
+              </ProtectedRoute>
+            } />
+
+            <Route path="/admin/pagamentos/:acampamento_id" element={
+              <ProtectedRoute>
+                <Layout>
+                  <AdminPagamentos />
                 </Layout>
               </ProtectedRoute>
             } />

@@ -64,12 +64,12 @@ export const AdminCredenciamento = () => {
 
   return (
     <div className="main-content">
-      <div className="glass-panel" style={{ padding: '2rem', marginBottom: '2rem' }}>
-        <h1 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+      <div className="glass-panel" style={{ padding: '1.5rem', marginBottom: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <h1 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', margin: 0, fontSize: '1.75rem', flexWrap: 'wrap' }}>
           <ShieldCheck size={32} color="var(--accent-primary)" />
           Gerenciamento de Acesso dos Usuários
         </h1>
-        <p style={{ marginTop: '0.5rem', fontSize: '0.8rem' }}>
+        <p style={{ margin: 0, fontSize: '1rem', color: 'var(--text-secondary)' }}>
           Aqui você pode aprovar e gerenciar os perfis de acesso dos usuários cadastrados no sistema.
         </p>
       </div>
@@ -115,12 +115,12 @@ export const AdminCredenciamento = () => {
                         fontWeight: 'bold',
                         backgroundColor:
                           u.perfil === 'ADMIN' ? 'rgba(239, 68, 68, 0.1)' :
-                            (u.perfil === 'PADRINHO' || u.perfil === 'MADRINHA') ? 'rgba(139, 92, 246, 0.1)' :
-                              u.perfil === 'AFILHADO' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(100, 116, 139, 0.1)',
+                            u.perfil === 'GESTOR' ? 'rgba(245, 158, 11, 0.1)' :
+                              u.perfil === 'USUARIO' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(100, 116, 139, 0.1)',
                         color:
                           u.perfil === 'ADMIN' ? '#ef4444' :
-                            (u.perfil === 'PADRINHO' || u.perfil === 'MADRINHA') ? '#8b5cf6' :
-                              u.perfil === 'AFILHADO' ? '#3b82f6' : '#64748b'
+                            u.perfil === 'GESTOR' ? '#f59e0b' :
+                              u.perfil === 'USUARIO' ? '#3b82f6' : '#64748b'
                       }}>
                         {u.perfil}
                       </span>
@@ -134,9 +134,8 @@ export const AdminCredenciamento = () => {
                         disabled={u.user_id === userProfile.user_id} // Não pode mudar o próprio perfil aqui
                       >
                         <option value="PENDENTE">PENDENTE</option>
-                        <option value="AFILHADO">AFILHADO</option>
-                        <option value="PADRINHO">PADRINHO</option>
-                        <option value="MADRINHA">MADRINHA</option>
+                        <option value="USUARIO">USUÁRIO COMUM</option>
+                        <option value="GESTOR">GESTOR</option>
                         <option value="ADMIN">ADMIN</option>
                       </select>
                     </td>

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { Users, Trash2, Plus } from 'lucide-react';
+import { Users, Trash2, Edit2 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
 export const AdminVinculos = () => {
@@ -22,23 +22,23 @@ export const AdminVinculos = () => {
 
       // Carregar perfis PADRINHO
       const { data: dataPadrinhos, error: errP } = await supabase
-        .from('apc_perfil')
+        .from('apc_pessoa')
         .select('*')
-        .eq('perfil', 'PADRINHO');
+        .eq('tipo_pessoa', 'PADRINHO');
       if (errP) throw errP;
 
       // Carregar perfis MADRINHA
       const { data: dataMadrinhas, error: errM } = await supabase
-        .from('apc_perfil')
+        .from('apc_pessoa')
         .select('*')
-        .eq('perfil', 'MADRINHA');
+        .eq('tipo_pessoa', 'MADRINHA');
       if (errM) throw errM;
 
       // Carregar perfis AFILHADO
       const { data: dataAfilhados, error: errA } = await supabase
-        .from('apc_perfil')
+        .from('apc_pessoa')
         .select('*')
-        .eq('perfil', 'AFILHADO');
+        .eq('tipo_pessoa', 'AFILHADO');
       if (errA) throw errA;
 
       // Carregar Vínculos
@@ -60,7 +60,7 @@ export const AdminVinculos = () => {
   };
 
   useEffect(() => {
-    if (userProfile?.perfil === 'ADMIN') {
+    if (userProfile?.perfil === 'ADMIN' || userProfile?.perfil === 'GESTOR') {
       fetchData();
     }
   }, [userProfile]);
@@ -87,36 +87,30 @@ export const AdminVinculos = () => {
     }
   };
 
-  if (userProfile?.perfil !== 'ADMIN') {
+  if (userProfile?.perfil !== 'ADMIN' && userProfile?.perfil !== 'GESTOR') {
     return (
       <div className="main-content">
-        <div className="alert alert-error">Acesso negado.</div>
+        <div className="alert alert-error">Acesso negado. Você não tem permissão para acessar esta página.</div>
       </div>
     );
   }
 
   // Helpers para exibir os nomes na tabela
   const getNome = (id, lista) => {
-    const p = lista.find(item => item.user_id === id);
+    const p = lista.find(item => item.id === id);
     return p ? p.nome : 'Desconhecido';
   };
 
   return (
     <div className="main-content">
-      <div className="glass-panel" style={{ padding: '2rem', marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-        <div>
-          <h1 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', margin: 0 }}>
-            <Users size={32} color="var(--accent-primary)" />
-            Vínculos dos Afilhados
-          </h1>
-          <p style={{ marginTop: '0.5rem', fontSize: '1.1rem', marginBottom: 0 }}>
-            Atribua afilhados aos seus respectivos padrinhos.
-          </p>
-        </div>
-        <Link to="/admin/vinculos/novo" className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <Plus size={20} />
-          Novo Vínculo
-        </Link>
+      <div className="glass-panel" style={{ padding: '1.5rem', marginBottom: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <h1 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', margin: 0, fontSize: '1.75rem', flexWrap: 'wrap' }}>
+          <Users size={32} color="var(--accent-primary)" />
+          Vínculos dos Afilhados
+        </h1>
+        <p style={{ margin: 0, fontSize: '1rem', color: 'var(--text-secondary)' }}>
+          Lista de vínculos cadastrados. Para editar ou criar, acesse o cadastro do afilhado.
+        </p>
       </div>
 
       {error && <div className="alert alert-error" style={{ marginBottom: '2rem' }}>{error}</div>}
@@ -155,14 +149,24 @@ export const AdminVinculos = () => {
                       {getNome(v.padrinho_id, padrinhos)} e {getNome(v.madrinha_id, madrinhas)}
                     </td>
                     <td style={{ textAlign: 'right' }}>
-                      <button
-                        onClick={() => handleRemoverVinculo(v.id)}
-                        className="btn btn-secondary"
-                        style={{ padding: '0.4rem 0.75rem', fontSize: '0.875rem', color: 'var(--error)' }}
-                        title="Remover Vínculo"
-                      >
-                        <Trash2 size={16} />
-                      </button>
+                      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                        <Link
+                          to={`/editar-pessoa/${v.afilhado_id}`}
+                          className="btn btn-secondary"
+                          style={{ padding: '0.4rem 0.75rem', fontSize: '0.875rem' }}
+                          title="Editar no Cadastro do Afilhado"
+                        >
+                          <Edit2 size={16} />
+                        </Link>
+                        <button
+                          onClick={() => handleRemoverVinculo(v.id)}
+                          className="btn btn-secondary"
+                          style={{ padding: '0.4rem 0.75rem', fontSize: '0.875rem', color: 'var(--error)' }}
+                          title="Remover Vínculo"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

@@ -8,22 +8,36 @@ export const AuthProvider = ({ children }) => {
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const [pessoaProfile, setPessoaProfile] = useState(null);
+
   const fetchProfile = async (userId) => {
     try {
-      const { data, error } = await supabase
+      // Fetch Perfil
+      const { data: perfilData, error: perfilError } = await supabase
         .from('apc_perfil')
         .select('*')
         .eq('user_id', userId)
-        .maybeSingle(); // maybeSingle returns null if no rows, single throws error
+        .maybeSingle();
         
-      if (data) {
-        setUserProfile(data);
-      } else {
-        setUserProfile(null);
+      if (perfilError && (perfilError.message.includes('JWT') || perfilError.code === 'PGRST301')) {
+        await supabase.auth.signOut();
+        return;
       }
+        
+      setUserProfile(perfilData || null);
+
+      // Fetch Pessoa
+      const { data: pessoaData } = await supabase
+        .from('apc_pessoa')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      setPessoaProfile(pessoaData || null);
     } catch (err) {
       console.error('Error fetching profile:', err);
       setUserProfile(null);
+      setPessoaProfile(null);
     }
   };
 
@@ -44,6 +58,7 @@ export const AuthProvider = ({ children }) => {
         await fetchProfile(session.user.id);
       } else {
         setUserProfile(null);
+        setPessoaProfile(null);
       }
       setLoading(false);
     });
@@ -57,6 +72,7 @@ export const AuthProvider = ({ children }) => {
     signOut: () => supabase.auth.signOut(),
     user,
     userProfile,
+    pessoaProfile,
     refreshProfile: () => user && fetchProfile(user.id),
     loading
   };

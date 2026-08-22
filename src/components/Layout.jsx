@@ -9,11 +9,13 @@ import {
   ChevronRight,
   Menu,
   ShieldCheck,
-  Link as LinkIcon
+  Link as LinkIcon,
+  Calendar,
+  Tent
 } from 'lucide-react';
 
 export const Layout = ({ children }) => {
-  const { user, signOut, userProfile } = useAuth();
+  const { user, signOut, userProfile, pessoaProfile } = useAuth();
   const navigate = useNavigate();
 
   // State for sidebar collapse (desktop) and mobile drawer
@@ -89,27 +91,49 @@ export const Layout = ({ children }) => {
             onClick={() => setIsMobileOpen(false)}
           >
             <div className="nav-item-icon"><Users size={20} /></div>
-            <span className="nav-item-text">Dashboard</span>
+            <span className="nav-item-text">Meu Painel</span>
           </NavLink>
 
-          {perfil === 'ADMIN' && (
+          {(pessoaProfile?.tipo_pessoa === 'PADRINHO' || pessoaProfile?.tipo_pessoa === 'MADRINHA') && (
+            <NavLink
+              to="/meus-afilhados"
+              className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+              onClick={() => setIsMobileOpen(false)}
+            >
+              <div className="nav-item-icon"><Users size={20} /></div>
+              <span className="nav-item-text">Afilhados</span>
+            </NavLink>
+          )}
+
+          {(perfil === 'ADMIN' || perfil === 'GESTOR') && (
             <>
               <NavLink
-                to="/admin/credenciamento"
+                to="/cadastro-pessoa"
                 className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
                 onClick={() => setIsMobileOpen(false)}
               >
-                <div className="nav-item-icon"><ShieldCheck size={20} /></div>
-                <span className="nav-item-text">Aprovar Usuários</span>
+                <div className="nav-item-icon"><UserPlus size={20} /></div>
+                <span className="nav-item-text">Pessoas</span>
               </NavLink>
 
+              {perfil === 'ADMIN' && (
+                <NavLink
+                  to="/admin/credenciamento"
+                  className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+                  onClick={() => setIsMobileOpen(false)}
+                >
+                  <div className="nav-item-icon"><ShieldCheck size={20} /></div>
+                  <span className="nav-item-text">Usuários</span>
+                </NavLink>
+              )}
+
               <NavLink
-                to="/admin/vinculos"
+                to="/admin/eventos"
                 className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
                 onClick={() => setIsMobileOpen(false)}
               >
-                <div className="nav-item-icon"><LinkIcon size={20} /></div>
-                <span className="nav-item-text">Vínculos Acamp.</span>
+                <div className="nav-item-icon"><Calendar size={20} /></div>
+                <span className="nav-item-text">Eventos</span>
               </NavLink>
             </>
           )}
