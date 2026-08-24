@@ -768,9 +768,22 @@ export const AdminAcampamentos = () => {
                             if (combined.length === 0) {
                               return <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>Nenhuma</span>;
                             }
-                            return combined.map(eq => (
-                              <span key={eq} style={{ background: 'rgba(59, 130, 246, 0.1)', color: 'var(--accent-primary)', padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: '500' }}>{eq}</span>
-                            ));
+                            return combined.map(eq => {
+                              let bg = 'rgba(59, 130, 246, 0.1)';
+                              let color = 'var(--accent-primary)';
+
+                              if (eq === 'Padrinhos') {
+                                bg = 'rgba(16, 185, 129, 0.1)';
+                                color = '#059669';
+                              } else if (eq === 'Afilhado(a)') {
+                                bg = 'rgba(245, 158, 11, 0.1)';
+                                color = '#d97706';
+                              }
+
+                              return (
+                                <span key={eq} style={{ background: bg, color: color, padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: '500' }}>{eq}</span>
+                              );
+                            });
                           })()}
                         </div>
                       </td>
