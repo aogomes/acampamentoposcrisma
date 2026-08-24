@@ -1,8 +1,65 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { Tent, Plus, Trash2, Edit2, Search, Filter, ArrowLeft, DollarSign, CheckCircle2, XCircle, Users, X } from 'lucide-react';
+import { Tent, Plus, Trash2, Edit2, Search, Filter, ArrowLeft, DollarSign, CheckCircle2, XCircle, Users, X, ChevronDown, ChevronRight } from 'lucide-react';
 import { useParams, Link } from 'react-router-dom';
+
+const DependentesAccordion = ({ dependentes }) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  if (!dependentes || dependentes.length === 0) return null;
+
+  return (
+    <div style={{ marginTop: '0.5rem' }}>
+      <div
+        onClick={() => setIsOpen(!isOpen)}
+        title='Filho(s) inscrito(s) no acampamento'
+        style={{
+          fontSize: '0.75rem',
+          color: 'var(--text-secondary)',
+          cursor: 'pointer',
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '0.25rem',
+          userSelect: 'none',
+          padding: '0.2rem 0.5rem',
+          background: 'var(--bg-secondary)',
+          borderRadius: '4px',
+          border: '1px solid var(--border-color)'
+        }}
+      >
+        <Users size={12} />
+        {isOpen ? 'Filho(s)' : `Ver Filho(s) (${dependentes.length})`}
+        {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+      </div>
+
+      {isOpen && (
+        <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.5rem', paddingLeft: '1rem', borderLeft: '2px solid var(--accent-primary)' }}>
+          {dependentes.map(d => (
+            <span
+              key={d.id}
+              title={d.mascote ? "Filho(a): Sim, vai para o acampamento" : "Filho(a): Não vai para o acampamento"}
+              style={{
+                fontSize: '0.75rem',
+                color: 'var(--text-primary)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.3rem',
+                whiteSpace: 'nowrap',
+                background: 'var(--bg-secondary)',
+                padding: '0.25rem 0.5rem',
+                borderRadius: '6px',
+                border: '1px solid var(--border-color)'
+              }}
+            >
+              {d.nome} {d.mascote ? <CheckCircle2 size={14} color="var(--success)" /> : <X size={14} color="var(--error)" />}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 export const AdminAcampamentos = () => {
   const { userProfile } = useAuth();
@@ -674,7 +731,7 @@ export const AdminAcampamentos = () => {
                 <thead>
                   <tr>
                     <th>Ano</th>
-                    <th>Nome</th>
+                    <th style={{ width: '30%', minWidth: '250px' }}>Nome</th>
                     <th>Equipe</th>
                     <th>Padrinhos</th>
                     <th style={{ textAlign: 'right' }}>Ações</th>
@@ -701,26 +758,7 @@ export const AdminAcampamentos = () => {
                               </span>
                             )}
                           </div>
-                          {a.apc_pessoa?.dependentes_agrupados?.length > 0 && (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', marginTop: '0.25rem', paddingLeft: '1.5rem', borderLeft: '2px solid var(--border-color)' }}>
-                              {a.apc_pessoa.dependentes_agrupados.map(d => (
-                                <span
-                                  key={d.id}
-                                  title={d.mascote ? "Filho(a): Sim, vai para o acampamento" : "Filho(a): Não vai para o acampamento"}
-                                  style={{
-                                    fontSize: '0.75rem',
-                                    color: 'var(--text-primary)',
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '0.3rem',
-                                    whiteSpace: 'nowrap',
-                                  }}
-                                >
-                                  <Users size={12} color="#0d2fc9ff" /> {d.nome} {d.mascote ? <CheckCircle2 size={14} color="var(--success)" /> : <X size={14} color="var(--error)" />}
-                                </span>
-                              ))}
-                            </div>
-                          )}
+                          <DependentesAccordion dependentes={a.apc_pessoa?.dependentes_agrupados} />
                         </div>
                       </td>
                       <td>
