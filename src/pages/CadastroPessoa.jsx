@@ -27,7 +27,12 @@ export const CadastroPessoa = () => {
     conjuge_id: '',
     user_id: '',
     vinculo_padrinho_id: '',
-    vinculo_madrinha_id: ''
+    vinculo_madrinha_id: '',
+    nome_pai: '',
+    nome_mae: '',
+    fone_responsavel: '',
+    necessidade_medica: '',
+    camiseta: ''
   });
   const [dependentes, setDependentes] = useState([]);
 
@@ -193,7 +198,12 @@ export const CadastroPessoa = () => {
         tipo_pessoa: formData.tipo_pessoa,
         ano: formData.ano ? parseInt(formData.ano) : null,
         conjuge_id: formData.conjuge_id || null,
-        user_id: formData.user_id || null
+        user_id: formData.user_id || null,
+        nome_pai: formData.nome_pai || null,
+        nome_mae: formData.nome_mae || null,
+        fone_responsavel: formData.fone_responsavel || null,
+        necessidade_medica: formData.necessidade_medica || null,
+        camiseta: formData.camiseta || null
       };
 
       const { data: newPessoa, error: dbError } = await supabase
@@ -238,7 +248,7 @@ export const CadastroPessoa = () => {
       }
 
       setSuccess('Pessoa cadastrada com sucesso!');
-      setFormData({ nome: '', email: '', telefone: '', sexo: '', data_nascimento: '', tipo_pessoa: 'AFILHADO', ano: '', conjuge_id: '', user_id: '', vinculo_padrinho_id: '', vinculo_madrinha_id: '' });
+      setFormData({ nome: '', email: '', telefone: '', sexo: '', data_nascimento: '', tipo_pessoa: 'AFILHADO', ano: '', conjuge_id: '', user_id: '', vinculo_padrinho_id: '', vinculo_madrinha_id: '', nome_pai: '', nome_mae: '', fone_responsavel: '', necessidade_medica: '', camiseta: '' });
       setDependentes([]);
 
       setTimeout(() => {
@@ -289,8 +299,7 @@ export const CadastroPessoa = () => {
         {error && <div className="alert alert-error" style={{ marginBottom: '1.5rem' }}>{error}</div>}
         {success && <div className="alert alert-success" style={{ marginBottom: '2rem' }}>{success}</div>}
 
-        <div className="glass-panel" style={{ padding: '2rem' }}>
-
+        <div className="glass-panel" style={{ padding: '1.5rem' }}>
           <form onSubmit={handleSubmit}>
             <div className="form-group">
               <label className="form-label" htmlFor="nome">Nome Completo *</label>
@@ -332,7 +341,20 @@ export const CadastroPessoa = () => {
                   onChange={handleChange}
                 />
               </div>
+            </div>
 
+            <div className="form-grid">
+              <div className="form-group">
+                <label className="form-label" htmlFor="data_nascimento">Data de Nascimento</label>
+                <input
+                  id="data_nascimento"
+                  name="data_nascimento"
+                  type="date"
+                  className="form-input"
+                  value={formData.data_nascimento}
+                  onChange={handleChange}
+                />
+              </div>
               <div className="form-group">
                 <label className="form-label" htmlFor="sexo">Sexo</label>
                 <select
@@ -349,19 +371,67 @@ export const CadastroPessoa = () => {
               </div>
             </div>
 
-            <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-              <label className="form-label" htmlFor="data_nascimento">Data de Nascimento</label>
-              <input
-                id="data_nascimento"
-                name="data_nascimento"
-                type="date"
-                className="form-input"
-                value={formData.data_nascimento}
-                onChange={handleChange}
-              />
+            <div className="form-grid">
+              <div className="form-group">
+                <label className="form-label" htmlFor="nome_pai">Nome do Pai</label>
+                <input
+                  id="nome_pai"
+                  name="nome_pai"
+                  type="text"
+                  className="form-input"
+                  placeholder="Nome do Pai"
+                  value={formData.nome_pai}
+                  onChange={handleChange}
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label" htmlFor="nome_mae">Nome da Mãe</label>
+                <input
+                  id="nome_mae"
+                  name="nome_mae"
+                  type="text"
+                  className="form-input"
+                  placeholder="Nome da Mãe"
+                  value={formData.nome_mae}
+                  onChange={handleChange}
+                />
+              </div>
             </div>
 
-            <div className="form-grid" style={{ marginBottom: '2rem' }}>
+            <div className="form-grid">
+              <div className="form-group">
+                <label className="form-label" htmlFor="fone_responsavel">Telefone do Responsável</label>
+                <input
+                  id="fone_responsavel"
+                  name="fone_responsavel"
+                  type="text"
+                  className="form-input"
+                  placeholder="(00) 00000-0000"
+                  value={formData.fone_responsavel}
+                  onChange={handleChange}
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label" htmlFor="camiseta">Camiseta</label>
+                <select
+                  id="camiseta"
+                  name="camiseta"
+                  className="form-input"
+                  value={formData.camiseta}
+                  onChange={handleChange}
+                >
+                  <option value="">-- Tamanho --</option>
+                  <option value="PP">PP</option>
+                  <option value="P">P</option>
+                  <option value="M">M</option>
+                  <option value="G">G</option>
+                  <option value="GG">GG</option>
+                  <option value="EGG">EGG</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="form-grid">
               <div className="form-group">
                 <label className="form-label" htmlFor="tipo_pessoa">Tipo de Pessoa *</label>
                 <select
@@ -391,25 +461,38 @@ export const CadastroPessoa = () => {
                   onChange={handleChange}
                 />
               </div>
-
-              {(formData.tipo_pessoa === 'PADRINHO' || formData.tipo_pessoa === 'MADRINHA') && (
-                <div className="form-group">
-                  <label className="form-label" htmlFor="conjuge_id">Cônjuge (opcional)</label>
-                  <select
-                    id="conjuge_id"
-                    name="conjuge_id"
-                    className="form-input"
-                    value={formData.conjuge_id}
-                    onChange={handleChange}
-                  >
-                    <option value="">-- Selecione o cônjuge --</option>
-                    {potenciaisConjuges.map(c => (
-                      <option key={c.id} value={c.id}>{c.nome}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
             </div>
+
+            <div className="form-group" style={{ width: '100%' }}>
+              <label className="form-label" htmlFor="necessidade_medica">Necessidade Médica / Restrição Alimentar</label>
+              <textarea
+                id="necessidade_medica"
+                name="necessidade_medica"
+                className="form-input"
+                placeholder="Descreva se houver alguma necessidade médica ou restrição alimentar"
+                value={formData.necessidade_medica}
+                onChange={handleChange}
+                rows="4"
+              />
+            </div>
+
+            {(formData.tipo_pessoa === 'PADRINHO' || formData.tipo_pessoa === 'MADRINHA') && (
+              <div className="form-group">
+                <label className="form-label" htmlFor="conjuge_id">Cônjuge (opcional)</label>
+                <select
+                  id="conjuge_id"
+                  name="conjuge_id"
+                  className="form-input"
+                  value={formData.conjuge_id}
+                  onChange={handleChange}
+                >
+                  <option value="">-- Selecione o cônjuge --</option>
+                  {potenciaisConjuges.map(c => (
+                    <option key={c.id} value={c.id}>{c.nome}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {formData.tipo_pessoa === 'AFILHADO' && (
               <div style={{ background: 'rgba(59, 130, 246, 0.05)', padding: '1.25rem', borderRadius: '8px', marginBottom: '2rem', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
@@ -449,7 +532,7 @@ export const CadastroPessoa = () => {
             )}
 
             {userProfile?.perfil === 'ADMIN' && (
-              <div className="form-group" style={{ marginBottom: '2rem' }}>
+              <div className="form-group">
                 <label className="form-label" htmlFor="user_id">Conta de Usuário (App) Vinculada</label>
                 <select
                   id="user_id"
@@ -465,9 +548,6 @@ export const CadastroPessoa = () => {
                     </option>
                   ))}
                 </select>
-                <small style={{ color: 'var(--text-secondary)', marginTop: '0.5rem', display: 'block' }}>
-                  Selecione a conta que esta pessoa usará para fazer login no sistema. Se ela ainda não criou conta, deixe em branco.
-                </small>
               </div>
             )}
 
@@ -528,10 +608,10 @@ export const CadastroPessoa = () => {
                               />
                             </td>
                             <td style={{ padding: '0.5rem', textAlign: 'center' }}>
-                              <button 
-                                type="button" 
-                                onClick={() => handleRemoveDependente(index)} 
-                                className="btn btn-secondary" 
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveDependente(index)}
+                                className="btn btn-secondary"
                                 style={{ color: 'var(--danger)', padding: '0.4rem' }}
                                 title="Remover"
                               >

@@ -12,6 +12,9 @@ export const Register = () => {
   const [msg, setMsg] = useState('');
   const [loading, setLoading] = useState(false);
   
+  const [tipoPessoa, setTipoPessoa] = useState('');
+  const [ano, setAno] = useState('');
+  
   const { signUp } = useAuth();
   const navigate = useNavigate();
 
@@ -27,7 +30,9 @@ export const Register = () => {
         password,
         options: {
           data: {
-            nome: nome
+            nome: nome,
+            tipo_pessoa: tipoPessoa,
+            ano: ano ? parseInt(ano) : null
           }
         }
       });
@@ -76,6 +81,38 @@ export const Register = () => {
               required
             />
           </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="tipo_pessoa">Tipo de Pessoa *</label>
+            <select
+              id="tipo_pessoa"
+              className="form-input"
+              value={tipoPessoa}
+              onChange={(e) => setTipoPessoa(e.target.value)}
+              required
+            >
+              <option value="">-- Selecione --</option>
+              <option value="AFILHADO">Afilhado(a)</option>
+              <option value="PADRINHO">Padrinho</option>
+              <option value="MADRINHA">Madrinha</option>
+              <option value="VOLUNTARIO">Voluntário(a)</option>
+            </select>
+          </div>
+
+          {['PADRINHO', 'MADRINHA', 'AFILHADO'].includes(tipoPessoa) && (
+            <div className="form-group">
+              <label className="form-label" htmlFor="ano">Ano (Turma) *</label>
+              <input 
+                id="ano"
+                type="number" 
+                className="form-input" 
+                placeholder="Ex: 2025"
+                value={ano}
+                onChange={(e) => setAno(e.target.value)}
+                required={['PADRINHO', 'MADRINHA', 'AFILHADO'].includes(tipoPessoa)}
+              />
+            </div>
+          )}
           
           <div className="form-group" style={{ marginBottom: '2rem' }}>
             <label className="form-label" htmlFor="password">Senha</label>

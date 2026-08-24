@@ -21,7 +21,12 @@ export const EditarPessoa = () => {
     user_id: '',
     vinculo_id: '',
     vinculo_padrinho_id: '',
-    vinculo_madrinha_id: ''
+    vinculo_madrinha_id: '',
+    nome_pai: '',
+    nome_mae: '',
+    fone_responsavel: '',
+    necessidade_medica: '',
+    camiseta: ''
   });
 
   const [dependentes, setDependentes] = useState([]);
@@ -123,7 +128,12 @@ export const EditarPessoa = () => {
           tipo_pessoa: data.tipo_pessoa || 'AFILHADO',
           ano: data.ano || '',
           conjuge_id: data.conjuge_id || '',
-          user_id: data.user_id || ''
+          user_id: data.user_id || '',
+          nome_pai: data.nome_pai || '',
+          nome_mae: data.nome_mae || '',
+          fone_responsavel: data.fone_responsavel || '',
+          necessidade_medica: data.necessidade_medica || '',
+          camiseta: data.camiseta || ''
         });
 
         if (data.tipo_pessoa === 'AFILHADO') {
@@ -261,7 +271,12 @@ export const EditarPessoa = () => {
           tipo_pessoa: formData.tipo_pessoa,
           ano: formData.ano ? parseInt(formData.ano) : null,
           conjuge_id: formData.conjuge_id || null,
-          user_id: formData.user_id || null
+          user_id: formData.user_id || null,
+          nome_pai: formData.nome_pai || null,
+          nome_mae: formData.nome_mae || null,
+          fone_responsavel: formData.fone_responsavel || null,
+          necessidade_medica: formData.necessidade_medica || null,
+          camiseta: formData.camiseta || null
         })
         .eq('id', id);
 
@@ -378,8 +393,7 @@ export const EditarPessoa = () => {
       {error && <div className="alert alert-error" style={{ marginBottom: '2rem' }}>{error}</div>}
       {success && <div className="alert alert-success" style={{ marginBottom: '2rem' }}>{success}</div>}
 
-      <div className="glass-panel" style={{ padding: '2rem' }}>
-
+      <div className="glass-panel" style={{ padding: '1.5rem' }}>
         <form onSubmit={handleSubmit}>
           {formData.tipo_pessoa === 'AFILHADO' && (
             <div style={{ background: 'rgba(59, 130, 246, 0.05)', padding: '1.25rem', borderRadius: '8px', marginBottom: '2rem', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
@@ -554,6 +568,18 @@ export const EditarPessoa = () => {
 
           <div className="form-grid">
             <div className="form-group">
+              <label className="form-label" htmlFor="data_nascimento">Data de Nascimento</label>
+              <input
+                id="data_nascimento"
+                name="data_nascimento"
+                type="date"
+                className="form-input"
+                value={formData.data_nascimento}
+                onChange={handleChange}
+              />
+            </div>
+
+            <div className="form-group">
               <label className="form-label" htmlFor="telefone">Telefone</label>
               <input
                 id="telefone"
@@ -565,7 +591,9 @@ export const EditarPessoa = () => {
                 onChange={handleChange}
               />
             </div>
+          </div>
 
+          <div className="form-grid">
             <div className="form-group">
               <label className="form-label" htmlFor="sexo">Sexo</label>
               <select
@@ -581,17 +609,82 @@ export const EditarPessoa = () => {
               </select>
             </div>
 
-            <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-              <label className="form-label" htmlFor="data_nascimento">Data de Nascimento</label>
-              <input
-                id="data_nascimento"
-                name="data_nascimento"
-                type="date"
+            <div className="form-group">
+              <label className="form-label" htmlFor="camiseta">Camiseta</label>
+              <select
+                id="camiseta"
+                name="camiseta"
                 className="form-input"
-                value={formData.data_nascimento}
+                value={formData.camiseta}
+                onChange={handleChange}
+              >
+                <option value="">-- Tamanho --</option>
+                <option value="PP">PP</option>
+                <option value="P">P</option>
+                <option value="M">M</option>
+                <option value="G">G</option>
+                <option value="GG">GG</option>
+                <option value="EGG">EGG</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="form-grid">
+            <div className="form-group">
+              <label className="form-label" htmlFor="nome_pai">Nome do Pai</label>
+              <input
+                id="nome_pai"
+                name="nome_pai"
+                type="text"
+                className="form-input"
+                placeholder="Nome do Pai"
+                value={formData.nome_pai}
                 onChange={handleChange}
               />
             </div>
+            <div className="form-group">
+              <label className="form-label" htmlFor="nome_mae">Nome da Mãe</label>
+              <input
+                id="nome_mae"
+                name="nome_mae"
+                type="text"
+                className="form-input"
+                placeholder="Nome da Mãe"
+                value={formData.nome_mae}
+                onChange={handleChange}
+              />
+            </div>
+          </div>
+
+          <div className="form-grid">
+            <div className="form-group">
+              <label className="form-label" htmlFor="fone_responsavel">Telefone do Responsável</label>
+              <input
+                id="fone_responsavel"
+                name="fone_responsavel"
+                type="text"
+                className="form-input"
+                placeholder="(00) 00000-0000"
+                value={formData.fone_responsavel}
+                onChange={handleChange}
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label" htmlFor="ano">Ano (Turma)</label>
+              <input
+                id="ano"
+                name="ano"
+                type="number"
+                className="form-input"
+                placeholder="Ex: 2025"
+                disabled={userProfile?.perfil !== 'ADMIN' && userProfile?.perfil !== 'GESTOR'}
+                value={formData.ano}
+                onChange={handleChange}
+              />
+            </div>
+          </div>
+
+          <div className="form-grid">
             <div className="form-group">
               <label className="form-label" htmlFor="tipo_pessoa">Tipo *</label>
               <select
@@ -609,27 +702,9 @@ export const EditarPessoa = () => {
                 <option value="VOLUNTARIO">Voluntário(a)</option>
               </select>
             </div>
-            <div className="form-group">
-              <label className="form-label" htmlFor="ano">Ano (Turma)</label>
-              <input
-                id="ano"
-                name="ano"
-                type="number"
-                className="form-input"
-                placeholder="Ex: 2025"
-                disabled={userProfile?.perfil !== 'ADMIN' && userProfile?.perfil !== 'GESTOR'}
-                value={formData.ano}
-                onChange={handleChange}
-              />
-            </div>
-          </div>
 
-          {userProfile?.perfil === 'ADMIN' && (
-            <div className="form-grid">
-
-
-
-              <div className="form-group" style={{ marginBottom: '2rem' }}>
+            {userProfile?.perfil === 'ADMIN' && (
+              <div className="form-group">
                 <label className="form-label" htmlFor="user_id">Conta de Usuário (App) Vinculada</label>
                 <select
                   id="user_id"
@@ -645,14 +720,25 @@ export const EditarPessoa = () => {
                     </option>
                   ))}
                 </select>
-                <small style={{ color: 'var(--text-secondary)', marginTop: '0.5rem', display: 'block' }}>
-                  Selecione a conta que esta pessoa usará para fazer login no sistema.
-                </small>
               </div>
+            )}
+          </div>
 
-            </div>
-          )}
+          <div className="form-group">
+            <label className="form-label" htmlFor="necessidade_medica">Necessidade Médica / Restrição Alimentar</label>
+            <textarea
+              id="necessidade_medica"
+              name="necessidade_medica"
+              className="form-input"
+              placeholder="Descreva se houver alguma necessidade médica ou restrição alimentar"
+              value={formData.necessidade_medica}
+              onChange={handleChange}
+              rows="4"
+            />
+          </div>
+
           {(formData.tipo_pessoa === 'PADRINHO' || formData.tipo_pessoa === 'MADRINHA') && (
+
             <div className="form-group">
               <label className="form-label" htmlFor="conjuge_id">Cônjuge (opcional)</label>
               <select
@@ -670,9 +756,10 @@ export const EditarPessoa = () => {
             </div>
           )}
 
+
           {/* Dependentes */}
           {(formData.tipo_pessoa === 'PADRINHO' || formData.tipo_pessoa === 'MADRINHA') && (
-            <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '1px solid var(--border-color)' }}>
+            <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                 <h3 style={{ fontSize: '1.25rem', margin: 0, fontWeight: 'bold' }}>Dependentes (Filhos)</h3>
                 <button type="button" onClick={handleAddDependente} className="btn btn-secondary" style={{ padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>

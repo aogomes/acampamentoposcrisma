@@ -165,7 +165,7 @@ export const Dashboard = () => {
       }
     } catch (err) {
       console.error('Erro ao atualizar inscrição:', err.message);
-      alert('Não foi possível atualizar a inscrição. Tente novamente.');
+      alert('Não foi possível atualizar a inscrição: ' + err.message);
     } finally {
       setIsUpdatingInscricao(false);
     }
@@ -336,7 +336,7 @@ export const Dashboard = () => {
         </div>
       )}
 
-      {eventoAtivo && pessoaProfile && (
+      {eventoAtivo && pessoaProfile && userProfile.perfil !== 'PENDENTE' && (
         <div className="glass-panel" style={{ padding: '2rem', marginBottom: '2rem', borderLeft: '4px solid var(--success)' }}>
           <h4 style={{ fontWeight: 'bold', fontSize: '1rem', marginBottom: '1rem' }}>Confirmação para {eventoAtivo.descricao}</h4>
           {inscricaoAtual ? (
