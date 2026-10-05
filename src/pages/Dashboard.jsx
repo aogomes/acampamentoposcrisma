@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { Users, Info, Edit2, Trash2, CheckCircle2 } from 'lucide-react';
+import { Users, Info, Edit2, Trash2, CheckCircle2, ClipboardCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export const Dashboard = () => {
@@ -251,8 +251,17 @@ export const Dashboard = () => {
           </div>
         </div>
 
-        {pessoaProfile && (
-          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <Link
+            to="/inscricao"
+            className="btn btn-secondary"
+            style={{ padding: '0.5rem 1rem', fontSize: '0.875rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+          >
+            <ClipboardCheck size={16} color="var(--accent-primary)" />
+            <span>Ficha de Inscrição 2026</span>
+          </Link>
+
+          {pessoaProfile && (
             <Link
               to={`/editar-pessoa/${pessoaProfile.id}`}
               className="btn btn-primary"
@@ -261,8 +270,8 @@ export const Dashboard = () => {
               <Edit2 size={16} />
               <span style={{ marginLeft: '0.5rem' }}>Atualizar Dados</span>
             </Link>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
 

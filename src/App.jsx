@@ -7,6 +7,7 @@ import { Register } from './pages/Register';
 import { Dashboard } from './pages/Dashboard';
 import { CadastroPessoa } from './pages/CadastroPessoa';
 import { EditarPessoa } from './pages/EditarPessoa';
+import { FormularioInscricao } from './pages/FormularioInscricao';
 import { AdminCredenciamento } from './pages/AdminCredenciamento';
 import { AdminVinculos } from './pages/AdminVinculos';
 import { AdminEventos } from './pages/AdminEventos';
@@ -34,6 +35,30 @@ function App() {
               </ProtectedRoute>
             } />
             
+            <Route path="/inscricao" element={
+              <ProtectedRoute>
+                <Layout>
+                  <FormularioInscricao />
+                </Layout>
+              </ProtectedRoute>
+            } />
+
+            <Route path="/inscricao/:id" element={
+              <ProtectedRoute>
+                <Layout>
+                  <FormularioInscricao />
+                </Layout>
+              </ProtectedRoute>
+            } />
+
+            <Route path="/formulario-inscricao" element={
+              <ProtectedRoute>
+                <Layout>
+                  <FormularioInscricao />
+                </Layout>
+              </ProtectedRoute>
+            } />
+
             <Route path="/cadastro-pessoa" element={
               <ProtectedRoute>
                 <Layout>

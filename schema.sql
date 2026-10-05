@@ -126,3 +126,42 @@ DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
+
+-- ==============================================================================
+-- MIGRAÇÃO: Formulário de Inscrição VIII Acampamento do Pós Crisma - 2026
+-- ==============================================================================
+ALTER TABLE public.apc_pessoa 
+  ADD COLUMN IF NOT EXISTS padrinhos_catequistas TEXT,
+  ADD COLUMN IF NOT EXISTS rg TEXT,
+  ADD COLUMN IF NOT EXISTS cpf TEXT,
+  ADD COLUMN IF NOT EXISTS idade INTEGER,
+  ADD COLUMN IF NOT EXISTS contato_emergencia TEXT,
+  ADD COLUMN IF NOT EXISTS nome_responsavel TEXT,
+  ADD COLUMN IF NOT EXISTS tipo_sanguineo TEXT,
+  ADD COLUMN IF NOT EXISTS problema_saude BOOLEAN DEFAULT false,
+  ADD COLUMN IF NOT EXISTS problema_saude_qual TEXT,
+  ADD COLUMN IF NOT EXISTS historico_convulsao BOOLEAN DEFAULT false,
+  ADD COLUMN IF NOT EXISTS historico_convulsao_tempo TEXT,
+  ADD COLUMN IF NOT EXISTS tratamento_medico BOOLEAN DEFAULT false,
+  ADD COLUMN IF NOT EXISTS tratamento_medico_qual TEXT,
+  ADD COLUMN IF NOT EXISTS medicamento_continuo BOOLEAN DEFAULT false,
+  ADD COLUMN IF NOT EXISTS medicamento_continuo_qual TEXT,
+  ADD COLUMN IF NOT EXISTS medicamento_continuo_dosagem TEXT,
+  ADD COLUMN IF NOT EXISTS lesao_contusao BOOLEAN DEFAULT false,
+  ADD COLUMN IF NOT EXISTS lesao_contusao_qual TEXT,
+  ADD COLUMN IF NOT EXISTS restricao_alimentar BOOLEAN DEFAULT false,
+  ADD COLUMN IF NOT EXISTS restricao_alimentar_qual TEXT,
+  ADD COLUMN IF NOT EXISTS doenca_respiratoria BOOLEAN DEFAULT false,
+  ADD COLUMN IF NOT EXISTS usa_bombinha BOOLEAN DEFAULT false,
+  ADD COLUMN IF NOT EXISTS alergia_medicamento BOOLEAN DEFAULT false,
+  ADD COLUMN IF NOT EXISTS alergia_medicamento_qual TEXT,
+  ADD COLUMN IF NOT EXISTS alergia_alimento BOOLEAN DEFAULT false,
+  ADD COLUMN IF NOT EXISTS alergia_alimento_qual TEXT,
+  ADD COLUMN IF NOT EXISTS medicacao_sintomas TEXT,
+  ADD COLUMN IF NOT EXISTS cuidado_especial BOOLEAN DEFAULT false,
+  ADD COLUMN IF NOT EXISTS cuidado_especial_qual TEXT,
+  ADD COLUMN IF NOT EXISTS camiseta_infantil TEXT,
+  ADD COLUMN IF NOT EXISTS outras_informacoes TEXT,
+  ADD COLUMN IF NOT EXISTS aceite_termos_dados BOOLEAN DEFAULT false,
+  ADD COLUMN IF NOT EXISTS aceite_termo_imagem BOOLEAN DEFAULT false;
+

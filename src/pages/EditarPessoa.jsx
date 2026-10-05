@@ -1,11 +1,25 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { Edit, ArrowLeft, Trash2, Plus } from 'lucide-react';
+import {
+  Edit,
+  ArrowLeft,
+  Trash2,
+  Plus,
+  Calendar,
+  Phone,
+  AlertCircle,
+  HeartPulse,
+  Shirt,
+  ShieldCheck,
+  User,
+  Info,
+  FileText
+} from 'lucide-react';
 
 export const EditarPessoa = () => {
-  const { user, userProfile, pessoaProfile, refreshProfile } = useAuth();
+  const { userProfile, refreshProfile } = useAuth();
   const navigate = useNavigate();
   const { id } = useParams();
 
@@ -15,18 +29,51 @@ export const EditarPessoa = () => {
     telefone: '',
     sexo: '',
     data_nascimento: '',
+    idade: '',
     tipo_pessoa: 'AFILHADO',
+    padrinhos_catequistas: '',
     ano: '',
     conjuge_id: '',
     user_id: '',
     vinculo_id: '',
     vinculo_padrinho_id: '',
     vinculo_madrinha_id: '',
+    rg: '',
+    cpf: '',
+    contato_emergencia: '',
+    nome_responsavel: '',
     nome_pai: '',
     nome_mae: '',
     fone_responsavel: '',
+    tipo_sanguineo: '',
+    problema_saude: 'NAO',
+    problema_saude_qual: '',
+    historico_convulsao: 'NAO',
+    historico_convulsao_tempo: '',
+    tratamento_medico: 'NAO',
+    tratamento_medico_qual: '',
+    medicamento_continuo: 'NAO',
+    medicamento_continuo_qual: '',
+    medicamento_continuo_dosagem: '',
+    lesao_contusao: 'NAO',
+    lesao_contusao_qual: '',
+    restricao_alimentar: 'NAO',
+    restricao_alimentar_qual: '',
+    doenca_respiratoria: 'NAO',
+    usa_bombinha: 'NAO',
+    alergia_medicamento: 'NAO',
+    alergia_medicamento_qual: '',
+    alergia_alimento: 'NAO',
+    alergia_alimento_qual: '',
+    medicacao_sintomas: '',
+    cuidado_especial: 'NAO',
+    cuidado_especial_qual: '',
+    camiseta: '',
+    camiseta_infantil: '',
     necessidade_medica: '',
-    camiseta: ''
+    outras_informacoes: '',
+    aceite_termos_dados: false,
+    aceite_termo_imagem: false
   });
 
   const [dependentes, setDependentes] = useState([]);
@@ -47,6 +94,18 @@ export const EditarPessoa = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  const calcularIdade = (dataNasc) => {
+    if (!dataNasc) return '';
+    const hoje = new Date();
+    const nasc = new Date(dataNasc);
+    let idadeCalc = hoje.getFullYear() - nasc.getFullYear();
+    const m = hoje.getMonth() - nasc.getMonth();
+    if (m < 0 || (m === 0 && hoje.getDate() < nasc.getDate())) {
+      idadeCalc--;
+    }
+    return idadeCalc >= 0 ? idadeCalc.toString() : '';
+  };
+
   useEffect(() => {
     fetchPessoa();
     fetchUsuarios();
@@ -58,7 +117,6 @@ export const EditarPessoa = () => {
     const { data: eventos } = await supabase.from('apc_evento').select('id, descricao').eq('status', 'ATIVO');
     if (eventos && eventos.length > 0) {
       setEventosAtivos(eventos);
-      // check if user is enrolled
       const { data: inscricoes } = await supabase
         .from('apc_acampamento')
         .select('evento_id')
@@ -119,21 +177,60 @@ export const EditarPessoa = () => {
 
       if (error) throw error;
       if (data) {
+        const dataNasc = data.data_nascimento ? data.data_nascimento.split('T')[0] : '';
+        const idadeAuto = data.idade !== null && data.idade !== undefined ? data.idade.toString() : calcularIdade(dataNasc);
+
         setFormData({
           nome: data.nome || '',
           email: data.email || '',
           telefone: data.telefone || '',
           sexo: data.sexo || '',
-          data_nascimento: data.data_nascimento ? data.data_nascimento.split('T')[0] : '', // Format date for input
+          data_nascimento: dataNasc,
+          idade: idadeAuto,
           tipo_pessoa: data.tipo_pessoa || 'AFILHADO',
-          ano: data.ano || '',
+          padrinhos_catequistas: data.padrinhos_catequistas || '',
+          ano: data.ano ? data.ano.toString() : '',
           conjuge_id: data.conjuge_id || '',
           user_id: data.user_id || '',
+          vinculo_id: '',
+          vinculo_padrinho_id: '',
+          vinculo_madrinha_id: '',
+          rg: data.rg || '',
+          cpf: data.cpf || '',
+          contato_emergencia: data.contato_emergencia || '',
+          nome_responsavel: data.nome_responsavel || (data.nome_pai || data.nome_mae || ''),
           nome_pai: data.nome_pai || '',
           nome_mae: data.nome_mae || '',
           fone_responsavel: data.fone_responsavel || '',
+          tipo_sanguineo: data.tipo_sanguineo || '',
+          problema_saude: data.problema_saude ? 'SIM' : 'NAO',
+          problema_saude_qual: data.problema_saude_qual || '',
+          historico_convulsao: data.historico_convulsao ? 'SIM' : 'NAO',
+          historico_convulsao_tempo: data.historico_convulsao_tempo || '',
+          tratamento_medico: data.tratamento_medico ? 'SIM' : 'NAO',
+          tratamento_medico_qual: data.tratamento_medico_qual || '',
+          medicamento_continuo: data.medicamento_continuo ? 'SIM' : 'NAO',
+          medicamento_continuo_qual: data.medicamento_continuo_qual || '',
+          medicamento_continuo_dosagem: data.medicamento_continuo_dosagem || '',
+          lesao_contusao: data.lesao_contusao ? 'SIM' : 'NAO',
+          lesao_contusao_qual: data.lesao_contusao_qual || '',
+          restricao_alimentar: data.restricao_alimentar ? 'SIM' : 'NAO',
+          restricao_alimentar_qual: data.restricao_alimentar_qual || '',
+          doenca_respiratoria: data.doenca_respiratoria ? 'SIM' : 'NAO',
+          usa_bombinha: data.usa_bombinha ? 'SIM' : 'NAO',
+          alergia_medicamento: data.alergia_medicamento ? 'SIM' : 'NAO',
+          alergia_medicamento_qual: data.alergia_medicamento_qual || '',
+          alergia_alimento: data.alergia_alimento ? 'SIM' : 'NAO',
+          alergia_alimento_qual: data.alergia_alimento_qual || '',
+          medicacao_sintomas: data.medicacao_sintomas || '',
+          cuidado_especial: data.cuidado_especial ? 'SIM' : 'NAO',
+          cuidado_especial_qual: data.cuidado_especial_qual || '',
+          camiseta: data.camiseta || '',
+          camiseta_infantil: data.camiseta_infantil || '',
           necessidade_medica: data.necessidade_medica || '',
-          camiseta: data.camiseta || ''
+          outras_informacoes: data.outras_informacoes || (data.necessidade_medica || ''),
+          aceite_termos_dados: !!data.aceite_termos_dados,
+          aceite_termo_imagem: !!data.aceite_termo_imagem
         });
 
         if (data.tipo_pessoa === 'AFILHADO') {
@@ -141,19 +238,19 @@ export const EditarPessoa = () => {
             .from('apc_vinculo')
             .select('id, ano, padrinho_id, madrinha_id')
             .eq('afilhado_id', id)
-            .single();
+            .maybeSingle();
 
           if (vinculo) {
             setFormData(prev => ({
               ...prev,
               vinculo_id: vinculo.id,
-              vinculo_padrinho_id: vinculo.padrinho_id,
-              vinculo_madrinha_id: vinculo.madrinha_id
+              vinculo_padrinho_id: vinculo.padrinho_id || '',
+              vinculo_madrinha_id: vinculo.madrinha_id || ''
             }));
           }
         }
 
-        // Busca dependentes vinculados a esta pessoa ou ao seu cônjuge
+        // Dependentes
         let orQuery = `pessoa_id.eq.${id}`;
         if (data.conjuge_id) {
           orQuery += `,pessoa_id.eq.${data.conjuge_id}`;
@@ -164,7 +261,6 @@ export const EditarPessoa = () => {
           .or(orQuery);
 
         if (deps) {
-          // Normaliza as datas para o input
           const formattedDeps = deps.map(d => ({
             ...d,
             data_nascimento: d.data_nascimento ? d.data_nascimento.split('T')[0] : ''
@@ -180,13 +276,22 @@ export const EditarPessoa = () => {
   };
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value,
-      // Se mudar o tipo de pessoa, limpa o conjuge selecionado
-      ...(name === 'tipo_pessoa' ? { conjuge_id: '' } : {})
-    }));
+    const { name, value, type, checked } = e.target;
+    const val = type === 'checkbox' ? checked : value;
+
+    setFormData(prev => {
+      const updated = {
+        ...prev,
+        [name]: val,
+        ...(name === 'tipo_pessoa' ? { conjuge_id: '' } : {})
+      };
+
+      if (name === 'data_nascimento') {
+        updated.idade = calcularIdade(val);
+      }
+
+      return updated;
+    });
   };
 
   useEffect(() => {
@@ -213,7 +318,7 @@ export const EditarPessoa = () => {
         const padrinho = padrinhos.find(p => p.id === padrinhoId);
         if (padrinho) {
           if (padrinho.conjuge_id) newState.vinculo_madrinha_id = padrinho.conjuge_id;
-          if (padrinho.ano) newState.ano = padrinho.ano;
+          if (padrinho.ano) newState.ano = padrinho.ano.toString();
         }
       }
       return newState;
@@ -228,7 +333,7 @@ export const EditarPessoa = () => {
         const madrinha = madrinhas.find(m => m.id === madrinhaId);
         if (madrinha) {
           if (madrinha.conjuge_id) newState.vinculo_padrinho_id = madrinha.conjuge_id;
-          if (madrinha.ano) newState.ano = madrinha.ano;
+          if (madrinha.ano) newState.ano = madrinha.ano.toString();
         }
       }
       return newState;
@@ -254,35 +359,107 @@ export const EditarPessoa = () => {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
+    if (e) e.preventDefault();
     setError('');
     setSuccess('');
 
+    if (!formData.nome || !formData.nome.trim()) {
+      setError('Por favor, informe o Nome Completo.');
+      window.scrollTo({ top: 300, behavior: 'smooth' });
+      return;
+    }
+
+    setLoading(true);
+
     try {
+      const payloadCompleto = {
+        nome: formData.nome,
+        email: formData.email || null,
+        telefone: formData.telefone || null,
+        sexo: formData.sexo || null,
+        data_nascimento: formData.data_nascimento || null,
+        tipo_pessoa: formData.tipo_pessoa,
+        ano: formData.ano ? parseInt(formData.ano) : null,
+        conjuge_id: formData.conjuge_id || null,
+        user_id: formData.user_id || null,
+        nome_pai: formData.nome_pai || null,
+        nome_mae: formData.nome_mae || null,
+        fone_responsavel: formData.fone_responsavel || null,
+        necessidade_medica: formData.outras_informacoes || formData.necessidade_medica || null,
+        camiseta: formData.camiseta || null,
+
+        // Novos campos
+        padrinhos_catequistas: formData.padrinhos_catequistas || null,
+        rg: formData.rg || null,
+        cpf: formData.cpf || null,
+        idade: formData.idade ? parseInt(formData.idade) : null,
+        contato_emergencia: formData.contato_emergencia || null,
+        nome_responsavel: formData.nome_responsavel || null,
+        tipo_sanguineo: formData.tipo_sanguineo || null,
+        problema_saude: formData.problema_saude === 'SIM',
+        problema_saude_qual: formData.problema_saude === 'SIM' ? formData.problema_saude_qual : null,
+        historico_convulsao: formData.historico_convulsao === 'SIM',
+        historico_convulsao_tempo: formData.historico_convulsao === 'SIM' ? formData.historico_convulsao_tempo : null,
+        tratamento_medico: formData.tratamento_medico === 'SIM',
+        tratamento_medico_qual: formData.tratamento_medico === 'SIM' ? formData.tratamento_medico_qual : null,
+        medicamento_continuo: formData.medicamento_continuo === 'SIM',
+        medicamento_continuo_qual: formData.medicamento_continuo === 'SIM' ? formData.medicamento_continuo_qual : null,
+        medicamento_continuo_dosagem: formData.medicamento_continuo === 'SIM' ? formData.medicamento_continuo_dosagem : null,
+        lesao_contusao: formData.lesao_contusao === 'SIM',
+        lesao_contusao_qual: formData.lesao_contusao === 'SIM' ? formData.lesao_contusao_qual : null,
+        restricao_alimentar: formData.restricao_alimentar === 'SIM',
+        restricao_alimentar_qual: formData.restricao_alimentar === 'SIM' ? formData.restricao_alimentar_qual : null,
+        doenca_respiratoria: formData.doenca_respiratoria === 'SIM',
+        usa_bombinha: formData.doenca_respiratoria === 'SIM' ? (formData.usa_bombinha === 'SIM') : false,
+        alergia_medicamento: formData.alergia_medicamento === 'SIM',
+        alergia_medicamento_qual: formData.alergia_medicamento === 'SIM' ? formData.alergia_medicamento_qual : null,
+        alergia_alimento: formData.alergia_alimento === 'SIM',
+        alergia_alimento_qual: formData.alergia_alimento === 'SIM' ? formData.alergia_alimento_qual : null,
+        medicacao_sintomas: formData.medicacao_sintomas || null,
+        cuidado_especial: formData.cuidado_especial === 'SIM',
+        cuidado_especial_qual: formData.cuidado_especial === 'SIM' ? formData.cuidado_especial_qual : null,
+        camiseta_infantil: formData.camiseta_infantil || null,
+        outras_informacoes: formData.outras_informacoes || null,
+        aceite_termos_dados: !!formData.aceite_termos_dados,
+        aceite_termo_imagem: !!formData.aceite_termo_imagem
+      };
+
       const { error: dbError } = await supabase
         .from('apc_pessoa')
-        .update({
-          nome: formData.nome,
-          email: formData.email || null,
-          telefone: formData.telefone || null,
-          sexo: formData.sexo || null,
-          data_nascimento: formData.data_nascimento || null,
-          tipo_pessoa: formData.tipo_pessoa,
-          ano: formData.ano ? parseInt(formData.ano) : null,
-          conjuge_id: formData.conjuge_id || null,
-          user_id: formData.user_id || null,
-          nome_pai: formData.nome_pai || null,
-          nome_mae: formData.nome_mae || null,
-          fone_responsavel: formData.fone_responsavel || null,
-          necessidade_medica: formData.necessidade_medica || null,
-          camiseta: formData.camiseta || null
-        })
+        .update(payloadCompleto)
         .eq('id', id);
 
-      if (dbError) throw dbError;
+      if (dbError) {
+        // Fallback caso colunas novas ainda não existam no Supabase
+        if (dbError.message && (dbError.message.includes('column') && dbError.message.includes('does not exist'))) {
+          console.warn('Banco precisa de migração SQL. Salvando dados compatíveis...');
+          const { error: fallbackErr } = await supabase
+            .from('apc_pessoa')
+            .update({
+              nome: formData.nome,
+              email: formData.email || null,
+              telefone: formData.telefone || null,
+              sexo: formData.sexo || null,
+              data_nascimento: formData.data_nascimento || null,
+              tipo_pessoa: formData.tipo_pessoa,
+              ano: formData.ano ? parseInt(formData.ano) : null,
+              conjuge_id: formData.conjuge_id || null,
+              user_id: formData.user_id || null,
+              nome_pai: formData.nome_pai || formData.nome_responsavel || null,
+              nome_mae: formData.nome_mae || null,
+              fone_responsavel: formData.fone_responsavel || null,
+              necessidade_medica: formData.outras_informacoes || formData.necessidade_medica || null,
+              camiseta: formData.camiseta || null
+            })
+            .eq('id', id);
 
-      // Se selecionou um cônjuge, precisamos atualizar o cônjuge também para apontar para esta pessoa (bidirecional)
+          if (fallbackErr) throw fallbackErr;
+        } else {
+          throw dbError;
+        }
+      }
+
+      // Se selecionou um cônjuge, atualizar bidirecionalmente
       if (formData.conjuge_id) {
         await supabase
           .from('apc_pessoa')
@@ -376,191 +553,210 @@ export const EditarPessoa = () => {
     return <div className="main-content"><p>Carregando dados...</p></div>;
   }
 
+  const isMenorDeIdade = formData.idade !== '' && parseInt(formData.idade) < 18;
+
   return (
-    <div className="main-content">
-      <div className="glass-panel" style={{ padding: '1.5rem', marginBottom: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+    <div className="main-content" style={{ maxWidth: '960px', margin: '0 auto', paddingBottom: '4rem' }}>
+      
+      {/* Barra Superior */}
+      <div className="glass-panel" style={{ padding: '1.5rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <button onClick={() => navigate(-1)} className="btn btn-secondary" style={{ padding: '0.5rem' }}>
             <ArrowLeft size={20} />
           </button>
           <h1 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', margin: 0, fontSize: '1.75rem', flexWrap: 'wrap' }}>
-            <Edit size={32} color="var(--accent-primary)" />
-            Editar Pessoa
+            <Edit size={28} color="var(--accent-primary)" />
+            Editar Participante / Inscrição
           </h1>
         </div>
+
+        <Link
+          to={`/inscricao/${id}`}
+          className="btn btn-secondary"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', padding: '0.5rem 1rem' }}
+        >
+          <FileText size={18} color="var(--accent-primary)" />
+          Ver Ficha Oficial de Inscrição
+        </Link>
       </div>
 
-      {error && <div className="alert alert-error" style={{ marginBottom: '2rem' }}>{error}</div>}
-      {success && <div className="alert alert-success" style={{ marginBottom: '2rem' }}>{success}</div>}
+      {error && <div className="alert alert-error" style={{ marginBottom: '1.5rem' }}>{error}</div>}
+      {success && <div className="alert alert-success" style={{ marginBottom: '1.5rem' }}>{success}</div>}
 
-      <div className="glass-panel" style={{ padding: '1.5rem' }}>
-        <form onSubmit={handleSubmit}>
-          {formData.tipo_pessoa === 'AFILHADO' && (
-            <div style={{ background: 'rgba(59, 130, 246, 0.05)', padding: '1.25rem', borderRadius: '8px', marginBottom: '2rem', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
-              <h4 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem', color: 'var(--accent-primary)' }}>
-                {userProfile?.perfil === 'ADMIN' || userProfile?.perfil === 'GESTOR' ? 'Padrinhos' : 'Meus Padrinhos'}
-              </h4>
+      <form onSubmit={handleSubmit} noValidate>
+        {/* Padrinhos do Sistema (Se Afilhado) */}
+        {formData.tipo_pessoa === 'AFILHADO' && (
+          <div style={{ background: 'rgba(59, 130, 246, 0.05)', padding: '1.25rem', borderRadius: '8px', marginBottom: '1.5rem', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+            <h4 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem', color: 'var(--accent-primary)' }}>
+              {userProfile?.perfil === 'ADMIN' || userProfile?.perfil === 'GESTOR' ? 'Padrinhos no Sistema' : 'Meus Padrinhos'}
+            </h4>
 
-              {userProfile?.perfil === 'ADMIN' || userProfile?.perfil === 'GESTOR' ? (
-                <div className="form-grid">
-                  <div className="form-group">
-                    <label className="form-label">Selecione o Padrinho</label>
-                    <select
-                      className="form-input"
-                      value={formData.vinculo_padrinho_id}
-                      onChange={handlePadrinhoChange}
-                    >
-                      <option value="">-- Escolha um padrinho --</option>
-                      {padrinhos.map(p => (
-                        <option key={p.id} value={p.id}>{p.nome}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">Selecione a Madrinha</label>
-                    <select
-                      className="form-input"
-                      value={formData.vinculo_madrinha_id}
-                      onChange={handleMadrinhaChange}
-                    >
-                      <option value="">-- Escolha uma madrinha --</option>
-                      {madrinhas.map(m => (
-                        <option key={m.id} value={m.id}>{m.nome}</option>
-                      ))}
-                    </select>
-                  </div>
+            {userProfile?.perfil === 'ADMIN' || userProfile?.perfil === 'GESTOR' ? (
+              <div className="form-grid">
+                <div className="form-group">
+                  <label className="form-label">Selecione o Padrinho</label>
+                  <select
+                    className="form-input"
+                    value={formData.vinculo_padrinho_id}
+                    onChange={handlePadrinhoChange}
+                  >
+                    <option value="">-- Escolha um padrinho --</option>
+                    {padrinhos.map(p => (
+                      <option key={p.id} value={p.id}>{p.nome}</option>
+                    ))}
+                  </select>
                 </div>
-              ) : (
-                <>
 
-                  {(!formData.vinculo_padrinho_id && !formData.vinculo_madrinha_id) ? (
-                    <div style={{ textAlign: 'center', padding: '1rem', color: 'var(--text-secondary)' }}>
-                      <p>Você ainda não foi vinculado a nenhum Padrinho/Madrinha.</p>
-                    </div>
-                  ) : (
-                    <div className="form-grid">
-                      {(() => {
-                        const padrinhoObj = padrinhos.find(p => p.id === formData.vinculo_padrinho_id);
-                        return padrinhoObj && (
-                          <div style={{ background: 'var(--bg-secondary)', borderRadius: '8px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-                              <div style={{ width: '22px', height: '22px', borderRadius: '16px', background: 'var(--accent-primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', fontWeight: 'bold' }}>
-                                {padrinhoObj.nome.charAt(0).toUpperCase()}
-                              </div>
-                              <div>
-                                <h3 style={{ margin: 0, fontSize: '1rem' }}>{padrinhoObj.nome}</h3>
-                                <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.75rem' }}>{padrinhoObj.email || ''}</p>
-                              </div>
-                            </div>
-                            <p style={{ margin: 0, fontSize: '0.75rem' }}><strong>Telefone:</strong> {padrinhoObj.telefone || 'Não informado'}</p>
-                          </div>
-                        );
-                      })()}
-
-                      {(() => {
-                        const madrinhaObj = madrinhas.find(m => m.id === formData.vinculo_madrinha_id);
-                        return madrinhaObj && (
-                          <div style={{ background: 'var(--bg-secondary)', borderRadius: '8px' }}>
-                            <h5 style={{ marginTop: 0, marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.75rem', textTransform: 'uppercase' }}>Madrinha</h5>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-                              <div style={{ width: '22px', height: '22px', borderRadius: '16px', background: 'var(--accent-secondary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', fontWeight: 'bold' }}>
-                                {madrinhaObj.nome.charAt(0).toUpperCase()}
-                              </div>
-                              <div>
-                                <h3 style={{ margin: 0, fontSize: '1rem' }}>{madrinhaObj.nome}</h3>
-                                <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.75rem' }}>{madrinhaObj.email || ''}</p>
-                              </div>
-                            </div>
-                            <p style={{ margin: 0, fontSize: '0.75rem' }}><strong>Telefone:</strong> {madrinhaObj.telefone || 'Não informado'}</p>
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  )}
-                </>
-              )}
-
-              {/* Checkboxes de Confirmação para Padrinhos/Madrinhas */}
-              {formData.tipo_pessoa === 'AFILHADO' && eventosAtivos.length > 0 && pessoaProfile &&
-                (pessoaProfile.id === formData.vinculo_padrinho_id || pessoaProfile.id === formData.vinculo_madrinha_id) && (
-                  <div className="glass-panel" style={{ padding: '1.5rem', marginTop: '1rem', borderLeft: '4px solid var(--success)' }}>
-                    <h4 style={{ marginBottom: '1rem', fontSize: '1rem', fontWeight: 'bold' }}>Confirmação em Eventos</h4>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                      {eventosAtivos.map(evento => {
-                        const isEnrolled = inscricoesAtivas.includes(evento.id);
-                        const isToConfirm = eventosAConfirmar.includes(evento.id);
-
-                        return (
-                          <div key={evento.id}>
-                            {isEnrolled ? (
-                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(16, 185, 129, 0.1)', padding: '0.5rem', borderRadius: '4px' }}>
-                                <p style={{ color: 'var(--success)', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
-                                  ✓ Afilhado foi confirmado no {evento.descricao}
-                                </p>
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveInscricao(evento.id)}
-                                  className="btn btn-secondary"
-                                  style={{ padding: '0.25rem 0.5rem', color: 'var(--error)' }}
-                                  title="Cancelar Inscrição"
-                                  disabled={loading}
-                                >
-                                  <Trash2 size={16} />
-                                </button>
-                              </div>
-                            ) : (
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                <input
-                                  type="checkbox"
-                                  id={`confirmarInscricao_${evento.id}`}
-                                  checked={isToConfirm}
-                                  onChange={(e) => {
-                                    if (e.target.checked) {
-                                      setEventosAConfirmar(prev => [...prev, evento.id]);
-                                    } else {
-                                      setEventosAConfirmar(prev => prev.filter(id => id !== evento.id));
-                                    }
-                                  }}
-                                  style={{ width: '1.2rem', height: '1.2rem', cursor: 'pointer' }}
-                                />
-                                <label htmlFor={`confirmarInscricao_${evento.id}`} style={{ cursor: 'pointer', fontWeight: '500' }}>
-                                  Confirmar Inscrição no <span style={{ color: 'var(--accent-primary)' }}>{evento.descricao}</span>
-                                </label>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
+                <div className="form-group">
+                  <label className="form-label">Selecione a Madrinha</label>
+                  <select
+                    className="form-input"
+                    value={formData.vinculo_madrinha_id}
+                    onChange={handleMadrinhaChange}
+                  >
+                    <option value="">-- Escolha uma madrinha --</option>
+                    {madrinhas.map(m => (
+                      <option key={m.id} value={m.id}>{m.nome}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            ) : (
+              <>
+                {(!formData.vinculo_padrinho_id && !formData.vinculo_madrinha_id) ? (
+                  <div style={{ textAlign: 'center', padding: '1rem', color: 'var(--text-secondary)' }}>
+                    <p>Você ainda não foi vinculado a nenhum Padrinho/Madrinha.</p>
+                  </div>
+                ) : (
+                  <div className="form-grid">
+                    {(() => {
+                      const padrinhoObj = padrinhos.find(p => p.id === formData.vinculo_padrinho_id);
+                      return padrinhoObj && (
+                        <div style={{ background: 'var(--bg-secondary)', borderRadius: '8px', padding: '0.75rem' }}>
+                          <p style={{ margin: 0, fontWeight: 'bold' }}>Padrinho: {padrinhoObj.nome}</p>
+                        </div>
+                      );
+                    })()}
+                    {(() => {
+                      const madrinhaObj = madrinhas.find(m => m.id === formData.vinculo_madrinha_id);
+                      return madrinhaObj && (
+                        <div style={{ background: 'var(--bg-secondary)', borderRadius: '8px', padding: '0.75rem' }}>
+                          <p style={{ margin: 0, fontWeight: 'bold' }}>Madrinha: {madrinhaObj.nome}</p>
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Inscrição em Eventos Ativos */}
+        {eventosAtivos.length > 0 && (
+          <div className="glass-panel" style={{ padding: '1.25rem', marginBottom: '1.5rem' }}>
+            <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '1rem', fontWeight: 'bold' }}>Inscrição no Acampamento</h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {eventosAtivos.map(evento => {
+                const isInscrito = inscricoesAtivas.includes(evento.id);
+                const isToConfirm = eventosAConfirmar.includes(evento.id);
+
+                return (
+                  <div key={evento.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg-secondary)', padding: '0.75rem 1rem', borderRadius: '8px' }}>
+                    {isInscrito ? (
+                      <span style={{ color: '#16a34a', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        Inscrito(a) no {evento.descricao}
+                      </span>
+                    ) : (
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={isToConfirm}
+                          onChange={(e) => {
+                            if (e.target.checked) setEventosAConfirmar(prev => [...prev, evento.id]);
+                            else setEventosAConfirmar(prev => prev.filter(eid => eid !== evento.id));
+                          }}
+                        />
+                        <span>Confirmar Inscrição no <strong>{evento.descricao}</strong></span>
+                      </label>
+                    )}
+
+                    {isInscrito && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveInscricao(evento.id)}
+                        className="btn btn-secondary"
+                        style={{ padding: '0.25rem 0.5rem', color: 'var(--error)' }}
+                        title="Cancelar Inscrição"
+                        disabled={loading}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
-          )}
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* SEÇÃO 1: DADOS PESSOAIS */}
+        {/* ========================================================================= */}
+        <div className="glass-panel" style={{ padding: '1.75rem', marginBottom: '1.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
+            <User size={22} color="var(--accent-primary)" />
+            <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 'bold' }}>1. Dados do Participante</h3>
+          </div>
 
           <div className="form-grid">
-            <div className="form-group">
-              <label className="form-label" htmlFor="nome">Nome Completo *</label>
+            <div className="form-group" style={{ gridColumn: 'span 2' }}>
+              <label className="form-label" htmlFor="nome">Nome Completo do Participante *</label>
               <input
                 id="nome"
                 name="nome"
                 type="text"
                 className="form-input"
-                placeholder="Digite o nome completo"
+                placeholder="Nome Completo"
                 value={formData.nome}
                 onChange={handleChange}
                 required
               />
             </div>
+          </div>
+
+          <div className="form-grid">
             <div className="form-group">
-              <label className="form-label" htmlFor="email">E-mail</label>
-              <input
-                id="email"
-                name="email"
-                type="email"
+              <label className="form-label" htmlFor="tipo_pessoa">De que forma irá participar no acampamento (Como?) *</label>
+              <select
+                id="tipo_pessoa"
+                name="tipo_pessoa"
                 className="form-input"
-                placeholder="email@exemplo.com"
-                value={formData.email}
+                value={formData.tipo_pessoa}
+                disabled={userProfile?.perfil !== 'ADMIN' && userProfile?.perfil !== 'GESTOR'}
+                onChange={handleChange}
+                required
+              >
+                <option value="AFILHADO">Afilhado</option>
+                <option value="CATEQUISTA">Catequista</option>
+                <option value="CRISMADO">Crismado</option>
+                <option value="FILHO">Filho</option>
+                <option value="PADRE">Padre</option>
+                <option value="PADRINHO">Padrinho</option>
+                <option value="MADRINHA">Madrinha</option>
+                <option value="VOLUNTARIO">Voluntário</option>
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" htmlFor="padrinhos_catequistas">Nome dos Padrinhos ou Catequistas</label>
+              <input
+                id="padrinhos_catequistas"
+                name="padrinhos_catequistas"
+                type="text"
+                className="form-input"
+                placeholder="Ex: Padrinhos João e Maria ou Catequista André"
+                value={formData.padrinhos_catequistas}
                 onChange={handleChange}
               />
             </div>
@@ -580,7 +776,57 @@ export const EditarPessoa = () => {
             </div>
 
             <div className="form-group">
-              <label className="form-label" htmlFor="telefone">Telefone</label>
+              <label className="form-label" htmlFor="idade">Idade do Participante</label>
+              <input
+                id="idade"
+                name="idade"
+                type="number"
+                min="0"
+                max="120"
+                className="form-input"
+                placeholder="Calculada automaticamente"
+                value={formData.idade}
+                onChange={handleChange}
+              />
+              {isMenorDeIdade && (
+                <span style={{ fontSize: '0.75rem', color: '#d97706', fontWeight: 'bold' }}>
+                  ⚠️ Menor de idade (preencha responsáveis e termos)
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="form-grid">
+            <div className="form-group">
+              <label className="form-label" htmlFor="rg">RG do Participante</label>
+              <input
+                id="rg"
+                name="rg"
+                type="text"
+                className="form-input"
+                placeholder="RG / Órgão Emissor"
+                value={formData.rg}
+                onChange={handleChange}
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" htmlFor="cpf">CPF do Participante</label>
+              <input
+                id="cpf"
+                name="cpf"
+                type="text"
+                className="form-input"
+                placeholder="000.000.000-00"
+                value={formData.cpf}
+                onChange={handleChange}
+              />
+            </div>
+          </div>
+
+          <div className="form-grid">
+            <div className="form-group">
+              <label className="form-label" htmlFor="telefone">Telefone do Participante</label>
               <input
                 id="telefone"
                 name="telefone"
@@ -588,6 +834,19 @@ export const EditarPessoa = () => {
                 className="form-input"
                 placeholder="(00) 00000-0000"
                 value={formData.telefone}
+                onChange={handleChange}
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" htmlFor="email">E-mail</label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                className="form-input"
+                placeholder="email@exemplo.com"
+                value={formData.email}
                 onChange={handleChange}
               />
             </div>
@@ -610,22 +869,90 @@ export const EditarPessoa = () => {
             </div>
 
             <div className="form-group">
-              <label className="form-label" htmlFor="camiseta">Camiseta</label>
-              <select
-                id="camiseta"
-                name="camiseta"
+              <label className="form-label" htmlFor="ano">Ano (Turma)</label>
+              <input
+                id="ano"
+                name="ano"
+                type="number"
                 className="form-input"
-                value={formData.camiseta}
+                placeholder="Ex: 2026"
+                disabled={userProfile?.perfil !== 'ADMIN' && userProfile?.perfil !== 'GESTOR'}
+                value={formData.ano}
+                onChange={handleChange}
+              />
+            </div>
+          </div>
+
+          {userProfile?.perfil === 'ADMIN' && (
+            <div className="form-group">
+              <label className="form-label" htmlFor="user_id">Conta de Usuário (App) Vinculada</label>
+              <select
+                id="user_id"
+                name="user_id"
+                className="form-input"
+                value={formData.user_id}
                 onChange={handleChange}
               >
-                <option value="">-- Tamanho --</option>
-                <option value="PP">PP</option>
-                <option value="P">P</option>
-                <option value="M">M</option>
-                <option value="G">G</option>
-                <option value="GG">GG</option>
-                <option value="EGG">EGG</option>
+                <option value="">-- Não vincular nenhuma conta --</option>
+                {usuarios.map(u => (
+                  <option key={u.user_id} value={u.user_id}>
+                    {u.nome} {u.email ? `(${u.email})` : ''}
+                  </option>
+                ))}
               </select>
+            </div>
+          )}
+        </div>
+
+        {/* ========================================================================= */}
+        {/* SEÇÃO 2: CONTATOS DE EMERGÊNCIA E RESPONSÁVEIS */}
+        {/* ========================================================================= */}
+        <div className="glass-panel" style={{ padding: '1.75rem', marginBottom: '1.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
+            <Phone size={22} color="var(--accent-primary)" />
+            <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 'bold' }}>2. Contatos de Emergência e Responsáveis</h3>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="contato_emergencia">
+              Em caso de Emergência ligar para quem? Nome e Telefone
+            </label>
+            <input
+              id="contato_emergencia"
+              name="contato_emergencia"
+              type="text"
+              className="form-input"
+              placeholder="Ex: Nome do contato - (61) 98888-8888"
+              value={formData.contato_emergencia}
+              onChange={handleChange}
+            />
+          </div>
+
+          <div className="form-grid">
+            <div className="form-group">
+              <label className="form-label" htmlFor="nome_responsavel">Nome Completo dos pais ou responsáveis (para menores)</label>
+              <input
+                id="nome_responsavel"
+                name="nome_responsavel"
+                type="text"
+                className="form-input"
+                placeholder="Nome do Responsável Legal"
+                value={formData.nome_responsavel}
+                onChange={handleChange}
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" htmlFor="fone_responsavel">Telefone pais ou responsáveis (para menores)</label>
+              <input
+                id="fone_responsavel"
+                name="fone_responsavel"
+                type="text"
+                className="form-input"
+                placeholder="(00) 00000-0000"
+                value={formData.fone_responsavel}
+                onChange={handleChange}
+              />
             </div>
           </div>
 
@@ -655,90 +982,424 @@ export const EditarPessoa = () => {
               />
             </div>
           </div>
+        </div>
 
-          <div className="form-grid">
-            <div className="form-group">
-              <label className="form-label" htmlFor="fone_responsavel">Telefone do Responsável</label>
-              <input
-                id="fone_responsavel"
-                name="fone_responsavel"
-                type="text"
-                className="form-input"
-                placeholder="(00) 00000-0000"
-                value={formData.fone_responsavel}
-                onChange={handleChange}
-              />
-            </div>
-            <div className="form-group">
-              <label className="form-label" htmlFor="ano">Ano (Turma)</label>
-              <input
-                id="ano"
-                name="ano"
-                type="number"
-                className="form-input"
-                placeholder="Ex: 2025"
-                disabled={userProfile?.perfil !== 'ADMIN' && userProfile?.perfil !== 'GESTOR'}
-                value={formData.ano}
-                onChange={handleChange}
-              />
-            </div>
+        {/* ========================================================================= */}
+        {/* SEÇÃO 3: FICHA DE SAÚDE */}
+        {/* ========================================================================= */}
+        <div className="glass-panel" style={{ padding: '1.75rem', marginBottom: '1.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
+            <HeartPulse size={22} color="#e11d48" />
+            <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 'bold' }}>3. Ficha Médica e Cuidados de Saúde</h3>
           </div>
 
-          <div className="form-grid">
-            <div className="form-group">
-              <label className="form-label" htmlFor="tipo_pessoa">Tipo *</label>
-              <select
-                id="tipo_pessoa"
-                name="tipo_pessoa"
-                className="form-input"
-                value={formData.tipo_pessoa}
-                disabled={userProfile?.perfil !== 'ADMIN' && userProfile?.perfil !== 'GESTOR'}
-                onChange={handleChange}
-                required
-              >
-                <option value="AFILHADO">Afilhado(a)</option>
-                <option value="PADRINHO">Padrinho</option>
-                <option value="MADRINHA">Madrinha</option>
-                <option value="VOLUNTARIO">Voluntário(a)</option>
-              </select>
-            </div>
+          <div className="form-group" style={{ maxWidth: '300px' }}>
+            <label className="form-label" htmlFor="tipo_sanguineo">Tipo Sanguíneo / Fator RH</label>
+            <select
+              id="tipo_sanguineo"
+              name="tipo_sanguineo"
+              className="form-input"
+              value={formData.tipo_sanguineo}
+              onChange={handleChange}
+            >
+              <option value="">-- Não Informado / Não sei --</option>
+              <option value="A+">A+</option>
+              <option value="A-">A-</option>
+              <option value="B+">B+</option>
+              <option value="B-">B-</option>
+              <option value="AB+">AB+</option>
+              <option value="AB-">AB-</option>
+              <option value="O+">O+</option>
+              <option value="O-">O-</option>
+            </select>
+          </div>
 
-            {userProfile?.perfil === 'ADMIN' && (
-              <div className="form-group">
-                <label className="form-label" htmlFor="user_id">Conta de Usuário (App) Vinculada</label>
-                <select
-                  id="user_id"
-                  name="user_id"
+          <hr style={{ border: 'none', borderTop: '1px solid var(--border-color)', margin: '1.25rem 0' }} />
+
+          {/* Problema Crônico */}
+          <div style={{ marginBottom: '1.25rem' }}>
+            <label className="form-label">Tem algum problema crônico de saúde?</label>
+            <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '0.5rem' }}>
+              <label style={{ cursor: 'pointer' }}>
+                <input type="radio" name="problema_saude" value="NAO" checked={formData.problema_saude === 'NAO'} onChange={handleChange} /> Não
+              </label>
+              <label style={{ cursor: 'pointer' }}>
+                <input type="radio" name="problema_saude" value="SIM" checked={formData.problema_saude === 'SIM'} onChange={handleChange} /> Sim
+              </label>
+            </div>
+            {formData.problema_saude === 'SIM' && (
+              <input
+                type="text"
+                name="problema_saude_qual"
+                className="form-input"
+                placeholder="Qual o problema crônico?"
+                value={formData.problema_saude_qual}
+                onChange={handleChange}
+              />
+            )}
+          </div>
+
+          {/* Convulsão / Epilepsia */}
+          <div style={{ marginBottom: '1.25rem' }}>
+            <label className="form-label">Tem ou já teve: convulsão, epilepsia, sangramentos constantes?</label>
+            <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '0.5rem' }}>
+              <label style={{ cursor: 'pointer' }}>
+                <input type="radio" name="historico_convulsao" value="NAO" checked={formData.historico_convulsao === 'NAO'} onChange={handleChange} /> Não
+              </label>
+              <label style={{ cursor: 'pointer' }}>
+                <input type="radio" name="historico_convulsao" value="SIM" checked={formData.historico_convulsao === 'SIM'} onChange={handleChange} /> Sim
+              </label>
+            </div>
+            {formData.historico_convulsao === 'SIM' && (
+              <input
+                type="text"
+                name="historico_convulsao_tempo"
+                className="form-input"
+                placeholder="Há quanto tempo?"
+                value={formData.historico_convulsao_tempo}
+                onChange={handleChange}
+              />
+            )}
+          </div>
+
+          {/* Tratamento Médico */}
+          <div style={{ marginBottom: '1.25rem' }}>
+            <label className="form-label">Está fazendo algum tratamento médico? (Ex: Psicológico, Cardíaco, outros)</label>
+            <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '0.5rem' }}>
+              <label style={{ cursor: 'pointer' }}>
+                <input type="radio" name="tratamento_medico" value="NAO" checked={formData.tratamento_medico === 'NAO'} onChange={handleChange} /> Não
+              </label>
+              <label style={{ cursor: 'pointer' }}>
+                <input type="radio" name="tratamento_medico" value="SIM" checked={formData.tratamento_medico === 'SIM'} onChange={handleChange} /> Sim
+              </label>
+            </div>
+            {formData.tratamento_medico === 'SIM' && (
+              <input
+                type="text"
+                name="tratamento_medico_qual"
+                className="form-input"
+                placeholder="Qual tratamento médico?"
+                value={formData.tratamento_medico_qual}
+                onChange={handleChange}
+              />
+            )}
+          </div>
+
+          {/* Medicamento Contínuo */}
+          <div style={{ marginBottom: '1.25rem' }}>
+            <label className="form-label">Faz uso de medicamento contínuo?</label>
+            <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '0.5rem' }}>
+              <label style={{ cursor: 'pointer' }}>
+                <input type="radio" name="medicamento_continuo" value="NAO" checked={formData.medicamento_continuo === 'NAO'} onChange={handleChange} /> Não
+              </label>
+              <label style={{ cursor: 'pointer' }}>
+                <input type="radio" name="medicamento_continuo" value="SIM" checked={formData.medicamento_continuo === 'SIM'} onChange={handleChange} /> Sim
+              </label>
+            </div>
+            {formData.medicamento_continuo === 'SIM' && (
+              <div className="form-grid">
+                <input
+                  type="text"
+                  name="medicamento_continuo_qual"
                   className="form-input"
-                  value={formData.user_id}
+                  placeholder="Qual medicamento?"
+                  value={formData.medicamento_continuo_qual}
                   onChange={handleChange}
-                >
-                  <option value="">-- Não vincular nenhuma conta --</option>
-                  {usuarios.map(u => (
-                    <option key={u.user_id} value={u.user_id}>
-                      {u.nome} {u.email ? `(${u.email})` : ''}
-                    </option>
-                  ))}
-                </select>
+                />
+                <input
+                  type="text"
+                  name="medicamento_continuo_dosagem"
+                  className="form-input"
+                  placeholder="Qual a dosagem?"
+                  value={formData.medicamento_continuo_dosagem}
+                  onChange={handleChange}
+                />
               </div>
             )}
           </div>
 
-          <div className="form-group">
-            <label className="form-label" htmlFor="necessidade_medica">Necessidade Médica / Restrição Alimentar</label>
+          {/* Lesão ou Contusão */}
+          <div style={{ marginBottom: '1.25rem' }}>
+            <label className="form-label">Possui atualmente alguma lesão ou contusão?</label>
+            <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '0.5rem' }}>
+              <label style={{ cursor: 'pointer' }}>
+                <input type="radio" name="lesao_contusao" value="NAO" checked={formData.lesao_contusao === 'NAO'} onChange={handleChange} /> Não
+              </label>
+              <label style={{ cursor: 'pointer' }}>
+                <input type="radio" name="lesao_contusao" value="SIM" checked={formData.lesao_contusao === 'SIM'} onChange={handleChange} /> Sim
+              </label>
+            </div>
+            {formData.lesao_contusao === 'SIM' && (
+              <input
+                type="text"
+                name="lesao_contusao_qual"
+                className="form-input"
+                placeholder="Qual lesão ou contusão?"
+                value={formData.lesao_contusao_qual}
+                onChange={handleChange}
+              />
+            )}
+          </div>
+
+          {/* Restrição Alimentar */}
+          <div style={{ marginBottom: '1.25rem' }}>
+            <label className="form-label">Possui restrição alimentar? (Ex: Glúten, Lactose, outros)</label>
+            <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '0.5rem' }}>
+              <label style={{ cursor: 'pointer' }}>
+                <input type="radio" name="restricao_alimentar" value="NAO" checked={formData.restricao_alimentar === 'NAO'} onChange={handleChange} /> Não
+              </label>
+              <label style={{ cursor: 'pointer' }}>
+                <input type="radio" name="restricao_alimentar" value="SIM" checked={formData.restricao_alimentar === 'SIM'} onChange={handleChange} /> Sim
+              </label>
+            </div>
+            {formData.restricao_alimentar === 'SIM' && (
+              <input
+                type="text"
+                name="restricao_alimentar_qual"
+                className="form-input"
+                placeholder="Qual restrição alimentar?"
+                value={formData.restricao_alimentar_qual}
+                onChange={handleChange}
+              />
+            )}
+          </div>
+
+          {/* Doença Respiratória e Bombinha */}
+          <div style={{ marginBottom: '1.25rem' }}>
+            <label className="form-label">Tem doença respiratória?</label>
+            <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '0.5rem' }}>
+              <label style={{ cursor: 'pointer' }}>
+                <input type="radio" name="doenca_respiratoria" value="NAO" checked={formData.doenca_respiratoria === 'NAO'} onChange={handleChange} /> Não
+              </label>
+              <label style={{ cursor: 'pointer' }}>
+                <input type="radio" name="doenca_respiratoria" value="SIM" checked={formData.doenca_respiratoria === 'SIM'} onChange={handleChange} /> Sim
+              </label>
+            </div>
+            {formData.doenca_respiratoria === 'SIM' && (
+              <div style={{ background: 'var(--bg-secondary)', padding: '0.75rem', borderRadius: '8px' }}>
+                <label className="form-label">Faz uso de bombinha?</label>
+                <div style={{ display: 'flex', gap: '1.5rem' }}>
+                  <label style={{ cursor: 'pointer' }}>
+                    <input type="radio" name="usa_bombinha" value="NAO" checked={formData.usa_bombinha === 'NAO'} onChange={handleChange} /> Não
+                  </label>
+                  <label style={{ cursor: 'pointer' }}>
+                    <input type="radio" name="usa_bombinha" value="SIM" checked={formData.usa_bombinha === 'SIM'} onChange={handleChange} /> Sim
+                  </label>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Alergias */}
+          <div className="form-grid">
+            <div>
+              <label className="form-label">Tem alergia à algum medicamento?</label>
+              <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '0.5rem' }}>
+                <label style={{ cursor: 'pointer' }}>
+                  <input type="radio" name="alergia_medicamento" value="NAO" checked={formData.alergia_medicamento === 'NAO'} onChange={handleChange} /> Não
+                </label>
+                <label style={{ cursor: 'pointer' }}>
+                  <input type="radio" name="alergia_medicamento" value="SIM" checked={formData.alergia_medicamento === 'SIM'} onChange={handleChange} /> Sim
+                </label>
+              </div>
+              {formData.alergia_medicamento === 'SIM' && (
+                <input
+                  type="text"
+                  name="alergia_medicamento_qual"
+                  className="form-input"
+                  placeholder="Qual medicamento?"
+                  value={formData.alergia_medicamento_qual}
+                  onChange={handleChange}
+                />
+              )}
+            </div>
+
+            <div>
+              <label className="form-label">Tem alergia à algum alimento?</label>
+              <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '0.5rem' }}>
+                <label style={{ cursor: 'pointer' }}>
+                  <input type="radio" name="alergia_alimento" value="NAO" checked={formData.alergia_alimento === 'NAO'} onChange={handleChange} /> Não
+                </label>
+                <label style={{ cursor: 'pointer' }}>
+                  <input type="radio" name="alergia_alimento" value="SIM" checked={formData.alergia_alimento === 'SIM'} onChange={handleChange} /> Sim
+                </label>
+              </div>
+              {formData.alergia_alimento === 'SIM' && (
+                <input
+                  type="text"
+                  name="alergia_alimento_qual"
+                  className="form-input"
+                  placeholder="Qual alimento?"
+                  value={formData.alergia_alimento_qual}
+                  onChange={handleChange}
+                />
+              )}
+            </div>
+          </div>
+
+          {/* Medicação para Febre / Sintomas */}
+          <div className="form-group" style={{ marginTop: '1rem' }}>
+            <label className="form-label" htmlFor="medicacao_sintomas">
+              Em caso de Febre, Dor de Cabeça, Dor Muscular ou Desconforto Gastrointestinal, qual o tipo de medicação costuma tomar e qual a dosagem?
+            </label>
             <textarea
-              id="necessidade_medica"
-              name="necessidade_medica"
+              id="medicacao_sintomas"
+              name="medicacao_sintomas"
               className="form-input"
-              placeholder="Descreva se houver alguma necessidade médica ou restrição alimentar"
-              value={formData.necessidade_medica}
+              placeholder="Ex: Paracetamol 750mg para dor de cabeça, Dipirona 500mg para febre..."
+              value={formData.medicacao_sintomas}
               onChange={handleChange}
-              rows="4"
+              rows="3"
             />
           </div>
 
-          {(formData.tipo_pessoa === 'PADRINHO' || formData.tipo_pessoa === 'MADRINHA') && (
+          {/* Cuidados Especiais */}
+          <div style={{ marginTop: '1rem' }}>
+            <label className="form-label">Demanda algum tipo de cuidado especial?</label>
+            <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '0.5rem' }}>
+              <label style={{ cursor: 'pointer' }}>
+                <input type="radio" name="cuidado_especial" value="NAO" checked={formData.cuidado_especial === 'NAO'} onChange={handleChange} /> Não
+              </label>
+              <label style={{ cursor: 'pointer' }}>
+                <input type="radio" name="cuidado_especial" value="SIM" checked={formData.cuidado_especial === 'SIM'} onChange={handleChange} /> Sim
+              </label>
+            </div>
+            {formData.cuidado_especial === 'SIM' && (
+              <input
+                type="text"
+                name="cuidado_especial_qual"
+                className="form-input"
+                placeholder="Qual cuidado especial?"
+                value={formData.cuidado_especial_qual}
+                onChange={handleChange}
+              />
+            )}
+          </div>
+        </div>
 
+        {/* ========================================================================= */}
+        {/* SEÇÃO 4: CAMISETAS */}
+        {/* ========================================================================= */}
+        <div className="glass-panel" style={{ padding: '1.75rem', marginBottom: '1.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
+            <Shirt size={22} color="var(--accent-primary)" />
+            <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 'bold' }}>4. Tamanho da Camiseta</h3>
+          </div>
+
+          <div className="form-grid">
+            <div className="form-group">
+              <label className="form-label" htmlFor="camiseta">Tamanho da Camiseta (Adulto)</label>
+              <select
+                id="camiseta"
+                name="camiseta"
+                className="form-input"
+                value={formData.camiseta}
+                onChange={handleChange}
+              >
+                <option value="">-- Selecione --</option>
+                <option value="PP">PP</option>
+                <option value="P">P</option>
+                <option value="M">M</option>
+                <option value="G">G</option>
+                <option value="GG">GG</option>
+                <option value="XGG">XGG</option>
+                <option value="XXGG">XXGG</option>
+                <option value="G1">G1 - Tamanho Especial</option>
+                <option value="G2">G2 - Tamanho Especial</option>
+                <option value="G3">G3 - Tamanho Especial</option>
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" htmlFor="camiseta_infantil">Tamanho da Camiseta Infantil (0 a 15 anos)</label>
+              <select
+                id="camiseta_infantil"
+                name="camiseta_infantil"
+                className="form-input"
+                value={formData.camiseta_infantil}
+                onChange={handleChange}
+              >
+                <option value="">-- Não se aplica (Adulto) --</option>
+                <option value="0 a 1 ano">0 a 1 ano</option>
+                <option value="2 anos">2 anos</option>
+                <option value="4 anos">4 anos</option>
+                <option value="6 anos">6 anos</option>
+                <option value="8 anos">8 anos</option>
+                <option value="10 anos">10 anos</option>
+                <option value="12 anos">12 anos</option>
+                <option value="14 anos">14 anos</option>
+                <option value="16 anos">16 anos</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* ========================================================================= */}
+        {/* SEÇÃO 5: OUTRAS OBSERVAÇÕES */}
+        {/* ========================================================================= */}
+        <div className="glass-panel" style={{ padding: '1.75rem', marginBottom: '1.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
+            <Info size={22} color="var(--accent-primary)" />
+            <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 'bold' }}>5. Outras Informações Importantes</h3>
+          </div>
+
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label" htmlFor="outras_informacoes">Outras informações ou orientações importantes:</label>
+            <textarea
+              id="outras_informacoes"
+              name="outras_informacoes"
+              className="form-input"
+              placeholder="Digite outras informações importantes sobre o participante..."
+              value={formData.outras_informacoes}
+              onChange={handleChange}
+              rows="3"
+            />
+          </div>
+        </div>
+
+        {/* ========================================================================= */}
+        {/* SEÇÃO 6: TERMOS DE ACEITE */}
+        {/* ========================================================================= */}
+        <div className="glass-panel" style={{ padding: '1.75rem', marginBottom: '1.5rem', background: 'rgba(59, 130, 246, 0.03)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
+            <ShieldCheck size={22} color="var(--accent-primary)" />
+            <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 'bold' }}>6. Termos e Autorizações</h3>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+              <input
+                type="checkbox"
+                id="aceite_termos_dados"
+                name="aceite_termos_dados"
+                checked={formData.aceite_termos_dados}
+                onChange={handleChange}
+                style={{ width: '1.3rem', height: '1.3rem', marginTop: '0.2rem', cursor: 'pointer' }}
+              />
+              <label htmlFor="aceite_termos_dados" style={{ cursor: 'pointer', fontSize: '0.9rem' }}>
+                <strong>PAIS OU RESPONSÁVEIS:</strong> Concordo com o tratamento de meus dados pessoais e os dados do menor sob os meus cuidados para as finalidades a seguir determinadas: registro no <strong>VIII Acampamento do Pós-Crisma</strong>, possível apresentação no El Rancho e à empresa de transporte.
+              </label>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+              <input
+                type="checkbox"
+                id="aceite_termo_imagem"
+                name="aceite_termo_imagem"
+                checked={formData.aceite_termo_imagem}
+                onChange={handleChange}
+                style={{ width: '1.3rem', height: '1.3rem', marginTop: '0.2rem', cursor: 'pointer' }}
+              />
+              <label htmlFor="aceite_termo_imagem" style={{ cursor: 'pointer', fontSize: '0.9rem' }}>
+                <strong>PAIS OU RESPONSÁVEIS:</strong> Autorizo o uso da imagem de meu/minha filho(a) para uso em campanhas de divulgação do evento em sites e redes sociais da Paróquia Santa Maria dos Pobres.
+              </label>
+            </div>
+          </div>
+        </div>
+
+        {/* Cônjuge (Se Padrinho/Madrinha) */}
+        {(formData.tipo_pessoa === 'PADRINHO' || formData.tipo_pessoa === 'MADRINHA') && (
+          <div className="glass-panel" style={{ padding: '1.75rem', marginBottom: '1.5rem' }}>
             <div className="form-group">
               <label className="form-label" htmlFor="conjuge_id">Cônjuge (opcional)</label>
               <select
@@ -754,12 +1415,9 @@ export const EditarPessoa = () => {
                 ))}
               </select>
             </div>
-          )}
 
-
-          {/* Dependentes */}
-          {(formData.tipo_pessoa === 'PADRINHO' || formData.tipo_pessoa === 'MADRINHA') && (
-            <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
+            {/* Dependentes */}
+            <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                 <h3 style={{ fontSize: '1.25rem', margin: 0, fontWeight: 'bold' }}>Dependentes (Filhos)</h3>
                 <button type="button" onClick={handleAddDependente} className="btn btn-secondary" style={{ padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -831,15 +1489,51 @@ export const EditarPessoa = () => {
                 </div>
               )}
             </div>
-          )}
-
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '2rem' }}>
-            <button type="submit" className="btn btn-primary" disabled={loading}>
-              {loading ? 'Salvando...' : 'Salvar Alterações'}
-            </button>
           </div>
-        </form>
-      </div>
+        )}
+
+        {error && (
+          <div
+            className="alert alert-error"
+            style={{
+              marginBottom: '1rem',
+              whiteSpace: 'pre-line',
+              background: 'rgba(239, 68, 68, 0.1)',
+              border: '1px solid var(--error)',
+              padding: '1rem',
+              borderRadius: '8px',
+              color: '#b91c1c'
+            }}
+          >
+            {error}
+          </div>
+        )}
+
+        {success && (
+          <div
+            className="alert alert-success"
+            style={{
+              marginBottom: '1rem',
+              background: 'rgba(16, 185, 129, 0.1)',
+              border: '1px solid var(--success)',
+              padding: '1rem',
+              borderRadius: '8px',
+              color: '#047857'
+            }}
+          >
+            {success}
+          </div>
+        )}
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1.5rem' }}>
+          <button type="button" onClick={() => navigate(-1)} className="btn btn-secondary">
+            Cancelar
+          </button>
+          <button type="submit" className="btn btn-primary" disabled={loading} style={{ padding: '0.75rem 2rem' }}>
+            {loading ? 'Salvando...' : 'Salvar Alterações'}
+          </button>
+        </div>
+      </form>
     </div>
   );
 };
