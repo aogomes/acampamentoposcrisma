@@ -10,7 +10,7 @@ export const AuthProvider = ({ children }) => {
 
   const [pessoaProfile, setPessoaProfile] = useState(null);
 
-  const fetchProfile = async (userId) => {
+  const fetchProfile = async (userId, userEmail) => {
     try {
       // Fetch Perfil
       const { data: perfilData, error: perfilError } = await supabase
@@ -27,11 +27,30 @@ export const AuthProvider = ({ children }) => {
       setUserProfile(perfilData || null);
 
       // Fetch Pessoa
-      const { data: pessoaData } = await supabase
+      let { data: pessoaData } = await supabase
         .from('apc_pessoa')
         .select('*')
         .eq('user_id', userId)
         .maybeSingle();
+
+      // Se não encontrou apc_pessoa pelo user_id mas temos o e-mail, tenta auto-vincular
+      if (!pessoaData && userEmail) {
+        try {
+          const { data: pessoaByEmail } = await supabase
+            .from('apc_pessoa')
+            .select('*')
+            .ilike('email', userEmail)
+            .is('user_id', null)
+            .maybeSingle();
+
+          if (pessoaByEmail) {
+            await supabase.from('apc_pessoa').update({ user_id: userId }).eq('id', pessoaByEmail.id);
+            pessoaData = { ...pessoaByEmail, user_id: userId };
+          }
+        } catch (linkErr) {
+          console.warn('Auto-vinculo de pessoa por email ignorado:', linkErr);
+        }
+      }
 
       setPessoaProfile(pessoaData || null);
     } catch (err) {
@@ -46,7 +65,7 @@ export const AuthProvider = ({ children }) => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       setUser(session?.user ?? null);
       if (session?.user) {
-        await fetchProfile(session.user.id);
+        await fetchProfile(session.user.id, session.user.email);
       }
       setLoading(false);
     });
@@ -55,7 +74,7 @@ export const AuthProvider = ({ children }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setUser(session?.user ?? null);
       if (session?.user) {
-        await fetchProfile(session.user.id);
+        await fetchProfile(session.user.id, session.user.email);
       } else {
         setUserProfile(null);
         setPessoaProfile(null);
@@ -66,14 +85,24 @@ export const AuthProvider = ({ children }) => {
     return () => subscription.unsubscribe();
   }, []);
 
+  const signInWithGoogle = async () => {
+    return supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin
+      }
+    });
+  };
+
   const value = {
     signUp: (data) => supabase.auth.signUp(data),
     signIn: (data) => supabase.auth.signInWithPassword(data),
+    signInWithGoogle,
     signOut: () => supabase.auth.signOut(),
     user,
     userProfile,
     pessoaProfile,
-    refreshProfile: () => user && fetchProfile(user.id),
+    refreshProfile: () => user && fetchProfile(user.id, user.email),
     loading
   };
 

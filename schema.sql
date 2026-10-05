@@ -109,14 +109,35 @@ ON public.apc_vinculo FOR SELECT USING (auth.uid() = afilhado_id);
 -- Isso resolve problemas de RLS (Row Level Security) quando a conta exige confirmação de email
 CREATE OR REPLACE FUNCTION public.handle_new_user() 
 RETURNS TRIGGER AS $$
+DECLARE
+  v_nome TEXT;
 BEGIN
+  -- Obtém o nome tanto do cadastro normal (nome) quanto do login Google (full_name ou name)
+  v_nome := COALESCE(
+    new.raw_user_meta_data->>'nome', 
+    new.raw_user_meta_data->>'full_name', 
+    new.raw_user_meta_data->>'name', 
+    'Usuário Novo'
+  );
+
+  -- Cria o perfil do usuário
   INSERT INTO public.apc_perfil (user_id, nome, email, perfil)
   VALUES (
     new.id, 
-    COALESCE(new.raw_user_meta_data->>'nome', 'Usuário Novo'), 
+    v_nome, 
     new.email, 
     'PENDENTE'
-  );
+  )
+  ON CONFLICT (user_id) DO UPDATE 
+  SET nome = EXCLUDED.nome, email = EXCLUDED.email;
+
+  -- Vincula automaticamente com o registro correspondente em apc_pessoa se o e-mail coincidir
+  IF new.email IS NOT NULL THEN
+    UPDATE public.apc_pessoa 
+    SET user_id = new.id 
+    WHERE LOWER(email) = LOWER(new.email) AND (user_id IS NULL OR user_id = new.id);
+  END IF;
+
   RETURN new;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
