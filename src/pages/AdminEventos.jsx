@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { Calendar, Plus, Trash2, Edit2, Search, Filter } from 'lucide-react';
+import { Calendar, Plus, Trash2, Edit2, Search, Filter, FileSpreadsheet } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { exportarRelatorioExcelEvento } from '../utils/relatorioExcel';
 
 export const AdminEventos = () => {
   const { userProfile } = useAuth();
@@ -11,6 +12,7 @@ export const AdminEventos = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
+  const [exportingId, setExportingId] = useState(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -70,6 +72,26 @@ export const AdminEventos = () => {
       ...prev,
       [name]: value
     }));
+  };
+
+  const handleGerarRelatorio = async (evento) => {
+    try {
+      setExportingId(evento.id);
+      setError('');
+      setSuccess('');
+
+      const resultado = await exportarRelatorioExcelEvento(evento);
+      if (resultado.count === 0) {
+        setError(resultado.message);
+      } else {
+        setSuccess(`Relatório gerado com sucesso! (${resultado.count} participantes exportados no arquivo ${resultado.fileName})`);
+        setTimeout(() => setSuccess(''), 5000);
+      }
+    } catch (err) {
+      setError('Erro ao gerar relatório Excel: ' + (err.message || err));
+    } finally {
+      setExportingId(null);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -426,7 +448,31 @@ export const AdminEventos = () => {
                         </span>
                       </td>
                       <td style={{ textAlign: 'right' }}>
-                        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', alignItems: 'center' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleGerarRelatorio(e)}
+                            className="btn btn-secondary"
+                            style={{
+                              padding: '0.4rem 0.65rem',
+                              fontSize: '0.875rem',
+                              color: '#16a34a',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.35rem'
+                            }}
+                            title="Gerar e Baixar Planilha Excel com Informações das Pessoas"
+                            disabled={exportingId === e.id}
+                          >
+                            {exportingId === e.id ? (
+                              <span style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Gerando...</span>
+                            ) : (
+                              <>
+                                <FileSpreadsheet size={16} />
+                                <span style={{ fontSize: '0.8rem', fontWeight: '600' }}>Relatório</span>
+                              </>
+                            )}
+                          </button>
                           <Link
                             to={`/admin/eventos/${e.id}`}
                             className="btn btn-secondary"

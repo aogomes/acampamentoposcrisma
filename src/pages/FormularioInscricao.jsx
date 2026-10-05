@@ -586,17 +586,7 @@ ALTER TABLE public.apc_pessoa
       </div>
 
       {/* Banner Oficial do Evento */}
-      <div
-        className="glass-panel"
-        style={{
-          padding: '2rem',
-          marginBottom: '2rem',
-          background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.08), rgba(124, 58, 237, 0.08))',
-          border: '1px solid rgba(59, 130, 246, 0.3)',
-          position: 'relative',
-          overflow: 'hidden'
-        }}
-      >
+      <div className="glass-panel banner-acampamento">
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
           <div>
             <span
@@ -615,32 +605,21 @@ ALTER TABLE public.apc_pessoa
             >
               Ficha Oficial de Inscrição
             </span>
-            <h1 style={{ margin: 0, fontSize: '1.75rem', lineHeight: 1.2 }}>
+            <h1 className="banner-title">
               VIII Acampamento do Pós Crisma - 2026
             </h1>
-            <h3 style={{ margin: '0.4rem 0 0 0', fontSize: '1.1rem', color: 'var(--accent-primary)', fontWeight: '600' }}>
+            <h3 className="banner-subtitle">
               Paróquia Santa Maria dos Pobres - Paranoá-DF
             </h3>
           </div>
-          <div style={{ background: 'white', padding: '0.75rem 1.25rem', borderRadius: '12px', border: '1px solid #cbd5e1', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', textAlign: 'right' }}>
+          <div className="badge-price-container">
             <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', textTransform: 'uppercase', fontWeight: 'bold' }}>Investimento</span>
             <strong style={{ fontSize: '1.5rem', color: '#16a34a' }}>R$ 700,00</strong>
           </div>
         </div>
 
         {/* Grade de Detalhes do Evento */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-            gap: '1rem',
-            background: 'rgba(255, 255, 255, 0.7)',
-            padding: '1.25rem',
-            borderRadius: '12px',
-            marginBottom: '1.25rem',
-            border: '1px solid rgba(226, 232, 240, 0.8)'
-          }}
-        >
+        <div className="banner-grid">
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <Calendar size={22} color="var(--accent-primary)" />
             <div>
@@ -740,10 +719,10 @@ ALTER TABLE public.apc_pessoa
         {/* ========================================================================= */}
         {/* SEÇÃO 1: DADOS DO PARTICIPANTE */}
         {/* ========================================================================= */}
-        <div className="glass-panel" style={{ padding: '1.75rem', marginBottom: '1.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
+        <div className="glass-panel form-section-card">
+          <div className="section-header">
             <User size={22} color="var(--accent-primary)" />
-            <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 'bold' }}>1. Dados do Participante</h3>
+            <h3>1. Dados do Participante</h3>
           </div>
 
           <div className="form-grid">
@@ -955,10 +934,10 @@ ALTER TABLE public.apc_pessoa
         {/* ========================================================================= */}
         {/* SEÇÃO 2: CONTATOS DE EMERGÊNCIA E RESPONSÁVEIS */}
         {/* ========================================================================= */}
-        <div className="glass-panel" style={{ padding: '1.75rem', marginBottom: '1.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
+        <div className="glass-panel form-section-card">
+          <div className="section-header">
             <Phone size={22} color="var(--accent-primary)" />
-            <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 'bold' }}>2. Contatos de Emergência e Responsáveis</h3>
+            <h3>2. Contatos de Emergência e Responsáveis</h3>
           </div>
 
           <div className="form-group">
@@ -1029,10 +1008,10 @@ ALTER TABLE public.apc_pessoa
         {/* ========================================================================= */}
         {/* SEÇÃO 3: FICHA MÉDICA E DE SAÚDE */}
         {/* ========================================================================= */}
-        <div className="glass-panel" style={{ padding: '1.75rem', marginBottom: '1.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
+        <div className="glass-panel form-section-card">
+          <div className="section-header">
             <HeartPulse size={22} color="#e11d48" />
-            <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 'bold' }}>3. Ficha Médica e Cuidados de Saúde</h3>
+            <h3>3. Ficha Médica e Cuidados de Saúde</h3>
           </div>
 
           {/* Tipo Sanguíneo */}
@@ -1514,10 +1493,10 @@ ALTER TABLE public.apc_pessoa
         {/* ========================================================================= */}
         {/* SEÇÃO 4: TAMANHO DE CAMISETA */}
         {/* ========================================================================= */}
-        <div className="glass-panel" style={{ padding: '1.75rem', marginBottom: '1.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
+        <div className="glass-panel form-section-card">
+          <div className="section-header">
             <Shirt size={22} color="var(--accent-primary)" />
-            <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 'bold' }}>4. Tamanho da Camiseta</h3>
+            <h3>4. Tamanho da Camiseta</h3>
           </div>
 
           <div className="form-grid">
@@ -1576,10 +1555,10 @@ ALTER TABLE public.apc_pessoa
         {/* ========================================================================= */}
         {/* SEÇÃO 5: OUTRAS INFORMAÇÕES IMPORTANTES */}
         {/* ========================================================================= */}
-        <div className="glass-panel" style={{ padding: '1.75rem', marginBottom: '1.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
+        <div className="glass-panel form-section-card">
+          <div className="section-header">
             <Info size={22} color="var(--accent-primary)" />
-            <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 'bold' }}>5. Outras Informações Importantes</h3>
+            <h3>5. Outras Informações Importantes</h3>
           </div>
 
           <div className="form-group" style={{ marginBottom: 0 }}>
@@ -1602,17 +1581,15 @@ ALTER TABLE public.apc_pessoa
         {/* SEÇÃO 6: TERMOS DE ACEITE E AUTORIZAÇÕES (LGPD E IMAGEM) */}
         {/* ========================================================================= */}
         <div
-          className="glass-panel"
+          className="glass-panel form-section-card"
           style={{
-            padding: '1.75rem',
-            marginBottom: '1.5rem',
             background: 'rgba(59, 130, 246, 0.03)',
             border: '1px solid rgba(59, 130, 246, 0.2)'
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
+          <div className="section-header">
             <ShieldCheck size={22} color="var(--accent-primary)" />
-            <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 'bold' }}>6. Termos e Autorizações</h3>
+            <h3>6. Termos e Autorizações</h3>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -1654,10 +1631,8 @@ ALTER TABLE public.apc_pessoa
         {/* ========================================================================= */}
         {eventosAtivos.length > 0 && (
           <div
-            className="glass-panel"
+            className="glass-panel form-section-card"
             style={{
-              padding: '1.5rem',
-              marginBottom: '2rem',
               background: jaInscritoEvento ? 'rgba(16, 185, 129, 0.08)' : 'rgba(59, 130, 246, 0.05)',
               border: jaInscritoEvento ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(59, 130, 246, 0.2)'
             }}
@@ -1736,7 +1711,7 @@ ALTER TABLE public.apc_pessoa
         )}
 
         {/* Botão de Envio */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1.5rem' }}>
+        <div className="form-actions-footer">
           <button
             type="button"
             onClick={() => navigate(-1)}
@@ -1748,7 +1723,7 @@ ALTER TABLE public.apc_pessoa
           <button
             type="submit"
             className="btn btn-primary"
-            style={{ padding: '0.85rem 2rem', fontSize: '1.05rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+            style={{ padding: '0.85rem 2rem', fontSize: '1.05rem', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
             disabled={loading}
           >
             <Save size={20} />

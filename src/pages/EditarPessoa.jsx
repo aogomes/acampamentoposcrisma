@@ -559,13 +559,13 @@ export const EditarPessoa = () => {
     <div className="main-content" style={{ maxWidth: '960px', margin: '0 auto', paddingBottom: '4rem' }}>
       
       {/* Barra Superior */}
-      <div className="glass-panel" style={{ padding: '1.5rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+      <div className="glass-panel form-section-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <button onClick={() => navigate(-1)} className="btn btn-secondary" style={{ padding: '0.5rem' }}>
             <ArrowLeft size={20} />
           </button>
-          <h1 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', margin: 0, fontSize: '1.75rem', flexWrap: 'wrap' }}>
-            <Edit size={28} color="var(--accent-primary)" />
+          <h1 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', margin: 0, flexWrap: 'wrap' }}>
+            <Edit size={26} color="var(--accent-primary)" />
             Editar Participante / Inscrição
           </h1>
         </div>
@@ -703,10 +703,10 @@ export const EditarPessoa = () => {
         {/* ========================================================================= */}
         {/* SEÇÃO 1: DADOS PESSOAIS */}
         {/* ========================================================================= */}
-        <div className="glass-panel" style={{ padding: '1.75rem', marginBottom: '1.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
+        <div className="glass-panel form-section-card">
+          <div className="section-header">
             <User size={22} color="var(--accent-primary)" />
-            <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 'bold' }}>1. Dados do Participante</h3>
+            <h3>1. Dados do Participante</h3>
           </div>
 
           <div className="form-grid">
@@ -907,10 +907,10 @@ export const EditarPessoa = () => {
         {/* ========================================================================= */}
         {/* SEÇÃO 2: CONTATOS DE EMERGÊNCIA E RESPONSÁVEIS */}
         {/* ========================================================================= */}
-        <div className="glass-panel" style={{ padding: '1.75rem', marginBottom: '1.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
+        <div className="glass-panel form-section-card">
+          <div className="section-header">
             <Phone size={22} color="var(--accent-primary)" />
-            <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 'bold' }}>2. Contatos de Emergência e Responsáveis</h3>
+            <h3>2. Contatos de Emergência e Responsáveis</h3>
           </div>
 
           <div className="form-group">
@@ -987,10 +987,10 @@ export const EditarPessoa = () => {
         {/* ========================================================================= */}
         {/* SEÇÃO 3: FICHA DE SAÚDE */}
         {/* ========================================================================= */}
-        <div className="glass-panel" style={{ padding: '1.75rem', marginBottom: '1.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
+        <div className="glass-panel form-section-card">
+          <div className="section-header">
             <HeartPulse size={22} color="#e11d48" />
-            <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 'bold' }}>3. Ficha Médica e Cuidados de Saúde</h3>
+            <h3>3. Ficha Médica e Cuidados de Saúde</h3>
           </div>
 
           <div className="form-group" style={{ maxWidth: '300px' }}>
@@ -1280,10 +1280,10 @@ export const EditarPessoa = () => {
         {/* ========================================================================= */}
         {/* SEÇÃO 4: CAMISETAS */}
         {/* ========================================================================= */}
-        <div className="glass-panel" style={{ padding: '1.75rem', marginBottom: '1.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
+        <div className="glass-panel form-section-card">
+          <div className="section-header">
             <Shirt size={22} color="var(--accent-primary)" />
-            <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 'bold' }}>4. Tamanho da Camiseta</h3>
+            <h3>4. Tamanho da Camiseta</h3>
           </div>
 
           <div className="form-grid">
@@ -1337,10 +1337,10 @@ export const EditarPessoa = () => {
         {/* ========================================================================= */}
         {/* SEÇÃO 5: OUTRAS OBSERVAÇÕES */}
         {/* ========================================================================= */}
-        <div className="glass-panel" style={{ padding: '1.75rem', marginBottom: '1.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
+        <div className="glass-panel form-section-card">
+          <div className="section-header">
             <Info size={22} color="var(--accent-primary)" />
-            <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 'bold' }}>5. Outras Informações Importantes</h3>
+            <h3>5. Outras Informações Importantes</h3>
           </div>
 
           <div className="form-group" style={{ marginBottom: 0 }}>
@@ -1360,10 +1360,10 @@ export const EditarPessoa = () => {
         {/* ========================================================================= */}
         {/* SEÇÃO 6: TERMOS DE ACEITE */}
         {/* ========================================================================= */}
-        <div className="glass-panel" style={{ padding: '1.75rem', marginBottom: '1.5rem', background: 'rgba(59, 130, 246, 0.03)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
+        <div className="glass-panel form-section-card" style={{ background: 'rgba(59, 130, 246, 0.03)' }}>
+          <div className="section-header">
             <ShieldCheck size={22} color="var(--accent-primary)" />
-            <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 'bold' }}>6. Termos e Autorizações</h3>
+            <h3>6. Termos e Autorizações</h3>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -1399,7 +1399,7 @@ export const EditarPessoa = () => {
 
         {/* Cônjuge (Se Padrinho/Madrinha) */}
         {(formData.tipo_pessoa === 'PADRINHO' || formData.tipo_pessoa === 'MADRINHA') && (
-          <div className="glass-panel" style={{ padding: '1.75rem', marginBottom: '1.5rem' }}>
+          <div className="glass-panel form-section-card">
             <div className="form-group">
               <label className="form-label" htmlFor="conjuge_id">Cônjuge (opcional)</label>
               <select
@@ -1525,11 +1525,11 @@ export const EditarPessoa = () => {
           </div>
         )}
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1.5rem' }}>
+        <div className="form-actions-footer">
           <button type="button" onClick={() => navigate(-1)} className="btn btn-secondary">
             Cancelar
           </button>
-          <button type="submit" className="btn btn-primary" disabled={loading} style={{ padding: '0.75rem 2rem' }}>
+          <button type="submit" className="btn btn-primary" disabled={loading} style={{ padding: '0.75rem 2rem', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
             {loading ? 'Salvando...' : 'Salvar Alterações'}
           </button>
         </div>
