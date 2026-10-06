@@ -13,6 +13,7 @@ export const Dashboard = () => {
   const [ano, setAno] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const [eventosAtivos, setEventosAtivos] = useState([]);
   const [eventoAtivo, setEventoAtivo] = useState(null);
   const [inscricaoAtual, setInscricaoAtual] = useState(null);
   const [isUpdatingInscricao, setIsUpdatingInscricao] = useState(false);
@@ -40,24 +41,26 @@ export const Dashboard = () => {
         setPessoaProfile(currentPessoa);
       }
 
-      // Buscar evento ativo
-      const { data: eventoData } = await supabase
+      // Buscar eventos ativos
+      const { data: eventosData } = await supabase
         .from('apc_evento')
         .select('id, descricao, equipes')
         .eq('status', 'ATIVO')
-        .order('data_inicio', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .order('data_inicio', { ascending: false });
 
-      if (eventoData) {
-        setEventoAtivo(eventoData);
+      const eventos = eventosData || [];
+      setEventosAtivos(eventos);
+
+      if (eventos.length > 0) {
+        const primeiroEvento = eventos[0];
+        setEventoAtivo(primeiroEvento);
 
         // Buscar inscrição no evento ativo
         if (currentPessoa) {
           const { data: inscricaoData } = await supabase
             .from('apc_acampamento')
             .select('*')
-            .eq('evento_id', eventoData.id)
+            .eq('evento_id', primeiroEvento.id)
             .eq('pessoa_id', currentPessoa.id)
             .maybeSingle();
 
@@ -209,20 +212,34 @@ export const Dashboard = () => {
             Olá, <strong style={{ color: 'var(--text-primary)' }}>{userProfile.nome}</strong>!
           </p>
           <div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-            {/* <span style={{
-              background: 'rgba(59, 130, 246, 0.1)',
-              color: 'var(--accent-primary)',
-              padding: '0.25rem 0.75rem',
-              borderRadius: '99px',
-              fontSize: '0.875rem',
-              fontWeight: 'bold'
-            }}>
-              Perfil: {userProfile.perfil}
-            </span> */}
             {userProfile.perfil === 'PENDENTE' && (
               <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
                 (Aguardando aprovação do administrador)
               </span>
+            )}
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', flexWrap: 'wrap' }}>
+            {eventosAtivos.length > 0 ? (
+              eventosAtivos.map((evento) => (
+                <Link
+                  key={evento.id}
+                  to={`/inscricao?eventoId=${evento.id}`}
+                  className="btn btn-tertiary"
+                  style={{ padding: '0.5rem 1rem', fontSize: '0.875rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+                >
+                  <ClipboardCheck size={14} />
+                  <span>Ficha de Inscrição - {evento.descricao}</span>
+                </Link>
+              ))
+            ) : (
+              <Link
+                to="/inscricao"
+                className="btn btn-tertiary"
+                style={{ padding: '0.5rem 1rem', fontSize: '0.875rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+              >
+                <ClipboardCheck size={14} />
+                <span>Ficha de Inscrição</span>
+              </Link>
             )}
           </div>
         </div>
@@ -252,15 +269,6 @@ export const Dashboard = () => {
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', flexWrap: 'wrap' }}>
-          <Link
-            to="/inscricao"
-            className="btn btn-secondary"
-            style={{ padding: '0.5rem 1rem', fontSize: '0.875rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
-          >
-            <ClipboardCheck size={16} color="var(--accent-primary)" />
-            <span>Ficha de Inscrição 2026</span>
-          </Link>
-
           {pessoaProfile && (
             <Link
               to={`/editar-pessoa/${pessoaProfile.id}`}
@@ -285,6 +293,8 @@ export const Dashboard = () => {
                 Você tem <strong style={{ color: 'var(--accent-primary)' }}>{afilhados.length}</strong> afilhados vinculados a você.
               </p>
             </div>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', flexWrap: 'wrap' }}>
             <Link
               to="/meus-afilhados"
               className="btn btn-primary"

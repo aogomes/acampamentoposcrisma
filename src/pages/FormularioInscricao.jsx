@@ -568,21 +568,18 @@ ALTER TABLE public.apc_pessoa
   const isMenorDeIdade = formData.idade !== '' && parseInt(formData.idade) < 18;
 
   return (
-    <div className="main-content" style={{ maxWidth: '960px', margin: '0 auto', paddingBottom: '4rem' }}>
-      
+    <div className="main-content" style={{ maxWidth: '960px', margin: '0 auto' }}>
+
       {/* Botão Voltar */}
       <div style={{ marginBottom: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <button
           type="button"
           onClick={() => navigate(-1)}
           className="btn btn-secondary"
-          style={{ padding: '0.5rem 1rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+          style={{ padding: '0.25rem 1rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
         >
           <ArrowLeft size={18} /> Voltar
         </button>
-        <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-          VIII Acampamento do Pós Crisma • 2026
-        </span>
       </div>
 
       {/* Banner Oficial do Evento */}
@@ -612,10 +609,6 @@ ALTER TABLE public.apc_pessoa
               Paróquia Santa Maria dos Pobres - Paranoá-DF
             </h3>
           </div>
-          <div className="badge-price-container">
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', textTransform: 'uppercase', fontWeight: 'bold' }}>Investimento</span>
-            <strong style={{ fontSize: '1.5rem', color: '#16a34a' }}>R$ 700,00</strong>
-          </div>
         </div>
 
         {/* Grade de Detalhes do Evento */}
@@ -637,13 +630,20 @@ ALTER TABLE public.apc_pessoa
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <DollarSign size={22} color="#16a34a" />
+            <div>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', fontWeight: '600' }}>INVESTIMENTO</span>
+              <strong style={{ fontSize: '0.95rem' }}>R$ 700,00</strong>
+            </div>
+          </div>
+          {/* <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <Phone size={22} color="#2563eb" />
             <div>
               <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', fontWeight: '600' }}>COORDENADORES PSMP</span>
               <span style={{ fontSize: '0.85rem', display: 'block' }}>Ubiratã: <strong>(61) 98118-4624</strong></span>
               <span style={{ fontSize: '0.85rem', display: 'block' }}>Daniela: <strong>(16) 98181-2742</strong></span>
             </div>
-          </div>
+          </div> */}
         </div>
 
         {/* Avisos Importantes */}
