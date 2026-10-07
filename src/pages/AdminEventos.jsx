@@ -26,6 +26,7 @@ export const AdminEventos = () => {
     data_inicio: '',
     data_fim: '',
     valor: '',
+    inclui_camiseta: false,
     status: 'ATIVO',
     equipes: []
   });
@@ -108,18 +109,26 @@ export const AdminEventos = () => {
         data_inicio: formData.data_inicio || null,
         data_fim: formData.data_fim || null,
         valor: formData.valor ? parseFloat(formData.valor) : null,
+        inclui_camiseta: Boolean(formData.inclui_camiseta),
         status: formData.status,
         equipes: formData.equipes
       };
 
-      const { error: dbError } = await supabase
+      let { error: dbError } = await supabase
         .from('apc_evento')
         .insert([insertData]);
+
+      if (dbError && dbError.message && dbError.message.includes('inclui_camiseta')) {
+        console.warn('Coluna inclui_camiseta ainda não existe em apc_evento no banco. Salvando sem a coluna...');
+        delete insertData.inclui_camiseta;
+        const fallbackRes = await supabase.from('apc_evento').insert([insertData]);
+        dbError = fallbackRes.error;
+      }
 
       if (dbError) throw dbError;
 
       setSuccess('Evento criado com sucesso!');
-      setFormData({ descricao: '', local: '', tema: '', data_inicio: '', data_fim: '', valor: '', status: 'ATIVO', equipes: [] });
+      setFormData({ descricao: '', local: '', tema: '', data_inicio: '', data_fim: '', valor: '', inclui_camiseta: false, status: 'ATIVO', equipes: [] });
 
       setTimeout(() => {
         setIsCreating(false);
@@ -233,7 +242,6 @@ export const AdminEventos = () => {
                   name="tema"
                   type="text"
                   className="form-input"
-                  placeholder="Ex: Jovens na fé"
                   value={formData.tema}
                   onChange={handleChange}
                 />
@@ -295,7 +303,23 @@ export const AdminEventos = () => {
                 />
               </div>
 
-              <div className="form-group" style={{ marginBottom: '2rem' }}>
+              <div className="form-group">
+                <label className="form-label" htmlFor="inclui_camiseta">Inclui Camiseta no Valor?</label>
+                <select
+                  id="inclui_camiseta"
+                  name="inclui_camiseta"
+                  className="form-input"
+                  value={formData.inclui_camiseta ? 'SIM' : 'NAO'}
+                  onChange={(e) => setFormData(prev => ({ ...prev, inclui_camiseta: e.target.value === 'SIM' }))}
+                >
+                  <option value="NAO">Não inclui camiseta</option>
+                  <option value="SIM">Sim, camiseta inclusa no valor</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="form-grid">
+              <div className="form-group" style={{ marginBottom: '1.5rem' }}>
                 <label className="form-label" htmlFor="status">Status *</label>
                 <select
                   id="status"
@@ -409,10 +433,8 @@ export const AdminEventos = () => {
                 <thead>
                   <tr>
                     <th>Descrição</th>
-                    {/* <th>Tema</th> */}
                     <th>Data Início</th>
                     <th>Data Fim</th>
-                    {/* <th>Valor</th> */}
                     <th>Local</th>
                     <th>Status</th>
                     <th style={{ textAlign: 'right' }}>Ações</th>

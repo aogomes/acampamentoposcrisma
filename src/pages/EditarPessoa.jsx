@@ -739,16 +739,18 @@ export const EditarPessoa = () => {
             </div>
 
             <div className="form-group">
-              <label className="form-label" htmlFor="padrinhos_catequistas">Nome dos Padrinhos ou Catequistas</label>
-              <input
-                id="padrinhos_catequistas"
-                name="padrinhos_catequistas"
-                type="text"
+              <label className="form-label" htmlFor="sexo">Sexo</label>
+              <select
+                id="sexo"
+                name="sexo"
                 className="form-input"
-                placeholder="Ex: Padrinhos João e Maria ou Catequista André"
-                value={formData.padrinhos_catequistas}
+                value={formData.sexo}
                 onChange={handleChange}
-              />
+              >
+                <option value="">-- Selecione --</option>
+                <option value="M">Masculino</option>
+                <option value="F">Feminino</option>
+              </select>
             </div>
           </div>
 
@@ -844,21 +846,6 @@ export const EditarPessoa = () => {
 
           <div className="form-grid">
             <div className="form-group">
-              <label className="form-label" htmlFor="sexo">Sexo</label>
-              <select
-                id="sexo"
-                name="sexo"
-                className="form-input"
-                value={formData.sexo}
-                onChange={handleChange}
-              >
-                <option value="">-- Selecione --</option>
-                <option value="M">Masculino</option>
-                <option value="F">Feminino</option>
-              </select>
-            </div>
-
-            <div className="form-group">
               <label className="form-label" htmlFor="ano">Ano (Turma)</label>
               <input
                 id="ano"
@@ -870,6 +857,25 @@ export const EditarPessoa = () => {
                 value={formData.ano}
                 onChange={handleChange}
               />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" htmlFor="camiseta">Camiseta</label>
+              <select
+                id="camiseta"
+                name="camiseta"
+                className="form-input"
+                value={formData.camiseta}
+                onChange={handleChange}
+              >
+                <option value="">-- Tamanho --</option>
+                <option value="PP">PP</option>
+                <option value="P">P</option>
+                <option value="M">M</option>
+                <option value="G">G</option>
+                <option value="GG">GG</option>
+                <option value="EGG">EGG</option>
+              </select>
             </div>
           </div>
 

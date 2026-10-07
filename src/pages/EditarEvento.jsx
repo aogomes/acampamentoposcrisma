@@ -16,6 +16,7 @@ export const EditarEvento = () => {
     data_inicio: '',
     data_fim: '',
     valor: '',
+    inclui_camiseta: false,
     status: 'ATIVO',
     equipes: []
   });
@@ -62,6 +63,7 @@ export const EditarEvento = () => {
           data_inicio: data.data_inicio || '',
           data_fim: data.data_fim || '',
           valor: data.valor || '',
+          inclui_camiseta: Boolean(data.inclui_camiseta),
           status: data.status || 'ATIVO',
           equipes: data.equipes || []
         });
@@ -95,14 +97,22 @@ export const EditarEvento = () => {
         data_inicio: formData.data_inicio || null,
         data_fim: formData.data_fim || null,
         valor: formData.valor ? parseFloat(formData.valor) : null,
+        inclui_camiseta: Boolean(formData.inclui_camiseta),
         status: formData.status,
         equipes: formData.equipes
       };
 
-      const { error: dbError } = await supabase
+      let { error: dbError } = await supabase
         .from('apc_evento')
         .update(updateData)
         .eq('id', id);
+
+      if (dbError && dbError.message && dbError.message.includes('inclui_camiseta')) {
+        console.warn('Coluna inclui_camiseta ainda não existe em apc_evento no banco. Atualizando sem a coluna...');
+        delete updateData.inclui_camiseta;
+        const fallbackRes = await supabase.from('apc_evento').update(updateData).eq('id', id);
+        dbError = fallbackRes.error;
+      }
 
       if (dbError) throw dbError;
 
@@ -160,7 +170,7 @@ export const EditarEvento = () => {
                 required
               />
             </div>
-            
+
             <div className="form-group">
               <label className="form-label" htmlFor="tema">Tema</label>
               <input
@@ -168,7 +178,6 @@ export const EditarEvento = () => {
                 name="tema"
                 type="text"
                 className="form-input"
-                placeholder="Ex: Jovens na fé"
                 value={formData.tema}
                 onChange={handleChange}
               />
@@ -230,6 +239,22 @@ export const EditarEvento = () => {
               />
             </div>
 
+            <div className="form-group">
+              <label className="form-label" htmlFor="inclui_camiseta">Inclui Camiseta no Valor?</label>
+              <select
+                id="inclui_camiseta"
+                name="inclui_camiseta"
+                className="form-input"
+                value={formData.inclui_camiseta ? 'SIM' : 'NAO'}
+                onChange={(e) => setFormData(prev => ({ ...prev, inclui_camiseta: e.target.value === 'SIM' }))}
+              >
+                <option value="NAO">Não inclui camiseta</option>
+                <option value="SIM">Sim, camiseta inclusa no valor</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="form-grid">
             <div className="form-group" style={{ marginBottom: '2rem' }}>
               <label className="form-label" htmlFor="status">Status *</label>
               <select
@@ -269,17 +294,17 @@ export const EditarEvento = () => {
               </div>
               <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
                 {formData.equipes.map(eq => (
-                  <span key={eq} style={{ 
-                    background: 'rgba(59, 130, 246, 0.1)', 
+                  <span key={eq} style={{
+                    background: 'rgba(59, 130, 246, 0.1)',
                     color: 'var(--accent-primary)',
-                    padding: '0.25rem 0.75rem', 
-                    borderRadius: '16px', 
-                    display: 'flex', 
-                    alignItems: 'center', 
+                    padding: '0.25rem 0.75rem',
+                    borderRadius: '16px',
+                    display: 'flex',
+                    alignItems: 'center',
                     gap: '0.5rem',
                     fontSize: '0.875rem'
                   }}>
-                    {eq} 
+                    {eq}
                     <button type="button" onClick={() => handleRemoveEquipe(eq)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'inherit', padding: 0, display: 'flex' }}>
                       <Trash2 size={14} />
                     </button>

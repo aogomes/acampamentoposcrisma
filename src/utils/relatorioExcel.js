@@ -322,6 +322,7 @@ export const exportarRelatorioExcelEvento = async (evento) => {
     { 'Item': 'Local', 'Informação': evento.local || 'Não informado' },
     { 'Item': 'Período', 'Informação': `${formatarData(evento.data_inicio)} a ${formatarData(evento.data_fim)}` },
     { 'Item': 'Valor da Inscrição', 'Informação': valorEvento > 0 ? `R$ ${valorEvento.toFixed(2)}` : 'Gratuito / Não definido' },
+    { 'Item': 'Inclui Camiseta no Valor', 'Informação': evento.inclui_camiseta ? 'Sim' : 'Não' },
     { 'Item': 'Total de Inscritos no Evento', 'Informação': totalInscritos },
     { 'Item': 'Total de Padrinhos e Madrinhas', 'Informação': totalPadrinhos },
     { 'Item': 'Total de Afilhados', 'Informação': totalAfilhados },

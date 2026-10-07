@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useParams, Link } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { registrarAuditoria } from '../services/auditoriaService';
@@ -28,6 +28,9 @@ export const FormularioInscricao = () => {
   const { user, userProfile, pessoaProfile, refreshProfile } = useAuth();
   const navigate = useNavigate();
   const { id: paramId } = useParams();
+  const [searchParams] = useSearchParams();
+  const queryEventoId = searchParams.get('eventoId');
+  const isAdminOrGestor = userProfile?.perfil === 'ADMIN' || userProfile?.perfil === 'GESTOR';
 
   // Se passou ID na rota (:id), carrega aquela pessoa (ex: afilhado vindo da tela de meus-afilhados)
   // Se NÃO passou ID na rota, é a ficha da própria pessoa logada (seja admin, gestor, padrinho ou afilhado)
@@ -90,6 +93,7 @@ export const FormularioInscricao = () => {
   const [padrinhos, setPadrinhos] = useState([]);
   const [madrinhas, setMadrinhas] = useState([]);
   const [eventosAtivos, setEventosAtivos] = useState([]);
+  const [eventoSelecionado, setEventoSelecionado] = useState(null);
   const [jaInscritoEvento, setJaInscritoEvento] = useState(false);
   const [confirmarInscricaoEvento, setConfirmarInscricaoEvento] = useState(true);
 
@@ -99,6 +103,49 @@ export const FormularioInscricao = () => {
   const [success, setSuccess] = useState('');
   const [sqlMissingError, setSqlMissingError] = useState(false);
   const [copiedSql, setCopiedSql] = useState(false);
+
+  const formatarDataBR = (dataStr) => {
+    if (!dataStr) return '';
+    const apenasData = dataStr.split('T')[0];
+    const partes = apenasData.split('-');
+    if (partes.length === 3) {
+      const [ano, mes, dia] = partes;
+      return `${dia}/${mes}/${ano}`;
+    }
+    return dataStr;
+  };
+
+  const formatarPeriodoEvento = (evento) => {
+    if (!evento) return 'A definir';
+    if (evento.data_inicio && evento.data_fim) {
+      return `${formatarDataBR(evento.data_inicio)} a ${formatarDataBR(evento.data_fim)}`;
+    }
+    if (evento.data_inicio) {
+      return formatarDataBR(evento.data_inicio);
+    }
+    return 'A definir';
+  };
+
+  const formatarValorEvento = (valor) => {
+    if (valor === undefined || valor === null || valor === '') return 'A definir';
+    const num = Number(valor);
+    if (isNaN(num)) return valor;
+    if (num <= 0) return 'Gratuito';
+    return `R$ ${num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
+  const handleSelecionarEvento = async (novoEvento) => {
+    setEventoSelecionado(novoEvento);
+    if (targetId && novoEvento?.id) {
+      const { data: insc } = await supabase
+        .from('apc_acampamento')
+        .select('id')
+        .eq('pessoa_id', targetId)
+        .eq('evento_id', novoEvento.id)
+        .maybeSingle();
+      setJaInscritoEvento(Boolean(insc));
+    }
+  };
 
   const sqlMigrationCode = `-- Execute no Supabase SQL Editor:
 ALTER TABLE public.apc_pessoa 
@@ -169,14 +216,36 @@ ALTER TABLE public.apc_pessoa
       if (pData) setPadrinhos(pData);
       if (mData) setMadrinhas(mData);
 
-      // Buscar Eventos Ativos
+      // Buscar Eventos Ativos com todas as informações
       const { data: eventos } = await supabase
         .from('apc_evento')
-        .select('id, descricao')
-        .eq('status', 'ATIVO');
+        .select('*')
+        .eq('status', 'ATIVO')
+        .order('data_inicio', { ascending: false });
+
+      let eventoAtual = null;
       if (eventos && eventos.length > 0) {
         setEventosAtivos(eventos);
+        eventoAtual = queryEventoId
+          ? (eventos.find(e => e.id === queryEventoId) || eventos[0])
+          : eventos[0];
+        setEventoSelecionado(eventoAtual);
+      } else if (queryEventoId) {
+        const { data: evtEspecifico } = await supabase
+          .from('apc_evento')
+          .select('*')
+          .eq('id', queryEventoId)
+          .maybeSingle();
+        if (evtEspecifico) {
+          eventoAtual = evtEspecifico;
+          setEventoSelecionado(evtEspecifico);
+          setEventosAtivos([evtEspecifico]);
+        }
       }
+
+      const anoPadrao = eventoAtual?.data_inicio
+        ? new Date(eventoAtual.data_inicio).getFullYear().toString()
+        : new Date().getFullYear().toString();
 
       // Se temos um ID de pessoa para carregar
       if (targetId) {
@@ -201,7 +270,7 @@ ALTER TABLE public.apc_pessoa
             idade: idadeAuto,
             tipo_pessoa: p.tipo_pessoa || 'AFILHADO',
             padrinhos_catequistas: p.padrinhos_catequistas || '',
-            ano: p.ano ? p.ano.toString() : new Date().getFullYear().toString(),
+            ano: p.ano ? p.ano.toString() : anoPadrao,
             rg: p.rg || '',
             cpf: p.cpf || '',
             contato_emergencia: p.contato_emergencia || '',
@@ -244,16 +313,19 @@ ALTER TABLE public.apc_pessoa
             vinculo_madrinha_id: ''
           });
 
-          // Verificar inscrição em evento ativo
-          if (eventos && eventos.length > 0) {
+          // Verificar inscrição no evento ativo
+          if (eventoAtual) {
             const { data: insc } = await supabase
               .from('apc_acampamento')
               .select('id')
               .eq('pessoa_id', targetId)
-              .in('evento_id', eventos.map(e => e.id));
+              .eq('evento_id', eventoAtual.id)
+              .maybeSingle();
 
-            if (insc && insc.length > 0) {
+            if (insc) {
               setJaInscritoEvento(true);
+            } else {
+              setJaInscritoEvento(false);
             }
           }
 
@@ -285,6 +357,7 @@ ALTER TABLE public.apc_pessoa
             telefone: userProfile.telefone || '',
             data_nascimento: userProfile.data_nascimento || '',
             idade: calcularIdade(userProfile.data_nascimento),
+            ano: anoPadrao,
             user_id: user?.id || ''
           }));
         }
@@ -537,37 +610,37 @@ ALTER TABLE public.apc_pessoa
       }
 
       // Vínculo Padrinho/Madrinha caso seja Afilhado e tenha selecionado
+      const anoVinculo = parseInt(formData.ano) || (eventoSelecionado?.data_inicio ? new Date(eventoSelecionado.data_inicio).getFullYear() : 2026);
       if (formData.tipo_pessoa === 'AFILHADO' && formData.vinculo_padrinho_id && formData.vinculo_madrinha_id && pessoaIdSalva) {
         if (formData.vinculo_id) {
           await supabase.from('apc_vinculo').update({
             padrinho_id: formData.vinculo_padrinho_id,
             madrinha_id: formData.vinculo_madrinha_id,
-            ano: parseInt(formData.ano) || 2026
+            ano: anoVinculo
           }).eq('id', formData.vinculo_id);
         } else {
           await supabase.from('apc_vinculo').insert([{
             padrinho_id: formData.vinculo_padrinho_id,
             madrinha_id: formData.vinculo_madrinha_id,
             afilhado_id: pessoaIdSalva,
-            ano: parseInt(formData.ano) || 2026
+            ano: anoVinculo
           }]);
         }
       }
 
-      // Inscrição no evento ativo (VIII Acampamento)
-      if (confirmarInscricaoEvento && !jaInscritoEvento && eventosAtivos.length > 0 && pessoaIdSalva) {
-        for (const evt of eventosAtivos) {
-          try {
-            await supabase.from('apc_acampamento').insert([{
-              evento_id: evt.id,
-              pessoa_id: pessoaIdSalva,
-              equipe: []
-            }]);
-          } catch (evtErr) {
-            console.warn('Inscrição no evento avisou:', evtErr);
-          }
+      // Inscrição no evento ativo selecionado
+      const eventoParaInscrever = eventoSelecionado || (eventosAtivos.length > 0 ? eventosAtivos[0] : null);
+      if (confirmarInscricaoEvento && !jaInscritoEvento && eventoParaInscrever && pessoaIdSalva) {
+        try {
+          await supabase.from('apc_acampamento').insert([{
+            evento_id: eventoParaInscrever.id,
+            pessoa_id: pessoaIdSalva,
+            equipe: []
+          }]);
+          setJaInscritoEvento(true);
+        } catch (evtErr) {
+          console.warn('Inscrição no evento avisou:', evtErr);
         }
-        setJaInscritoEvento(true);
       }
 
       if (refreshProfile) {
@@ -636,9 +709,6 @@ ALTER TABLE public.apc_pessoa
           <button onClick={() => navigate(-1)} className="btn btn-secondary" style={{ padding: '0.5rem' }}>
             <ArrowLeft size={20} />
           </button>
-          {/* <h1 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', margin: 0, flexWrap: 'wrap' }}>
-            Formulário de Inscrição
-          </h1> */}
           <span
             style={{
               display: 'inline-block',
@@ -662,12 +732,34 @@ ALTER TABLE public.apc_pessoa
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
           <div>
             <h1 className="banner-title">
-              VIII Acampamento do Pós Crisma - 2026
+              {eventoSelecionado?.descricao || 'Acampamento do Pós Crisma'}
             </h1>
+            <span style={{ color: 'var(--accent-secondary)', fontWeight: 'bold', fontSize: '0.75rem', marginBottom: '0.5rem' }}>
+              {eventoSelecionado?.tema || ''}
+            </span>
             <h3 className="banner-subtitle">
-              Paróquia Santa Maria dos Pobres - Paranoá-DF
+              {'Paróquia Santa Maria dos Pobres - Paranoá-DF'}
             </h3>
           </div>
+
+          {eventosAtivos.length > 1 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255, 255, 255, 0.85)', padding: '0.5rem 0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
+              <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--text-secondary)' }}>Evento:</span>
+              <select
+                className="form-input"
+                style={{ padding: '0.25rem 0.5rem', fontSize: '0.85rem' }}
+                value={eventoSelecionado?.id || ''}
+                onChange={(e) => {
+                  const ev = eventosAtivos.find(item => item.id === e.target.value);
+                  if (ev) handleSelecionarEvento(ev);
+                }}
+              >
+                {eventosAtivos.map(ev => (
+                  <option key={ev.id} value={ev.id}>{ev.descricao}</option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         {/* Grade de Detalhes do Evento */}
@@ -676,7 +768,7 @@ ALTER TABLE public.apc_pessoa
             <Calendar size={22} color="var(--accent-primary)" />
             <div>
               <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', fontWeight: '600' }}>DATA DO EVENTO</span>
-              <strong style={{ fontSize: '0.95rem' }}>16/12/2026 a 20/12/2026</strong>
+              <strong style={{ fontSize: '0.95rem' }}>{formatarPeriodoEvento(eventoSelecionado)}</strong>
             </div>
           </div>
 
@@ -684,7 +776,7 @@ ALTER TABLE public.apc_pessoa
             <MapPin size={22} color="#dc2626" />
             <div>
               <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', fontWeight: '600' }}>LOCAL</span>
-              <strong style={{ fontSize: '0.95rem' }}>CLAT - Novo Gama-GO</strong>
+              <strong style={{ fontSize: '0.95rem' }}>{eventoSelecionado?.local || 'A definir'}</strong>
             </div>
           </div>
 
@@ -693,8 +785,12 @@ ALTER TABLE public.apc_pessoa
               <DollarSign size={22} color="#15803d" />
             </div>
             <div>
-              <span style={{ fontSize: '0.7rem', color: '#166534', display: 'block', fontWeight: '700', letterSpacing: '0.05em' }}>INVESTIMENTO</span>
-              <strong style={{ fontSize: '1.15rem', color: '#15803d', fontWeight: '800' }}>R$ 700,00</strong>
+              <span style={{ fontSize: '0.7rem', color: '#166534', display: 'block', fontWeight: '700', letterSpacing: '0.05em' }}>
+                INVESTIMENTO {eventoSelecionado?.inclui_camiseta ? '• C/ CAMISETA' : ''}
+              </span>
+              <strong style={{ fontSize: '1.15rem', color: '#15803d', fontWeight: '800' }}>
+                {formatarValorEvento(eventoSelecionado?.valor)}
+              </strong>
             </div>
           </div>
           {/* <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -711,7 +807,7 @@ ALTER TABLE public.apc_pessoa
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: '#1e40af' }}>
             <DollarSign size={16} />
-            <span>O valor será usado exclusivamente para custear as despesas de <strong>hospedagem, transporte e alimentação</strong> do participante.</span>
+            <span>O valor será usado exclusivamente para custear as despesas de <strong>hospedagem, transporte e alimentação{eventoSelecionado?.inclui_camiseta ? ' (inclui camiseta)' : ''}</strong> do participante.</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: '#b91c1c' }}>
             <AlertCircle size={16} />
@@ -777,6 +873,68 @@ ALTER TABLE public.apc_pessoa
       {success && <div className="alert alert-success" style={{ marginBottom: '1.5rem' }}>{success}</div>}
 
       <form onSubmit={handleSubmit} noValidate>
+
+        {eventoSelecionado?.inclui_camiseta && (
+          <div className="glass-panel form-section-card">
+            <div className="section-header">
+              <Shirt size={22} color="var(--accent-primary)" />
+              <h3>Tamanho da Camiseta</h3>
+            </div>
+
+            <div className="form-grid">
+              <div className="form-group">
+                <label className="form-label" htmlFor="camiseta">
+                  Tamanho da Camiseta (Adulto)
+                </label>
+                <select
+                  id="camiseta"
+                  name="camiseta"
+                  className="form-input"
+                  value={formData.camiseta}
+                  onChange={handleChange}
+                  required={!formData.camiseta_infantil}
+                >
+                  <option value="">-- Selecione o tamanho --</option>
+                  <option value="PP">PP</option>
+                  <option value="P">P</option>
+                  <option value="M">M</option>
+                  <option value="G">G</option>
+                  <option value="GG">GG</option>
+                  <option value="XGG">XGG</option>
+                  <option value="XXGG">XXGG</option>
+                  <option value="G1">G1 - Tamanho Especial</option>
+                  <option value="G2">G2 - Tamanho Especial</option>
+                  <option value="G3">G3 - Tamanho Especial</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" htmlFor="camiseta_infantil">
+                  Tamanho da Camiseta Infantil (IDADE CRIANÇA - 0 a 15 anos)
+                </label>
+                <select
+                  id="camiseta_infantil"
+                  name="camiseta_infantil"
+                  className="form-input"
+                  value={formData.camiseta_infantil}
+                  onChange={handleChange}
+                >
+                  <option value="">-- Não se aplica (Adulto) --</option>
+                  <option value="0 a 1 ano">0 a 1 ano</option>
+                  <option value="2 anos">2 anos</option>
+                  <option value="4 anos">4 anos</option>
+                  <option value="6 anos">6 anos</option>
+                  <option value="8 anos">8 anos</option>
+                  <option value="10 anos">10 anos</option>
+                  <option value="12 anos">12 anos</option>
+                  <option value="14 anos">14 anos</option>
+                  <option value="16 anos">16 anos</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ========================================================================= */}
         {/* SEÇÃO 1: DADOS DO PARTICIPANTE */}
         {/* ========================================================================= */}
@@ -966,30 +1124,45 @@ ALTER TABLE public.apc_pessoa
               </select>
             </div>
 
-            {formData.tipo_pessoa === 'AFILHADO' && padrinhos.length > 0 && (
-              <div className="form-group">
-                <label className="form-label">Vincular o Padrinho</label>
-                <select
-                  className="form-input"
-                  value={formData.vinculo_padrinho_id}
-                  onChange={(e) => {
-                    const pid = e.target.value;
-                    const p = padrinhos.find(item => item.id === pid);
-                    setFormData(prev => ({
-                      ...prev,
-                      vinculo_padrinho_id: pid,
-                      vinculo_madrinha_id: p?.conjuge_id || prev.vinculo_madrinha_id
-                    }));
-                  }}
-                >
-                  <option value="">-- Selecione --</option>
-                  {padrinhos.map(p => (
-                    <option key={p.id} value={p.id}>{p.nome}</option>
-                  ))}
-                </select>
-              </div>
-            )}
+            <div className="form-group">
+              <label className="form-label" htmlFor="ano">
+                Ano (Turma)
+              </label>
+              <input
+                id="ano"
+                name="ano"
+                type="number"
+                className="form-input"
+                placeholder="Ex: 2026"
+                value={formData.ano}
+                onChange={handleChange}
+              />
+            </div>
           </div>
+
+          {formData.tipo_pessoa === 'AFILHADO' && padrinhos.length > 0 && (
+            <div className="form-group" style={{ marginTop: '0.5rem' }}>
+              <label className="form-label">Vincular o Padrinho</label>
+              <select
+                className="form-input"
+                value={formData.vinculo_padrinho_id}
+                onChange={(e) => {
+                  const pid = e.target.value;
+                  const p = padrinhos.find(item => item.id === pid);
+                  setFormData(prev => ({
+                    ...prev,
+                    vinculo_padrinho_id: pid,
+                    vinculo_madrinha_id: p?.conjuge_id || prev.vinculo_madrinha_id
+                  }));
+                }}
+              >
+                <option value="">-- Selecione --</option>
+                {padrinhos.map(p => (
+                  <option key={p.id} value={p.id}>{p.nome}</option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         {/* ========================================================================= */}
@@ -1667,7 +1840,7 @@ ALTER TABLE public.apc_pessoa
                 style={{ width: '1.3rem', height: '1.3rem', marginTop: '0.2rem', cursor: 'pointer' }}
               />
               <label htmlFor="aceite_termos_dados" style={{ cursor: 'pointer', fontSize: '0.9rem', lineHeight: 1.5 }}>
-                <strong>PAIS OU RESPONSÁVEIS:</strong> Concordo com o tratamento de meus dados pessoais e os dados do menor sob os meus cuidados para as finalidades a seguir determinadas: registro no <strong>VIII Acampamento do Pós-Crisma</strong>, possível apresentação no El Rancho e à empresa de transporte contratada. *
+                <strong>PAIS OU RESPONSÁVEIS:</strong> Concordo com o tratamento de meus dados pessoais e os dados do menor sob os meus cuidados para as finalidades a seguir determinadas: registro no <strong>{eventoSelecionado?.descricao || 'Acampamento do Pós-Crisma'}</strong>{eventoSelecionado?.local ? `, apresentação no ${eventoSelecionado.local}` : ''} e à empresa de transporte contratada. *
               </label>
             </div>
 
@@ -1689,9 +1862,9 @@ ALTER TABLE public.apc_pessoa
         </div>
 
         {/* ========================================================================= */}
-        {/* SEÇÃO 7: CONFIRMAÇÃO DE INSCRIÇÃO NO EVENTO ATIVO */}
+        {/* SEÇÃO 6: CONFIRMAÇÃO DE INSCRIÇÃO NO EVENTO ATIVO */}
         {/* ========================================================================= */}
-        {eventosAtivos.length > 0 && (
+        {eventoSelecionado && (
           <div
             className="glass-panel form-section-card"
             style={{
@@ -1711,7 +1884,7 @@ ALTER TABLE public.apc_pessoa
                     {jaInscritoEvento ? 'Participante já está inscrito no acampamento' : 'Confirmar Inscrição no Acampamento Oficial'}
                   </strong>
                   <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                    Evento: {eventosAtivos[0]?.descricao || 'VIII Acampamento do Pós Crisma - 2026'}
+                    Evento: {eventoSelecionado.descricao}
                   </span>
                 </div>
               </div>
@@ -1789,7 +1962,7 @@ ALTER TABLE public.apc_pessoa
             disabled={loading}
           >
             <Save size={20} />
-            {loading ? 'Salvando Inscrição...' : targetId ? 'Salvar Ficha de Inscrição' : 'Enviar Inscrição 2026'}
+            {loading ? 'Salvando Inscrição...' : targetId ? 'Salvar Ficha de Inscrição' : `Enviar Inscrição${eventoSelecionado?.descricao ? ` - ${eventoSelecionado.descricao}` : ''}`}
           </button>
         </div>
       </form>
