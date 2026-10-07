@@ -661,22 +661,6 @@ ALTER TABLE public.apc_pessoa
       <div className="glass-panel banner-acampamento">
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
           <div>
-            {/* <span
-              style={{
-                display: 'inline-block',
-                background: 'linear-gradient(135deg, #2563eb, #7c3aed)',
-                color: 'white',
-                padding: '0.25rem 0.75rem',
-                borderRadius: '999px',
-                fontSize: '0.75rem',
-                fontWeight: '700',
-                letterSpacing: '0.05em',
-                textTransform: 'uppercase',
-                marginBottom: '0.75rem'
-              }}
-            >
-              Ficha Oficial de Inscrição
-            </span> */}
             <h1 className="banner-title">
               VIII Acampamento do Pós Crisma - 2026
             </h1>
@@ -704,11 +688,13 @@ ALTER TABLE public.apc_pessoa
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <DollarSign size={22} color="#16a34a" />
+          <div className="card-investimento">
+            <div className="card-investimento-icon">
+              <DollarSign size={22} color="#15803d" />
+            </div>
             <div>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', fontWeight: '600' }}>INVESTIMENTO</span>
-              <strong style={{ fontSize: '0.95rem' }}>R$ 700,00</strong>
+              <span style={{ fontSize: '0.7rem', color: '#166534', display: 'block', fontWeight: '700', letterSpacing: '0.05em' }}>INVESTIMENTO</span>
+              <strong style={{ fontSize: '1.15rem', color: '#15803d', fontWeight: '800' }}>R$ 700,00</strong>
             </div>
           </div>
           {/* <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -725,7 +711,7 @@ ALTER TABLE public.apc_pessoa
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: '#1e40af' }}>
             <DollarSign size={16} />
-            <span>O valor será usado exclusivamente para custear as despesas de <strong>hospedagem, transporte, alimentação e camiseta</strong> do participante.</span>
+            <span>O valor será usado exclusivamente para custear as despesas de <strong>hospedagem, transporte e alimentação</strong> do participante.</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: '#b91c1c' }}>
             <AlertCircle size={16} />

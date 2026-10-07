@@ -525,6 +525,36 @@ select.form-control {
   border-radius: 12px;
   margin-bottom: 1.25rem;
   border: 1px solid rgba(226, 232, 240, 0.8);
+  align-items: center;
+}
+
+.card-investimento {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%);
+  border: 1.5px solid #86efac;
+  border-radius: 10px;
+  padding: 0.6rem 1rem;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.12);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card-investimento:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+}
+
+.card-investimento-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #dcfce7;
+  color: #15803d;
+  flex-shrink: 0;
 }
 
 .badge-price-container {
