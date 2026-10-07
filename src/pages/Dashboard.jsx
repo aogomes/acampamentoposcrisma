@@ -341,7 +341,7 @@ export const Dashboard = () => {
       )}
 
       {eventoAtivo && pessoaProfile && userProfile.perfil !== 'PENDENTE' && (
-        <div className="glass-panel" style={{ padding: '2rem', marginBottom: '2rem', borderLeft: '4px solid var(--success)' }}>
+        <div className="glass-panel" style={{ padding: '2rem', marginBottom: '2rem', marginTop: '1rem', borderLeft: '4px solid var(--success)' }}>
           <h4 style={{ fontWeight: 'bold', fontSize: '1rem', marginBottom: '1rem' }}>Confirmação para {eventoAtivo.descricao}</h4>
           {inscricaoAtual ? (
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(16, 185, 129, 0.1)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.2)' }}>

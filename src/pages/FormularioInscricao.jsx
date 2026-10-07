@@ -338,9 +338,9 @@ ALTER TABLE public.apc_pessoa
     if (!formData.contato_emergencia || !formData.contato_emergencia.trim()) {
       pendencias.push('Em caso de Emergência ligar para quem (Nome e Telefone)');
     }
-    if (!formData.camiseta && !formData.camiseta_infantil) {
-      pendencias.push('Tamanho da Camiseta (Adulto ou Infantil)');
-    }
+    // if (!formData.camiseta && !formData.camiseta_infantil) {
+    //   pendencias.push('Tamanho da Camiseta (Adulto ou Infantil)');
+    // }
     if (isMenorDeIdade) {
       if (!formData.nome_responsavel || !formData.nome_responsavel.trim()) {
         pendencias.push('Nome Completo dos pais ou responsáveis (obrigatório para menores)');
