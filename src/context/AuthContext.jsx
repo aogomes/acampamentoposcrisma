@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { setUsuarioAuditoria } from '../services/auditoriaService';
 
 const AuthContext = createContext({});
 
@@ -53,10 +54,17 @@ export const AuthProvider = ({ children }) => {
       }
 
       setPessoaProfile(pessoaData || null);
+
+      setUsuarioAuditoria({
+        id: userId,
+        email: userEmail,
+        nome: pessoaData?.nome || perfilData?.nome || userEmail
+      });
     } catch (err) {
       console.error('Error fetching profile:', err);
       setUserProfile(null);
       setPessoaProfile(null);
+      setUsuarioAuditoria({ id: null, email: null, nome: null });
     }
   };
 
@@ -66,6 +74,8 @@ export const AuthProvider = ({ children }) => {
       setUser(session?.user ?? null);
       if (session?.user) {
         await fetchProfile(session.user.id, session.user.email);
+      } else {
+        setUsuarioAuditoria({ id: null, email: null, nome: null });
       }
       setLoading(false);
     });
@@ -78,6 +88,7 @@ export const AuthProvider = ({ children }) => {
       } else {
         setUserProfile(null);
         setPessoaProfile(null);
+        setUsuarioAuditoria({ id: null, email: null, nome: null });
       }
       setLoading(false);
     });

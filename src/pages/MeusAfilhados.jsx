@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
+import { registrarAuditoria } from '../services/auditoriaService';
 import { Users, Edit2, ArrowLeft, DollarSign, Plus, XCircle } from 'lucide-react';
 
 export const MeusAfilhados = () => {
@@ -198,6 +199,17 @@ export const MeusAfilhados = () => {
         }
       }
 
+      registrarAuditoria({
+        acao: 'CADASTRAR_AFILHADO_SUCESSO',
+        categoria: 'AFILHADOS',
+        nivel: 'INFO',
+        descricao: `Padrinho cadastrou e vinculou afilhado: ${formData.nome}`,
+        detalhes: {
+          afilhado_nome: formData.nome,
+          evento_id: (eventoAtivo && formData.inscreverEvento) ? eventoAtivo.id : null
+        }
+      });
+
       setSuccess('Afilhado cadastrado e vinculado com sucesso!');
       setFormData({ nome: '', email: '', telefone: '', data_nascimento: '', sexo: '', inscreverEvento: true });
       fetchAfilhados();
@@ -208,6 +220,16 @@ export const MeusAfilhados = () => {
       }, 2000);
 
     } catch (err) {
+      registrarAuditoria({
+        acao: 'CADASTRAR_AFILHADO_ERRO',
+        categoria: 'ERRO',
+        nivel: 'ERROR',
+        descricao: `Erro ao cadastrar afilhado (${formData.nome || 'Sem nome'}): ${err.message}`,
+        detalhes: {
+          erro: err.message,
+          afilhado_nome: formData.nome
+        }
+      });
       setError(err.message || 'Erro ao cadastrar afilhado.');
     } finally {
       setSaving(false);

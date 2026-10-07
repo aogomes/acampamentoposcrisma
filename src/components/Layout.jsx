@@ -12,10 +12,12 @@ import {
   Link as LinkIcon,
   Calendar,
   Tent,
-  ClipboardCheck
+  ClipboardCheck,
+  Activity
 } from 'lucide-react';
 
 import { ModalAlterarSenhaObrigatoria } from './ModalAlterarSenhaObrigatoria';
+import { registrarAuditoria } from '../services/auditoriaService';
 
 export const Layout = ({ children }) => {
   const { user, signOut, userProfile, pessoaProfile } = useAuth();
@@ -39,6 +41,14 @@ export const Layout = ({ children }) => {
   }, []);
 
   const handleLogout = async () => {
+    try {
+      await registrarAuditoria({
+        acao: 'LOGOUT',
+        categoria: 'AUTENTICACAO',
+        nivel: 'INFO',
+        descricao: `Usuário efetuou logout do sistema: ${user?.email || ''}`
+      });
+    } catch (_) { }
     await signOut();
     navigate('/login');
   };
@@ -131,17 +141,6 @@ export const Layout = ({ children }) => {
                 <span className="nav-item-text">Pessoas</span>
               </NavLink>
 
-              {perfil === 'ADMIN' && (
-                <NavLink
-                  to="/admin/credenciamento"
-                  className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-                  onClick={() => setIsMobileOpen(false)}
-                >
-                  <div className="nav-item-icon"><ShieldCheck size={20} /></div>
-                  <span className="nav-item-text">Usuários</span>
-                </NavLink>
-              )}
-
               <NavLink
                 to="/admin/eventos"
                 className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
@@ -150,6 +149,28 @@ export const Layout = ({ children }) => {
                 <div className="nav-item-icon"><Calendar size={20} /></div>
                 <span className="nav-item-text">Eventos</span>
               </NavLink>
+
+              {perfil === 'ADMIN' && (
+                <>
+                  <NavLink
+                    to="/admin/credenciamento"
+                    className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+                    onClick={() => setIsMobileOpen(false)}
+                  >
+                    <div className="nav-item-icon"><ShieldCheck size={20} /></div>
+                    <span className="nav-item-text">Usuários</span>
+                  </NavLink>
+
+                  <NavLink
+                    to="/admin/auditoria"
+                    className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+                    onClick={() => setIsMobileOpen(false)}
+                  >
+                    <div className="nav-item-icon"><Activity size={20} /></div>
+                    <span className="nav-item-text">Auditoria</span>
+                  </NavLink>
+                </>
+              )}
             </>
           )}
         </nav>

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
+import { registrarAuditoria } from '../services/auditoriaService';
 import {
   ClipboardCheck,
   ArrowLeft,
@@ -28,8 +29,10 @@ export const FormularioInscricao = () => {
   const navigate = useNavigate();
   const { id: paramId } = useParams();
 
-  // Se passou ID na rota, usa o ID; se não passou mas tem pessoaProfile, usa ele; senão modo criação
-  const targetId = paramId || (pessoaProfile?.id || null);
+  const isAdminOrGestor = userProfile?.perfil === 'ADMIN' || userProfile?.perfil === 'GESTOR';
+
+  // Se passou ID na rota, usa o ID; se não passou mas NÃO é admin/gestor e tem pessoaProfile, usa ele; senão modo criação
+  const targetId = paramId || (!isAdminOrGestor && pessoaProfile?.id ? pessoaProfile.id : null);
 
   const [formData, setFormData] = useState({
     nome: '',
@@ -191,7 +194,7 @@ ALTER TABLE public.apc_pessoa
 
           setFormData({
             nome: p.nome || '',
-            email: p.email || (user?.email || ''),
+            email: p.email || (isAdminOrGestor ? '' : (user?.email || '')),
             telefone: p.telefone || '',
             sexo: p.sexo || '',
             data_nascimento: dataNasc,
@@ -235,7 +238,7 @@ ALTER TABLE public.apc_pessoa
             aceite_termos_dados: !!p.aceite_termos_dados,
             aceite_termo_imagem: !!p.aceite_termo_imagem,
             conjuge_id: p.conjuge_id || '',
-            user_id: p.user_id || (user?.id || ''),
+            user_id: p.user_id || '',
             vinculo_id: '',
             vinculo_padrinho_id: '',
             vinculo_madrinha_id: ''
@@ -273,8 +276,8 @@ ALTER TABLE public.apc_pessoa
           }
         }
       } else {
-        // Novo cadastro (preenche com dados do usuário logado se houver)
-        if (userProfile) {
+        // Novo cadastro (preenche com dados do usuário logado APENAS se for participante comum se auto-cadastrando)
+        if (!isAdminOrGestor && userProfile) {
           setFormData(prev => ({
             ...prev,
             nome: userProfile.nome || '',
@@ -352,6 +355,13 @@ ALTER TABLE public.apc_pessoa
 
     if (pendencias.length > 0) {
       const msg = `Por favor, preencha os seguintes campos obrigatórios antes de salvar:\n• ` + pendencias.join('\n• ');
+      registrarAuditoria({
+        acao: 'SALVAR_INSCRICAO_VALIDACAO_PENDENTE',
+        categoria: 'INSCRICAO',
+        nivel: 'WARNING',
+        descricao: `Tentativa de salvar inscrição bloqueada por campos pendentes`,
+        detalhes: { pendencias, nome: formData.nome }
+      });
       setError(msg);
       window.scrollTo({ top: 300, behavior: 'smooth' });
       return;
@@ -360,6 +370,17 @@ ALTER TABLE public.apc_pessoa
     setLoading(true);
 
     try {
+      // Determinação segura do user_id:
+      // Se for ADMIN ou GESTOR, NUNCA atribui o user.id do admin à pessoa
+      let finalUserId = null;
+      if (isAdminOrGestor) {
+        // Só mantém se a pessoa sendo editada JÁ tinha um user_id próprio no banco (que não seja o do admin)
+        finalUserId = (formData.user_id && formData.user_id !== user?.id) ? formData.user_id : null;
+      } else {
+        // Usuário comum se auto-cadastrando ou editando sua própria ficha
+        finalUserId = formData.user_id || (!paramId ? (user?.id || null) : null);
+      }
+
       const payloadCompleto = {
         nome: formData.nome.trim(),
         email: formData.email ? formData.email.trim() : null,
@@ -369,7 +390,7 @@ ALTER TABLE public.apc_pessoa
         tipo_pessoa: formData.tipo_pessoa || 'AFILHADO',
         ano: formData.ano ? parseInt(formData.ano) : 2026,
         conjuge_id: formData.conjuge_id || null,
-        user_id: formData.user_id || (user?.id || null),
+        user_id: finalUserId,
         nome_pai: formData.nome_pai || null,
         nome_mae: formData.nome_mae || null,
         fone_responsavel: formData.fone_responsavel || null,
@@ -414,14 +435,26 @@ ALTER TABLE public.apc_pessoa
 
       let pessoaIdSalva = targetId;
 
+      // Se não temos targetId mas temos finalUserId, verifica se já existe registro com esse user_id para atualizar em vez de tentar insert duplicado
+      if (!pessoaIdSalva && finalUserId) {
+        const { data: existingByUser } = await supabase
+          .from('apc_pessoa')
+          .select('id')
+          .eq('user_id', finalUserId)
+          .maybeSingle();
+        if (existingByUser) {
+          pessoaIdSalva = existingByUser.id;
+        }
+      }
+
       // Tenta salvar com todos os campos novos
       let saveError = null;
 
-      if (targetId) {
+      if (pessoaIdSalva) {
         const { error: updErr } = await supabase
           .from('apc_pessoa')
           .update(payloadCompleto)
-          .eq('id', targetId);
+          .eq('id', pessoaIdSalva);
         saveError = updErr;
       } else {
         const { data: newRow, error: insErr } = await supabase
@@ -476,7 +509,7 @@ ALTER TABLE public.apc_pessoa
           tipo_pessoa: formData.tipo_pessoa || 'AFILHADO',
           ano: formData.ano ? parseInt(formData.ano) : 2026,
           conjuge_id: formData.conjuge_id || null,
-          user_id: formData.user_id || (user?.id || null),
+          user_id: finalUserId,
           nome_pai: formData.nome_pai || formData.nome_responsavel || null,
           nome_mae: formData.nome_mae || null,
           fone_responsavel: formData.fone_responsavel || null,
@@ -484,11 +517,11 @@ ALTER TABLE public.apc_pessoa
           camiseta: formData.camiseta || null
         };
 
-        if (targetId) {
+        if (pessoaIdSalva) {
           const { error: updFallbackErr } = await supabase
             .from('apc_pessoa')
             .update(payloadBasico)
-            .eq('id', targetId);
+            .eq('id', pessoaIdSalva);
           if (updFallbackErr) throw updFallbackErr;
         } else {
           const { data: newRowFallback, error: insFallbackErr } = await supabase
@@ -541,6 +574,18 @@ ALTER TABLE public.apc_pessoa
         await refreshProfile();
       }
 
+      registrarAuditoria({
+        acao: 'SALVAR_INSCRICAO_SUCESSO',
+        categoria: 'INSCRICAO',
+        nivel: 'INFO',
+        descricao: `Ficha de inscrição salva com sucesso (${formData.nome})`,
+        detalhes: {
+          pessoa_id: pessoaIdSalva,
+          tipo_pessoa: formData.tipo_pessoa,
+          ano: formData.ano
+        }
+      });
+
       setSuccess('Ficha de inscrição salva com sucesso!');
       window.scrollTo({ top: 0, behavior: 'smooth' });
 
@@ -550,6 +595,22 @@ ALTER TABLE public.apc_pessoa
       }
     } catch (err) {
       console.error('Erro ao salvar inscrição:', err);
+      registrarAuditoria({
+        acao: 'SALVAR_INSCRICAO_ERRO',
+        categoria: 'ERRO',
+        nivel: 'ERROR',
+        descricao: `Erro ao salvar ficha de inscrição (${formData.nome || 'Participante'}): ${err.message}`,
+        detalhes: {
+          erro: err.message,
+          stack: err.stack,
+          code: err.code,
+          formData_resumo: {
+            nome: formData.nome,
+            tipo_pessoa: formData.tipo_pessoa,
+            targetId: targetId || null
+          }
+        }
+      });
       setError('Erro ao salvar formulário de inscrição: ' + (err.message || 'Verifique seus dados e tente novamente.'));
       window.scrollTo({ top: 300, behavior: 'smooth' });
     } finally {

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { enviarEmailCodigoRecuperacao } from '../services/brevoService';
+import { registrarAuditoria } from '../services/auditoriaService';
 import {
   LogIn,
   KeyRound,
@@ -67,6 +68,13 @@ export const Login = () => {
       if (error) throw error;
     } catch (err) {
       setError(err.message || 'Falha ao conectar com o Google');
+      registrarAuditoria({
+        acao: 'LOGIN_GOOGLE_FALHA',
+        categoria: 'AUTENTICACAO',
+        nivel: 'WARNING',
+        descricao: `Falha no login Google: ${err.message}`,
+        detalhes: { erro: err.message }
+      });
       setGoogleLoading(false);
     }
   };
@@ -79,8 +87,26 @@ export const Login = () => {
     try {
       const { error } = await signIn({ email, password });
       if (error) throw error;
+
+      registrarAuditoria({
+        acao: 'LOGIN',
+        categoria: 'AUTENTICACAO',
+        nivel: 'INFO',
+        descricao: `Usuário efetuou login com sucesso: ${email.trim()}`,
+        userEmail: email.trim(),
+        detalhes: { metodo: 'email_senha' }
+      });
+
       navigate('/');
     } catch (err) {
+      registrarAuditoria({
+        acao: 'LOGIN_FALHA',
+        categoria: 'AUTENTICACAO',
+        nivel: 'WARNING',
+        descricao: `Tentativa de login sem sucesso para ${email.trim()}: ${err.message}`,
+        userEmail: email.trim(),
+        detalhes: { erro: err.message, metodo: 'email_senha' }
+      });
       setError(err.message || 'Falha ao fazer login. Verifique seu e-mail e senha.');
     } finally {
       setLoading(false);
@@ -89,6 +115,14 @@ export const Login = () => {
 
   // Abrir modal de recuperação
   const handleOpenForgot = () => {
+    registrarAuditoria({
+      acao: 'RECUPERAR_SENHA_CLIQUE',
+      categoria: 'AUTENTICACAO',
+      nivel: 'INFO',
+      descricao: `Usuário clicou em Esqueci Minha Senha`,
+      userEmail: email.trim() || null
+    });
+
     setForgotEmail(email || '');
     setForgotStep(1);
     setForgotCodigo('');
@@ -125,12 +159,29 @@ export const Login = () => {
         codigo: data.codigo
       });
 
+      registrarAuditoria({
+        acao: 'RECUPERAR_SENHA_CODIGO_ENVIADO',
+        categoria: 'AUTENTICACAO',
+        nivel: 'INFO',
+        descricao: `Código de verificação enviado para ${forgotEmail.trim()}`,
+        userEmail: forgotEmail.trim(),
+        userNome: data.nome || null
+      });
+
       // 3. Sucesso: iniciar contador de 15 minutos e avançar para etapa 2
       setTempoRestante(900);
       setForgotStep(2);
       setForgotMessage(`Código enviado com sucesso para ${forgotEmail}!`);
     } catch (err) {
       console.error('Erro na solicitação de código:', err);
+      registrarAuditoria({
+        acao: 'RECUPERAR_SENHA_CODIGO_ERRO',
+        categoria: 'AUTENTICACAO',
+        nivel: 'WARNING',
+        descricao: `Falha ao gerar/enviar código de recuperação para ${forgotEmail.trim()}: ${err.message}`,
+        userEmail: forgotEmail.trim(),
+        detalhes: { erro: err.message }
+      });
       setForgotError(err.message || 'Erro ao processar solicitação.');
     } finally {
       setForgotLoading(false);
@@ -174,6 +225,14 @@ export const Login = () => {
 
       if (rpcErr) throw rpcErr;
 
+      registrarAuditoria({
+        acao: 'RECUPERAR_SENHA_CONCLUIDA',
+        categoria: 'AUTENTICACAO',
+        nivel: 'INFO',
+        descricao: `Senha redefinida com sucesso via código para ${forgotEmail.trim()}`,
+        userEmail: forgotEmail.trim()
+      });
+
       setForgotMessage('Senha alterada com sucesso! Você já pode entrar.');
 
       // Preenche os campos do formulário principal
@@ -185,6 +244,14 @@ export const Login = () => {
       }, 1800);
     } catch (err) {
       console.error('Erro ao validar código:', err);
+      registrarAuditoria({
+        acao: 'RECUPERAR_SENHA_CONCLUSAO_ERRO',
+        categoria: 'AUTENTICACAO',
+        nivel: 'WARNING',
+        descricao: `Falha ao validar código e redefinir senha para ${forgotEmail.trim()}: ${err.message}`,
+        userEmail: forgotEmail.trim(),
+        detalhes: { erro: err.message }
+      });
       setForgotError(err.message || 'Código inválido ou erro ao atualizar senha.');
     } finally {
       setForgotLoading(false);

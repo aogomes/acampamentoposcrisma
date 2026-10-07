@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { Tent, Plus, Trash2, Edit2, Search, Filter, ArrowLeft, DollarSign, CheckCircle2, XCircle, Users, X, ChevronDown, ChevronRight } from 'lucide-react';
 import { useParams, Link } from 'react-router-dom';
+import { registrarAuditoria } from '../services/auditoriaService';
 
 const DependentesAccordion = ({ dependentes }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -331,6 +332,39 @@ export const AdminAcampamentos = () => {
         if (dbError) throw dbError;
       }
 
+      // Se desmarcou titular ou cônjuge existente, registra a remoção na auditoria
+      if (!formData.titular_inscrito && formData.titular_id) {
+        const titularPessoa = pessoas.find(p => p.id === formData.pessoa_id);
+        registrarAuditoria({
+          acao: 'EXCLUIR_INSCRICAO_ACAMPAMENTO',
+          categoria: 'INSCRICAO',
+          nivel: 'WARNING',
+          descricao: `Inscrição do titular removida no evento: ${titularPessoa?.nome || 'Inscrito'} (${currentEvento?.descricao || 'Acampamento'})`,
+          detalhes: {
+            evento_id: formData.evento_id,
+            inscricao_id: formData.titular_id,
+            pessoa_id: formData.pessoa_id,
+            pessoa_nome: titularPessoa?.nome
+          }
+        });
+      }
+
+      if (formData.conjuge_pessoa_id && !formData.conjuge_inscrito && formData.conjuge_id) {
+        const conjugePessoa = pessoas.find(p => p.id === formData.conjuge_pessoa_id);
+        registrarAuditoria({
+          acao: 'EXCLUIR_INSCRICAO_ACAMPAMENTO',
+          categoria: 'INSCRICAO',
+          nivel: 'WARNING',
+          descricao: `Inscrição do cônjuge removida no evento: ${conjugePessoa?.nome || 'Inscrito'} (${currentEvento?.descricao || 'Acampamento'})`,
+          detalhes: {
+            evento_id: formData.evento_id,
+            inscricao_id: formData.conjuge_id,
+            pessoa_id: formData.conjuge_pessoa_id,
+            pessoa_nome: conjugePessoa?.nome
+          }
+        });
+      }
+
       setSuccess('Inscrição familiar salva com sucesso!');
       fetchData(); // Refresh the list
 
@@ -359,10 +393,46 @@ export const AdminAcampamentos = () => {
       const { error } = await supabase.from('apc_acampamento').delete().in('id', idsToDelete);
       if (error) throw error;
 
+      // Registrar auditoria da exclusão
+      const nomeTitular = a.apc_pessoa?.nome || 'Inscrito';
+      const nomeConjuge = a.conjuge_inscricao?.apc_pessoa?.nome;
+      const nomeEvento = a.apc_evento?.descricao || currentEvento?.descricao || 'Acampamento';
+
+      registrarAuditoria({
+        acao: 'EXCLUIR_INSCRICAO_ACAMPAMENTO',
+        categoria: 'INSCRICAO',
+        nivel: 'WARNING',
+        descricao: `Inscrição excluída do evento ${nomeEvento}: ${nomeTitular}${nomeConjuge ? ` e ${nomeConjuge}` : ''}`,
+        detalhes: {
+          evento_id: a.evento_id || evento_id,
+          evento_nome: nomeEvento,
+          inscricao_id: a.id,
+          pessoa_id: a.apc_pessoa?.id,
+          pessoa_nome: nomeTitular,
+          tipo_pessoa: a.apc_pessoa?.tipo_pessoa,
+          conjuge_inscricao_id: a.conjuge_inscricao?.id || null,
+          conjuge_pessoa_id: a.conjuge_inscricao?.apc_pessoa?.id || null,
+          conjuge_nome: nomeConjuge || null,
+          ids_excluidos: idsToDelete
+        }
+      });
+
       fetchData(); // Reload instead of filtering the complex group
       setSuccess('Inscrição removida com sucesso!');
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
+      console.error('Erro ao excluir inscrição:', err);
+      registrarAuditoria({
+        acao: 'EXCLUIR_INSCRICAO_ACAMPAMENTO_ERRO',
+        categoria: 'ERRO',
+        nivel: 'ERROR',
+        descricao: `Erro ao excluir inscrição do evento: ${err.message}`,
+        detalhes: {
+          erro: err.message,
+          inscricao_id: a?.id,
+          pessoa_nome: a?.apc_pessoa?.nome
+        }
+      });
       setError('Erro ao excluir: ' + err.message);
     }
   };

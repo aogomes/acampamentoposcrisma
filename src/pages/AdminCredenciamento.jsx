@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
+import { registrarAuditoria } from '../services/auditoriaService';
 import {
   ShieldCheck,
   KeyRound,
@@ -60,9 +61,24 @@ export const AdminCredenciamento = () => {
 
       if (error) throw error;
 
+      registrarAuditoria({
+        acao: 'ADMIN_MUDAR_PERFIL',
+        categoria: 'ADMIN',
+        nivel: 'WARNING',
+        descricao: `Administrador alterou perfil do usuário para ${novoPerfil}`,
+        detalhes: { target_user_id: userId, novo_perfil: novoPerfil }
+      });
+
       setMessage('Perfil atualizado com sucesso!');
       setUsuarios(usuarios.map(u => u.user_id === userId ? { ...u, perfil: novoPerfil } : u));
     } catch (err) {
+      registrarAuditoria({
+        acao: 'ADMIN_MUDAR_PERFIL_ERRO',
+        categoria: 'ERRO',
+        nivel: 'ERROR',
+        descricao: `Erro ao alterar perfil do usuário: ${err.message}`,
+        detalhes: { erro: err.message, target_user_id: userId, novo_perfil: novoPerfil }
+      });
       setError('Erro ao atualizar perfil: ' + err.message);
     }
   };
@@ -104,6 +120,14 @@ export const AdminCredenciamento = () => {
 
       if (error) throw error;
 
+      registrarAuditoria({
+        acao: 'ADMIN_RESET_SENHA',
+        categoria: 'ADMIN',
+        nivel: 'WARNING',
+        descricao: `Administrador resetou a senha do usuário ${modalReset.usuario.nome}`,
+        detalhes: { target_user_id: modalReset.usuario.user_id, target_email: modalReset.usuario.email }
+      });
+
       setMessage(`Senha de ${modalReset.usuario.nome} resetada com sucesso! O usuário deverá alterá-la no primeiro acesso.`);
 
       // Atualiza localmente
@@ -111,6 +135,13 @@ export const AdminCredenciamento = () => {
       setModalReset({ open: false, usuario: null, senha: '', copiado: false });
     } catch (err) {
       console.error('Erro ao resetar senha:', err);
+      registrarAuditoria({
+        acao: 'ADMIN_RESET_SENHA_ERRO',
+        categoria: 'ERRO',
+        nivel: 'ERROR',
+        descricao: `Erro ao resetar senha do usuário ${modalReset.usuario?.nome}: ${err.message}`,
+        detalhes: { erro: err.message, target_user_id: modalReset.usuario?.user_id }
+      });
       alert('Não foi possível resetar a senha: ' + err.message);
     } finally {
       setActionLoading(false);
@@ -133,11 +164,26 @@ export const AdminCredenciamento = () => {
 
       if (error) throw error;
 
+      registrarAuditoria({
+        acao: 'ADMIN_EXCLUIR_USUARIO',
+        categoria: 'ADMIN',
+        nivel: 'WARNING',
+        descricao: `Administrador excluiu o usuário ${modalDelete.usuario.nome} (${modalDelete.usuario.email})`,
+        detalhes: { target_user_id: modalDelete.usuario.user_id, target_email: modalDelete.usuario.email }
+      });
+
       setMessage(`Usuário ${modalDelete.usuario.nome} excluído com sucesso!`);
       setUsuarios(usuarios.filter(u => u.user_id !== modalDelete.usuario.user_id));
       setModalDelete({ open: false, usuario: null });
     } catch (err) {
       console.error('Erro ao excluir usuário:', err);
+      registrarAuditoria({
+        acao: 'ADMIN_EXCLUIR_USUARIO_ERRO',
+        categoria: 'ERRO',
+        nivel: 'ERROR',
+        descricao: `Erro ao excluir usuário ${modalDelete.usuario?.nome}: ${err.message}`,
+        detalhes: { erro: err.message, target_user_id: modalDelete.usuario?.user_id }
+      });
       alert('Não foi possível excluir o usuário: ' + err.message);
     } finally {
       setActionLoading(false);

@@ -14,9 +14,14 @@ import { AdminEventos } from './pages/AdminEventos';
 import { EditarEvento } from './pages/EditarEvento';
 import { AdminAcampamentos } from './pages/AdminAcampamentos';
 import { AdminPagamentos } from './pages/AdminPagamentos';
+import { AdminAuditoria } from './pages/AdminAuditoria';
 import { MeusAfilhados } from './pages/MeusAfilhados';
 import { RedefinirSenha } from './pages/RedefinirSenha';
+import { iniciarMonitoramentoErrosGlobais } from './services/auditoriaService';
 import './index.css';
+
+// Inicia monitoramento global de erros não tratados
+iniciarMonitoramentoErrosGlobais();
 
 function App() {
   return (
@@ -129,6 +134,14 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <AdminPagamentos />
+                </Layout>
+              </ProtectedRoute>
+            } />
+
+            <Route path="/admin/auditoria" element={
+              <ProtectedRoute>
+                <Layout>
+                  <AdminAuditoria />
                 </Layout>
               </ProtectedRoute>
             } />
