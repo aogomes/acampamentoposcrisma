@@ -160,10 +160,10 @@ export const exportarRelatorioExcelEvento = async (evento) => {
     }
   }
 
-  // 5. Monta as linhas completas da planilha de participantes
+  // 5. Monta as linhas da planilha de participantes
   const valorEvento = Number(evento.valor || 0);
 
-  const participantesRows = acampamentos.map((acamp, index) => {
+  const mapearLinhaParticipante = (acamp, index) => {
     const p = acamp.apc_pessoa || {};
     const vinc = vinculosMap[p.id] || {};
     const deps = dependentesMap[p.id] || [];
@@ -242,25 +242,64 @@ export const exportarRelatorioExcelEvento = async (evento) => {
       'Status Pagamento': statusPagamento,
       'Data da Inscrição': formatarDataHora(acamp.created_at)
     };
+  };
+
+  // Separação em listas por tipo_pessoa
+  const acampPadrinhos = [];
+  const acampAfilhados = [];
+  const acampOutros = [];
+
+  acampamentos.forEach((acamp) => {
+    const tipo = (acamp.apc_pessoa?.tipo_pessoa || '').toUpperCase();
+    if (tipo === 'PADRINHO' || tipo === 'MADRINHA') {
+      acampPadrinhos.push(acamp);
+    } else if (tipo === 'AFILHADO') {
+      acampAfilhados.push(acamp);
+    } else {
+      acampOutros.push(acamp);
+    }
   });
+
+  const padrinhosRows = acampPadrinhos.map((acamp, idx) => mapearLinhaParticipante(acamp, idx));
+  const afilhadosRows = acampAfilhados.map((acamp, idx) => mapearLinhaParticipante(acamp, idx));
+  const outrosRows = acampOutros.map((acamp, idx) => mapearLinhaParticipante(acamp, idx));
+
+  // Função auxiliar para calcular larguras e criar Worksheet
+  const criarPlanilhaComLarguras = (rows, mensagemVazia = 'Nenhum participante encontrado nesta categoria.') => {
+    if (!rows || rows.length === 0) {
+      const wsVazio = XLSX.utils.json_to_sheet([{ 'Aviso': mensagemVazia }]);
+      wsVazio['!cols'] = [{ wch: 45 }];
+      return wsVazio;
+    }
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const colWidths = Object.keys(rows[0] || {}).map(key => {
+      let maxLen = key.length;
+      rows.forEach(row => {
+        const val = row[key] ? String(row[key]) : '';
+        if (val.length > maxLen) maxLen = val.length;
+      });
+      return { wch: Math.min(Math.max(maxLen + 2, 10), 45) };
+    });
+    ws['!cols'] = colWidths;
+    return ws;
+  };
 
   // Cria o Workbook
   const workbook = XLSX.utils.book_new();
 
-  // Aba 1: Participantes
-  const wsParticipantes = XLSX.utils.json_to_sheet(participantesRows);
-  const colWidths = Object.keys(participantesRows[0] || {}).map(key => {
-    let maxLen = key.length;
-    participantesRows.forEach(row => {
-      const val = row[key] ? String(row[key]) : '';
-      if (val.length > maxLen) maxLen = val.length;
-    });
-    return { wch: Math.min(Math.max(maxLen + 2, 10), 45) };
-  });
-  wsParticipantes['!cols'] = colWidths;
-  XLSX.utils.book_append_sheet(workbook, wsParticipantes, 'Participantes');
+  // Aba 1: Padrinhos (somente PADRINHO e MADRINHA)
+  const wsPadrinhos = criarPlanilhaComLarguras(padrinhosRows, 'Nenhum Padrinho ou Madrinha inscrito neste evento.');
+  XLSX.utils.book_append_sheet(workbook, wsPadrinhos, 'Padrinhos');
 
-  // Aba 2: Dependentes (se houver)
+  // Aba 2: Afilhados (somente AFILHADO)
+  const wsAfilhados = criarPlanilhaComLarguras(afilhadosRows, 'Nenhum Afilhado inscrito neste evento.');
+  XLSX.utils.book_append_sheet(workbook, wsAfilhados, 'Afilhados');
+
+  // Aba 3: Outros Tipos
+  const wsOutros = criarPlanilhaComLarguras(outrosRows, 'Nenhum participante de outros tipos inscrito neste evento.');
+  XLSX.utils.book_append_sheet(workbook, wsOutros, 'Outros Tipos');
+
+  // Aba 4: Dependentes (se houver)
   if (todosDependentes.length > 0) {
     const wsDependentes = XLSX.utils.json_to_sheet(todosDependentes);
     const depColWidths = Object.keys(todosDependentes[0] || {}).map(key => ({
@@ -270,10 +309,11 @@ export const exportarRelatorioExcelEvento = async (evento) => {
     XLSX.utils.book_append_sheet(workbook, wsDependentes, 'Dependentes');
   }
 
-  // Aba 3: Resumo do Evento
-  const totalInscritos = participantesRows.length;
-  const totalAfilhados = participantesRows.filter(r => r['Como Irá Participar'] === 'AFILHADO').length;
-  const totalTrabalho = totalInscritos - totalAfilhados;
+  // Aba 5: Resumo do Evento
+  const totalInscritos = acampamentos.length;
+  const totalPadrinhos = padrinhosRows.length;
+  const totalAfilhados = afilhadosRows.length;
+  const totalOutros = outrosRows.length;
   const totalArrecadado = Object.values(pagamentosMap).reduce((a, b) => a + b, 0);
 
   const resumoRows = [
@@ -282,9 +322,10 @@ export const exportarRelatorioExcelEvento = async (evento) => {
     { 'Item': 'Local', 'Informação': evento.local || 'Não informado' },
     { 'Item': 'Período', 'Informação': `${formatarData(evento.data_inicio)} a ${formatarData(evento.data_fim)}` },
     { 'Item': 'Valor da Inscrição', 'Informação': valorEvento > 0 ? `R$ ${valorEvento.toFixed(2)}` : 'Gratuito / Não definido' },
-    { 'Item': 'Total de Participantes Inscritos', 'Informação': totalInscritos },
-    { 'Item': 'Total de Afilhados / Crismandos', 'Informação': totalAfilhados },
-    { 'Item': 'Total de Padrinhos / Voluntários', 'Informação': totalTrabalho },
+    { 'Item': 'Total de Inscritos no Evento', 'Informação': totalInscritos },
+    { 'Item': 'Total de Padrinhos e Madrinhas', 'Informação': totalPadrinhos },
+    { 'Item': 'Total de Afilhados', 'Informação': totalAfilhados },
+    { 'Item': 'Total de Outros Tipos', 'Informação': totalOutros },
     { 'Item': 'Total de Dependentes / Filhos', 'Informação': todosDependentes.length },
     { 'Item': 'Total Arrecadado em Pagamentos', 'Informação': `R$ ${totalArrecadado.toFixed(2)}` },
     { 'Item': 'Data de Emissão do Relatório', 'Informação': new Date().toLocaleString('pt-BR') }

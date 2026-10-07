@@ -145,7 +145,58 @@ export const MeusAfilhados = () => {
         p_sexo: formData.sexo || null
       });
 
-      if (rpcError) throw rpcError;
+      if (rpcError) {
+        console.warn('RPC criar_afilhado_padrinho não encontrado ou falhou, executando inserção direta...', rpcError);
+
+        // 1. Inserir afilhado em apc_pessoa
+        const { data: novaPessoa, error: insPessoaErr } = await supabase
+          .from('apc_pessoa')
+          .insert([{
+            nome: formData.nome.trim(),
+            email: formData.email ? formData.email.trim() : null,
+            telefone: formData.telefone ? formData.telefone.trim() : null,
+            data_nascimento: formData.data_nascimento || null,
+            sexo: formData.sexo || null,
+            tipo_pessoa: 'AFILHADO',
+            ano: anoAtual
+          }])
+          .select('id')
+          .single();
+
+        if (insPessoaErr) throw insPessoaErr;
+
+        // 2. Criar vínculo em apc_vinculo
+        const isPadrinho = pessoaProfile.tipo_pessoa === 'PADRINHO';
+        const { error: insVincErr } = await supabase
+          .from('apc_vinculo')
+          .insert([{
+            afilhado_id: novaPessoa.id,
+            padrinho_id: isPadrinho ? pessoaProfile.id : (pessoaProfile.conjuge_id || null),
+            madrinha_id: !isPadrinho ? pessoaProfile.id : (pessoaProfile.conjuge_id || null),
+            ano: anoAtual
+          }]);
+
+        if (insVincErr) {
+          console.error('Erro ao criar vinculo:', insVincErr);
+          throw insVincErr;
+        }
+
+        // 3. Se tiver evento ativo e marcado para inscrever
+        if (eventoAtivo && formData.inscreverEvento) {
+          const { error: insAcampErr } = await supabase
+            .from('apc_acampamento')
+            .insert([{
+              evento_id: eventoAtivo.id,
+              pessoa_id: novaPessoa.id,
+              equipe: []
+            }]);
+
+          if (insAcampErr) {
+            console.error('Erro ao inscrever no acampamento:', insAcampErr);
+            throw insAcampErr;
+          }
+        }
+      }
 
       setSuccess('Afilhado cadastrado e vinculado com sucesso!');
       setFormData({ nome: '', email: '', telefone: '', data_nascimento: '', sexo: '', inscreverEvento: true });
