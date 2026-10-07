@@ -15,6 +15,8 @@ import {
   ClipboardCheck
 } from 'lucide-react';
 
+import { ModalAlterarSenhaObrigatoria } from './ModalAlterarSenhaObrigatoria';
+
 export const Layout = ({ children }) => {
   const { user, signOut, userProfile, pessoaProfile } = useAuth();
   const navigate = useNavigate();
@@ -54,6 +56,9 @@ export const Layout = ({ children }) => {
 
   return (
     <div className="app-layout">
+      {/* Modal Bloqueante se o usuário precisar redefinir senha */}
+      <ModalAlterarSenhaObrigatoria />
+
       {/* Mobile Header (Only visible on small screens) */}
       <div className="mobile-header d-md-none">
         <div className="sidebar-brand">

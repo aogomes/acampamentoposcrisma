@@ -15,6 +15,7 @@ import { EditarEvento } from './pages/EditarEvento';
 import { AdminAcampamentos } from './pages/AdminAcampamentos';
 import { AdminPagamentos } from './pages/AdminPagamentos';
 import { MeusAfilhados } from './pages/MeusAfilhados';
+import { RedefinirSenha } from './pages/RedefinirSenha';
 import './index.css';
 
 function App() {
@@ -25,6 +26,7 @@ function App() {
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/redefinir-senha" element={<RedefinirSenha />} />
             
             {/* Protected Routes */}
             <Route path="/" element={
