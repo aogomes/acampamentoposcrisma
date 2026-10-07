@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { registrarAuditoria } from '../services/auditoriaService';
-import { Users, Edit2, ArrowLeft, DollarSign, Plus, XCircle } from 'lucide-react';
+import { Users, Edit2, ArrowLeft, DollarSign, Plus, XCircle, ClipboardCheck } from 'lucide-react';
 
 export const MeusAfilhados = () => {
   const { pessoaProfile } = useAuth();
@@ -430,14 +430,24 @@ export const MeusAfilhados = () => {
                       <td style={{ textAlign: 'right' }}>
                         <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                           {v.afilhado && (
-                            <Link
-                              to={`/editar-pessoa/${v.afilhado.id}`}
-                              className="btn btn-secondary"
-                              style={{ padding: '0.4rem 0.75rem', fontSize: '0.875rem', display: 'inline-flex' }}
-                              title="Editar Dados do Afilhado"
-                            >
-                              <Edit2 size={16} />
-                            </Link>
+                            <>
+                              <Link
+                                to={`/inscricao/${v.afilhado.id}`}
+                                className="btn btn-secondary"
+                                style={{ padding: '0.4rem 0.75rem', fontSize: '0.875rem', display: 'inline-flex' }}
+                                title="Ficha de Inscrição do Afilhado"
+                              >
+                                <ClipboardCheck size={16} />
+                              </Link>
+                              <Link
+                                to={`/editar-pessoa/${v.afilhado.id}`}
+                                className="btn btn-secondary"
+                                style={{ padding: '0.4rem 0.75rem', fontSize: '0.875rem', display: 'inline-flex' }}
+                                title="Editar Dados Pessoais do Afilhado"
+                              >
+                                <Edit2 size={16} />
+                              </Link>
+                            </>
                           )}
                         </div>
                       </td>

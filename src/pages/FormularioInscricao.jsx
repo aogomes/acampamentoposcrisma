@@ -29,10 +29,10 @@ export const FormularioInscricao = () => {
   const navigate = useNavigate();
   const { id: paramId } = useParams();
 
-  const isAdminOrGestor = userProfile?.perfil === 'ADMIN' || userProfile?.perfil === 'GESTOR';
-
-  // Se passou ID na rota, usa o ID; se não passou mas NÃO é admin/gestor e tem pessoaProfile, usa ele; senão modo criação
-  const targetId = paramId || (!isAdminOrGestor && pessoaProfile?.id ? pessoaProfile.id : null);
+  // Se passou ID na rota (:id), carrega aquela pessoa (ex: afilhado vindo da tela de meus-afilhados)
+  // Se NÃO passou ID na rota, é a ficha da própria pessoa logada (seja admin, gestor, padrinho ou afilhado)
+  const isPropriaPessoa = !paramId || Boolean(pessoaProfile?.id && paramId === pessoaProfile.id);
+  const targetId = isPropriaPessoa ? (pessoaProfile?.id || null) : paramId;
 
   const [formData, setFormData] = useState({
     nome: '',
@@ -138,7 +138,7 @@ ALTER TABLE public.apc_pessoa
 
   useEffect(() => {
     fetchInitialData();
-  }, [targetId]);
+  }, [targetId, pessoaProfile?.id]);
 
   const calcularIdade = (dataNasc) => {
     if (!dataNasc) return '';
@@ -276,8 +276,8 @@ ALTER TABLE public.apc_pessoa
           }
         }
       } else {
-        // Novo cadastro (preenche com dados do usuário logado APENAS se for participante comum se auto-cadastrando)
-        if (!isAdminOrGestor && userProfile) {
+        // Novo cadastro (preenche com dados do usuário logado se for a própria pessoa se auto-cadastrando pela 1ª vez)
+        if (isPropriaPessoa && userProfile) {
           setFormData(prev => ({
             ...prev,
             nome: userProfile.nome || '',
@@ -371,14 +371,14 @@ ALTER TABLE public.apc_pessoa
 
     try {
       // Determinação segura do user_id:
-      // Se for ADMIN ou GESTOR, NUNCA atribui o user.id do admin à pessoa
       let finalUserId = null;
-      if (isAdminOrGestor) {
-        // Só mantém se a pessoa sendo editada JÁ tinha um user_id próprio no banco (que não seja o do admin)
-        finalUserId = (formData.user_id && formData.user_id !== user?.id) ? formData.user_id : null;
+      if (isPropriaPessoa) {
+        // É a própria pessoa logada: se já tinha user_id mantém, ou associa o user.id dela se ainda não tinha
+        finalUserId = formData.user_id || user?.id || null;
       } else {
-        // Usuário comum se auto-cadastrando ou editando sua própria ficha
-        finalUserId = formData.user_id || (!paramId ? (user?.id || null) : null);
+        // É outra pessoa (ex: afilhado): NUNCA atribui o user.id do usuário logado!
+        // Só mantém o user_id se a pessoa já tiver o seu próprio user_id no banco
+        finalUserId = (formData.user_id && formData.user_id !== user?.id) ? formData.user_id : null;
       }
 
       const payloadCompleto = {
@@ -589,8 +589,8 @@ ALTER TABLE public.apc_pessoa
       setSuccess('Ficha de inscrição salva com sucesso!');
       window.scrollTo({ top: 0, behavior: 'smooth' });
 
-      // Se foi criação direta de nova pessoa, redireciona para edição
-      if (!targetId && pessoaIdSalva) {
+      // Se foi criação direta de nova pessoa de terceiro, redireciona para edição
+      if (!isPropriaPessoa && !targetId && pessoaIdSalva) {
         setTimeout(() => navigate(`/editar-pessoa/${pessoaIdSalva}`), 2000);
       }
     } catch (err) {
