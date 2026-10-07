@@ -557,7 +557,7 @@ export const EditarPessoa = () => {
 
   return (
     <div className="main-content" style={{ maxWidth: '960px', margin: '0 auto', paddingBottom: '4rem' }}>
-      
+
       {/* Barra Superior */}
       <div className="glass-panel form-section-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
@@ -565,19 +565,9 @@ export const EditarPessoa = () => {
             <ArrowLeft size={20} />
           </button>
           <h1 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', margin: 0, flexWrap: 'wrap' }}>
-            <Edit size={26} color="var(--accent-primary)" />
-            Editar Participante / Inscrição
+            Informações Pessoais
           </h1>
         </div>
-
-        <Link
-          to={`/inscricao/${id}`}
-          className="btn btn-secondary"
-          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', padding: '0.5rem 1rem' }}
-        >
-          <FileText size={18} color="var(--accent-primary)" />
-          Ver Ficha Oficial de Inscrição
-        </Link>
       </div>
 
       {error && <div className="alert alert-error" style={{ marginBottom: '1.5rem' }}>{error}</div>}
@@ -588,7 +578,7 @@ export const EditarPessoa = () => {
         {formData.tipo_pessoa === 'AFILHADO' && (
           <div style={{ background: 'rgba(59, 130, 246, 0.05)', padding: '1.25rem', borderRadius: '8px', marginBottom: '1.5rem', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
             <h4 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem', color: 'var(--accent-primary)' }}>
-              {userProfile?.perfil === 'ADMIN' || userProfile?.perfil === 'GESTOR' ? 'Padrinhos no Sistema' : 'Meus Padrinhos'}
+              {userProfile?.perfil === 'ADMIN' || userProfile?.perfil === 'GESTOR' ? 'Padrinhos' : 'Meus Padrinhos'}
             </h4>
 
             {userProfile?.perfil === 'ADMIN' || userProfile?.perfil === 'GESTOR' ? (
@@ -1237,22 +1227,6 @@ export const EditarPessoa = () => {
             </div>
           </div>
 
-          {/* Medicação para Febre / Sintomas */}
-          <div className="form-group" style={{ marginTop: '1rem' }}>
-            <label className="form-label" htmlFor="medicacao_sintomas">
-              Em caso de Febre, Dor de Cabeça, Dor Muscular ou Desconforto Gastrointestinal, qual o tipo de medicação costuma tomar e qual a dosagem?
-            </label>
-            <textarea
-              id="medicacao_sintomas"
-              name="medicacao_sintomas"
-              className="form-input"
-              placeholder="Ex: Paracetamol 750mg para dor de cabeça, Dipirona 500mg para febre..."
-              value={formData.medicacao_sintomas}
-              onChange={handleChange}
-              rows="3"
-            />
-          </div>
-
           {/* Cuidados Especiais */}
           <div style={{ marginTop: '1rem' }}>
             <label className="form-label">Demanda algum tipo de cuidado especial?</label>
@@ -1275,15 +1249,54 @@ export const EditarPessoa = () => {
               />
             )}
           </div>
+
+          {/* Medicação para Febre / Sintomas */}
+          <div className="form-group" style={{ marginTop: '1.5rem' }}>
+            <label className="form-label" htmlFor="medicacao_sintomas">
+              Em caso de Febre, Dor de Cabeça, Dor Muscular ou Desconforto Gastrointestinal, qual o tipo de medicação costuma tomar e qual a dosagem?
+            </label>
+            <textarea
+              id="medicacao_sintomas"
+              name="medicacao_sintomas"
+              className="form-input"
+              placeholder="Ex: Paracetamol 750mg para dor de cabeça, Dipirona 500mg para febre..."
+              value={formData.medicacao_sintomas}
+              onChange={handleChange}
+              rows="3"
+            />
+          </div>
         </div>
 
         {/* ========================================================================= */}
-        {/* SEÇÃO 4: CAMISETAS */}
+        {/* SEÇÃO 4: OUTRAS OBSERVAÇÕES */}
         {/* ========================================================================= */}
         <div className="glass-panel form-section-card">
           <div className="section-header">
+            <Info size={22} color="var(--accent-primary)" />
+            <h3>4. Outras Informações Importantes</h3>
+          </div>
+
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label" htmlFor="outras_informacoes">Outras informações ou orientações importantes:</label>
+            <textarea
+              id="outras_informacoes"
+              name="outras_informacoes"
+              className="form-input"
+              placeholder="Digite outras informações importantes sobre o participante..."
+              value={formData.outras_informacoes}
+              onChange={handleChange}
+              rows="3"
+            />
+          </div>
+        </div>
+
+        {/* ========================================================================= */}
+        {/* SEÇÃO 5: CAMISETAS */}
+        {/* ========================================================================= */}
+        {/* <div className="glass-panel form-section-card">
+          <div className="section-header">
             <Shirt size={22} color="var(--accent-primary)" />
-            <h3>4. Tamanho da Camiseta</h3>
+            <h3>5. Tamanho da Camiseta</h3>
           </div>
 
           <div className="form-grid">
@@ -1332,38 +1345,15 @@ export const EditarPessoa = () => {
               </select>
             </div>
           </div>
-        </div>
+        </div> */}
 
         {/* ========================================================================= */}
-        {/* SEÇÃO 5: OUTRAS OBSERVAÇÕES */}
-        {/* ========================================================================= */}
-        <div className="glass-panel form-section-card">
-          <div className="section-header">
-            <Info size={22} color="var(--accent-primary)" />
-            <h3>5. Outras Informações Importantes</h3>
-          </div>
-
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label className="form-label" htmlFor="outras_informacoes">Outras informações ou orientações importantes:</label>
-            <textarea
-              id="outras_informacoes"
-              name="outras_informacoes"
-              className="form-input"
-              placeholder="Digite outras informações importantes sobre o participante..."
-              value={formData.outras_informacoes}
-              onChange={handleChange}
-              rows="3"
-            />
-          </div>
-        </div>
-
-        {/* ========================================================================= */}
-        {/* SEÇÃO 6: TERMOS DE ACEITE */}
+        {/* SEÇÃO 5: TERMOS DE ACEITE */}
         {/* ========================================================================= */}
         <div className="glass-panel form-section-card" style={{ background: 'rgba(59, 130, 246, 0.03)' }}>
           <div className="section-header">
             <ShieldCheck size={22} color="var(--accent-primary)" />
-            <h3>6. Termos e Autorizações</h3>
+            <h3>5. Termos e Autorizações</h3>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>

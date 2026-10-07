@@ -326,7 +326,6 @@ export const AdminCredenciamento = () => {
                             title="Resetar senha deste usuário"
                           >
                             <KeyRound size={15} />
-                            <span>Resetar Senha</span>
                           </button>
 
                           {/* Botão Excluir Usuário */}
@@ -347,7 +346,6 @@ export const AdminCredenciamento = () => {
                             title={isCurrentUser ? 'Você não pode excluir sua própria conta' : 'Excluir usuário'}
                           >
                             <Trash2 size={15} />
-                            <span>Excluir</span>
                           </button>
                         </div>
                       </td>

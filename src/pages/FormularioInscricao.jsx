@@ -630,24 +630,38 @@ ALTER TABLE public.apc_pessoa
 
   return (
     <div className="main-content" style={{ maxWidth: '960px', margin: '0 auto' }}>
-
-      {/* Botão Voltar */}
-      <div style={{ marginBottom: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <button
-          type="button"
-          onClick={() => navigate(-1)}
-          className="btn btn-secondary"
-          style={{ padding: '0.25rem 1rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
-        >
-          <ArrowLeft size={18} /> Voltar
-        </button>
+      {/* Barra Superior */}
+      <div className="glass-panel form-section-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <button onClick={() => navigate(-1)} className="btn btn-secondary" style={{ padding: '0.5rem' }}>
+            <ArrowLeft size={20} />
+          </button>
+          {/* <h1 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', margin: 0, flexWrap: 'wrap' }}>
+            Formulário de Inscrição
+          </h1> */}
+          <span
+            style={{
+              display: 'inline-block',
+              background: 'linear-gradient(135deg, #2563eb, #7c3aed)',
+              color: 'white',
+              padding: '0.25rem 0.75rem',
+              borderRadius: '999px',
+              fontSize: '1.5rem',
+              fontWeight: '700',
+              letterSpacing: '0.05em',
+              textTransform: 'uppercase'
+            }}
+          >
+            Formulário de Inscrição
+          </span>
+        </div>
       </div>
 
       {/* Banner Oficial do Evento */}
       <div className="glass-panel banner-acampamento">
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
           <div>
-            <span
+            {/* <span
               style={{
                 display: 'inline-block',
                 background: 'linear-gradient(135deg, #2563eb, #7c3aed)',
@@ -662,7 +676,7 @@ ALTER TABLE public.apc_pessoa
               }}
             >
               Ficha Oficial de Inscrição
-            </span>
+            </span> */}
             <h1 className="banner-title">
               VIII Acampamento do Pós Crisma - 2026
             </h1>
@@ -1494,23 +1508,7 @@ ALTER TABLE public.apc_pessoa
             )}
           </div>
 
-          {/* 10. Medicação para Febre / Sintomas Comuns */}
-          <div className="form-group" style={{ marginBottom: '1.25rem' }}>
-            <label className="form-label" htmlFor="medicacao_sintomas">
-              Em caso de Febre, Dor de Cabeça, Dor Muscular ou Desconforto Gastrointestinal, qual o tipo de medicação costuma tomar e qual a dosagem?
-            </label>
-            <textarea
-              id="medicacao_sintomas"
-              name="medicacao_sintomas"
-              className="form-input"
-              rows="3"
-              placeholder="Ex: Paracetamol 750mg para dor de cabeça, Dipirona 500mg para febre, etc."
-              value={formData.medicacao_sintomas}
-              onChange={handleChange}
-            />
-          </div>
-
-          {/* 11. Cuidados Especiais */}
+          {/* 10. Cuidados Especiais */}
           <div style={{ marginBottom: '0.5rem' }}>
             <label className="form-label" style={{ marginBottom: '0.4rem' }}>
               Demanda algum tipo de cuidado especial?
@@ -1549,15 +1547,57 @@ ALTER TABLE public.apc_pessoa
               />
             )}
           </div>
+
+
+          {/* 11. Medicação para Febre / Sintomas Comuns */}
+          <div className="form-group" style={{ marginTop: '1.5rem' }}>
+            <label className="form-label" htmlFor="medicacao_sintomas">
+              Em caso de Febre, Dor de Cabeça, Dor Muscular ou Desconforto Gastrointestinal, qual o tipo de medicação costuma tomar e qual a dosagem?
+            </label>
+            <textarea
+              id="medicacao_sintomas"
+              name="medicacao_sintomas"
+              className="form-input"
+              rows="3"
+              placeholder="Ex: Paracetamol 750mg para dor de cabeça, Dipirona 500mg para febre, etc."
+              value={formData.medicacao_sintomas}
+              onChange={handleChange}
+            />
+          </div>
         </div>
 
         {/* ========================================================================= */}
-        {/* SEÇÃO 4: TAMANHO DE CAMISETA */}
+        {/* SEÇÃO 4: OUTRAS INFORMAÇÕES IMPORTANTES */}
         {/* ========================================================================= */}
         <div className="glass-panel form-section-card">
           <div className="section-header">
+            <Info size={22} color="var(--accent-primary)" />
+            <h3>4. Outras Informações Importantes</h3>
+          </div>
+
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label" htmlFor="outras_informacoes">
+              Outras observações, cuidados ou informações relevantes para a equipe:
+            </label>
+            <textarea
+              id="outras_informacoes"
+              name="outras_informacoes"
+              className="form-input"
+              rows="4"
+              placeholder="Digite aqui quaisquer outras orientações importantes sobre o participante..."
+              value={formData.outras_informacoes}
+              onChange={handleChange}
+            />
+          </div>
+        </div>
+
+        {/* ========================================================================= */}
+        {/* SEÇÃO 5: TAMANHO DE CAMISETA */}
+        {/* ========================================================================= */}
+        {/* <div className="glass-panel form-section-card">
+          <div className="section-header">
             <Shirt size={22} color="var(--accent-primary)" />
-            <h3>4. Tamanho da Camiseta</h3>
+            <h3>5. Tamanho da Camiseta</h3>
           </div>
 
           <div className="form-grid">
@@ -1611,35 +1651,10 @@ ALTER TABLE public.apc_pessoa
               </select>
             </div>
           </div>
-        </div>
+        </div> */}
 
         {/* ========================================================================= */}
-        {/* SEÇÃO 5: OUTRAS INFORMAÇÕES IMPORTANTES */}
-        {/* ========================================================================= */}
-        <div className="glass-panel form-section-card">
-          <div className="section-header">
-            <Info size={22} color="var(--accent-primary)" />
-            <h3>5. Outras Informações Importantes</h3>
-          </div>
-
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label className="form-label" htmlFor="outras_informacoes">
-              Outras observações, cuidados ou informações relevantes para a equipe:
-            </label>
-            <textarea
-              id="outras_informacoes"
-              name="outras_informacoes"
-              className="form-input"
-              rows="4"
-              placeholder="Digite aqui quaisquer outras orientações importantes sobre o participante..."
-              value={formData.outras_informacoes}
-              onChange={handleChange}
-            />
-          </div>
-        </div>
-
-        {/* ========================================================================= */}
-        {/* SEÇÃO 6: TERMOS DE ACEITE E AUTORIZAÇÕES (LGPD E IMAGEM) */}
+        {/* SEÇÃO 5: TERMOS DE ACEITE E AUTORIZAÇÕES (LGPD E IMAGEM) */}
         {/* ========================================================================= */}
         <div
           className="glass-panel form-section-card"
@@ -1650,7 +1665,7 @@ ALTER TABLE public.apc_pessoa
         >
           <div className="section-header">
             <ShieldCheck size={22} color="var(--accent-primary)" />
-            <h3>6. Termos e Autorizações</h3>
+            <h3>5. Termos e Autorizações</h3>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
