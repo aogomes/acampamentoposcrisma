@@ -982,7 +982,7 @@ ALTER TABLE public.apc_pessoa
 
             {formData.tipo_pessoa === 'AFILHADO' && padrinhos.length > 0 && (
               <div className="form-group">
-                <label className="form-label">Vincular a Padrinho do Sistema</label>
+                <label className="form-label">Vincular o Padrinho</label>
                 <select
                   className="form-input"
                   value={formData.vinculo_padrinho_id}
@@ -996,7 +996,7 @@ ALTER TABLE public.apc_pessoa
                     }));
                   }}
                 >
-                  <option value="">-- Selecione se vinculado --</option>
+                  <option value="">-- Selecione --</option>
                   {padrinhos.map(p => (
                     <option key={p.id} value={p.id}>{p.nome}</option>
                   ))}

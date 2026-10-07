@@ -233,12 +233,12 @@ export const Dashboard = () => {
               ))
             ) : (
               <Link
-                to="/inscricao"
+                to={`/editar-pessoa/${pessoaProfile?.id}`}
                 className="btn btn-tertiary"
-                style={{ padding: '0.5rem 1rem', fontSize: '0.875rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+                style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}
               >
-                <ClipboardCheck size={14} />
-                <span>Ficha de Inscrição</span>
+                <Edit2 size={16} />
+                <span style={{ marginLeft: '0.5rem' }}>Atualizar dados cadastrais</span>
               </Link>
             )}
           </div>
@@ -267,22 +267,7 @@ export const Dashboard = () => {
             {pessoaProfile?.data_nascimento ? new Date(pessoaProfile.data_nascimento).toLocaleDateString('pt-BR') : '-'}
           </div>
         </div>
-
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', flexWrap: 'wrap' }}>
-          {pessoaProfile && (
-            <Link
-              to={`/editar-pessoa/${pessoaProfile.id}`}
-              className="btn btn-primary"
-              style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}
-            >
-              <Edit2 size={16} />
-              <span style={{ marginLeft: '0.5rem' }}>Atualizar Dados</span>
-            </Link>
-          )}
-        </div>
       </div>
-
-
 
       {(pessoaProfile?.tipo_pessoa === 'PADRINHO' || pessoaProfile?.tipo_pessoa === 'MADRINHA') && (
         <div className="glass-panel" style={{ padding: '2rem', marginBottom: '2rem' }}>

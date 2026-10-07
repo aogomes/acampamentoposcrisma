@@ -110,15 +110,6 @@ export const Layout = ({ children }) => {
             <span className="nav-item-text">Meu Painel</span>
           </NavLink>
 
-          <NavLink
-            to="/inscricao"
-            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-            onClick={() => setIsMobileOpen(false)}
-          >
-            <div className="nav-item-icon"><ClipboardCheck size={20} /></div>
-            <span className="nav-item-text">Inscrição 2026</span>
-          </NavLink>
-
           {(pessoaProfile?.tipo_pessoa === 'PADRINHO' || pessoaProfile?.tipo_pessoa === 'MADRINHA') && (
             <NavLink
               to="/meus-afilhados"
