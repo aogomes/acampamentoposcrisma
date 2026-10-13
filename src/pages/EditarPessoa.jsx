@@ -727,14 +727,10 @@ export const EditarPessoa = () => {
                 onChange={handleChange}
                 required
               >
-                <option value="AFILHADO">Afilhado</option>
-                <option value="CATEQUISTA">Catequista</option>
-                <option value="CRISMADO">Crismado</option>
-                <option value="FILHO">Filho</option>
-                <option value="PADRE">Padre</option>
+                <option value="AFILHADO">Afilhado(a)</option>
                 <option value="PADRINHO">Padrinho</option>
                 <option value="MADRINHA">Madrinha</option>
-                <option value="VOLUNTARIO">Voluntário</option>
+                <option value="VOLUNTARIO">Voluntário(a)</option>
               </select>
             </div>
 

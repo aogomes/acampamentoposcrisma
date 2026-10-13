@@ -21,7 +21,9 @@ import {
   Save,
   HelpCircle,
   Copy,
-  Check
+  Check,
+  Plus,
+  Trash2
 } from 'lucide-react';
 
 export const FormularioInscricao = () => {
@@ -96,6 +98,9 @@ export const FormularioInscricao = () => {
   const [eventoSelecionado, setEventoSelecionado] = useState(null);
   const [jaInscritoEvento, setJaInscritoEvento] = useState(false);
   const [confirmarInscricaoEvento, setConfirmarInscricaoEvento] = useState(true);
+
+  const [dependentes, setDependentes] = useState([]);
+  const [deletedDependentes, setDeletedDependentes] = useState([]);
 
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
@@ -346,6 +351,25 @@ ALTER TABLE public.apc_pessoa
               }));
             }
           }
+
+          // Buscar dependentes (caso Padrinho, Madrinha ou possua dependentes vinculados)
+          let orQuery = `pessoa_id.eq.${targetId}`;
+          if (p.conjuge_id) {
+            orQuery += `,pessoa_id.eq.${p.conjuge_id}`;
+          }
+          const { data: deps } = await supabase
+            .from('apc_dependente')
+            .select('*')
+            .or(orQuery);
+
+          if (deps) {
+            const formattedDeps = deps.map(d => ({
+              ...d,
+              data_nascimento: d.data_nascimento ? d.data_nascimento.split('T')[0] : '',
+              mascote: Boolean(d.mascote)
+            }));
+            setDependentes(formattedDeps);
+          }
         }
       } else {
         // Novo cadastro (preenche com dados do usuário logado se for a própria pessoa se auto-cadastrando pela 1ª vez)
@@ -391,6 +415,26 @@ ALTER TABLE public.apc_pessoa
     setTimeout(() => setCopiedSql(false), 2500);
   };
 
+  const handleAddDependente = () => {
+    setDependentes(prev => [...prev, { nome: '', data_nascimento: '', mascote: false }]);
+  };
+
+  const handleRemoveDependente = (index) => {
+    const depToRemove = dependentes[index];
+    if (depToRemove?.id) {
+      setDeletedDependentes(prev => [...prev, depToRemove.id]);
+    }
+    setDependentes(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleDependenteChange = (index, field, value) => {
+    setDependentes(prev => {
+      const newDeps = [...prev];
+      newDeps[index] = { ...newDeps[index], [field]: value };
+      return newDeps;
+    });
+  };
+
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
     setError('');
@@ -424,6 +468,12 @@ ALTER TABLE public.apc_pessoa
     }
     if (!formData.aceite_termos_dados) {
       pendencias.push('Termo de Aceite: Concordo com o tratamento de meus dados pessoais');
+    }
+    if (formData.tipo_pessoa === 'PADRINHO' || formData.tipo_pessoa === 'MADRINHA') {
+      const depSemNome = dependentes.some(d => !d.nome || !d.nome.trim());
+      if (depSemNome) {
+        pendencias.push('Nome do Dependente (informe o nome ou remova a linha)');
+      }
     }
 
     if (pendencias.length > 0) {
@@ -625,6 +675,56 @@ ALTER TABLE public.apc_pessoa
             afilhado_id: pessoaIdSalva,
             ano: anoVinculo
           }]);
+        }
+      }
+
+      // Dependentes caso seja Padrinho ou Madrinha
+      if ((formData.tipo_pessoa === 'PADRINHO' || formData.tipo_pessoa === 'MADRINHA') && pessoaIdSalva) {
+        if (deletedDependentes.length > 0) {
+          await supabase.from('apc_dependente').delete().in('id', deletedDependentes);
+          setDeletedDependentes([]);
+        }
+
+        if (dependentes.length > 0) {
+          const depsToInsert = [];
+          const depsToUpdate = [];
+
+          dependentes
+            .filter(d => d.nome && d.nome.trim() !== '')
+            .forEach(d => {
+              const dep = {
+                pessoa_id: d.pessoa_id || pessoaIdSalva,
+                nome: d.nome.trim(),
+                data_nascimento: d.data_nascimento || null,
+                mascote: Boolean(d.mascote)
+              };
+              if (d.id) {
+                dep.id = d.id;
+                depsToUpdate.push(dep);
+              } else {
+                depsToInsert.push(dep);
+              }
+            });
+
+          if (depsToInsert.length > 0) {
+            const { data: insertedDeps } = await supabase.from('apc_dependente').insert(depsToInsert).select();
+            if (insertedDeps) {
+              setDependentes(prev => {
+                let insIdx = 0;
+                return prev.map(d => {
+                  if (!d.id && insertedDeps[insIdx]) {
+                    const item = { ...d, id: insertedDeps[insIdx].id };
+                    insIdx++;
+                    return item;
+                  }
+                  return d;
+                });
+              });
+            }
+          }
+          if (depsToUpdate.length > 0) {
+            await supabase.from('apc_dependente').upsert(depsToUpdate);
+          }
         }
       }
 
@@ -975,14 +1075,10 @@ ALTER TABLE public.apc_pessoa
                 onChange={handleChange}
                 required
               >
-                <option value="AFILHADO">Afilhado</option>
-                <option value="CATEQUISTA">Catequista</option>
-                <option value="CRISMADO">Crismado</option>
-                <option value="FILHO">Filho</option>
-                <option value="PADRE">Padre</option>
+                <option value="AFILHADO">Afilhado(a)</option>
                 <option value="PADRINHO">Padrinho</option>
                 <option value="MADRINHA">Madrinha</option>
-                <option value="VOLUNTARIO">Voluntário</option>
+                <option value="VOLUNTARIO">Voluntário(a)</option>
               </select>
             </div>
 
@@ -1164,6 +1260,92 @@ ALTER TABLE public.apc_pessoa
             </div>
           )}
         </div>
+
+        {/* ========================================================================= */}
+        {/* DEPENDENTES (FILHOS) - Visível quando Padrinho ou Madrinha */}
+        {/* ========================================================================= */}
+        {(formData.tipo_pessoa === 'PADRINHO' || formData.tipo_pessoa === 'MADRINHA') && (
+          <div className="glass-panel form-section-card">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+              <div className="section-header" style={{ marginBottom: 0 }}>
+                <Users size={22} color="var(--accent-primary)" />
+                <h3 style={{ margin: 0 }}>Dependentes (Filhos)</h3>
+              </div>
+              <button
+                type="button"
+                onClick={handleAddDependente}
+                className="btn btn-secondary"
+                style={{ padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+              >
+                <Plus size={16} /> Adicionar
+              </button>
+            </div>
+
+            {dependentes.length === 0 ? (
+              <p style={{ color: 'var(--text-secondary)', margin: 0 }}>Nenhum dependente adicionado.</p>
+            ) : (
+              <div style={{ overflowX: 'auto', background: 'var(--bg-secondary)', borderRadius: '8px', padding: '1rem' }}>
+                <table className="table-compact" style={{ minWidth: '600px', width: '100%', margin: 0 }}>
+                  <thead>
+                    <tr>
+                      <th style={{ width: '40%' }}>Nome do Dependente *</th>
+                      <th style={{ width: '30%' }}>Data de Nascimento</th>
+                      <th style={{ width: '20%', textAlign: 'center' }}>Vai para o acampamento?</th>
+                      <th style={{ width: '10%', textAlign: 'center' }}>Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {dependentes.map((dep, index) => (
+                      <tr key={index}>
+                        <td style={{ padding: '0.5rem' }}>
+                          <input
+                            type="text"
+                            className="form-input"
+                            value={dep.nome || ''}
+                            onChange={(e) => handleDependenteChange(index, 'nome', e.target.value)}
+                            required
+                            placeholder="Nome"
+                            style={{ marginBottom: 0 }}
+                          />
+                        </td>
+                        <td style={{ padding: '0.5rem' }}>
+                          <input
+                            type="date"
+                            className="form-input"
+                            value={dep.data_nascimento || ''}
+                            onChange={(e) => handleDependenteChange(index, 'data_nascimento', e.target.value)}
+                            style={{ marginBottom: 0 }}
+                          />
+                        </td>
+                        <td style={{ padding: '0.5rem', textAlign: 'center' }}>
+                          <input
+                            type="checkbox"
+                            id={`mascote-${index}`}
+                            checked={Boolean(dep.mascote)}
+                            onChange={(e) => handleDependenteChange(index, 'mascote', e.target.checked)}
+                            style={{ width: '1.25rem', height: '1.25rem', cursor: 'pointer' }}
+                            title="Vai para o acampamento?"
+                          />
+                        </td>
+                        <td style={{ padding: '0.5rem', textAlign: 'center' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveDependente(index)}
+                            className="btn btn-secondary"
+                            style={{ color: 'var(--danger)', padding: '0.4rem' }}
+                            title="Remover"
+                          >
+                            <Trash2 size={20} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ========================================================================= */}
         {/* SEÇÃO 2: CONTATOS DE EMERGÊNCIA E RESPONSÁVEIS */}
