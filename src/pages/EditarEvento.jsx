@@ -16,6 +16,10 @@ export const EditarEvento = () => {
     data_inicio: '',
     data_fim: '',
     valor: '',
+    valor_diferenciado: '',
+    idade_min_diferenciada: '',
+    idade_max_diferenciada: '',
+    descricao_valor_diferenciado: '',
     inclui_camiseta: false,
     status: 'ATIVO',
     equipes: []
@@ -62,7 +66,11 @@ export const EditarEvento = () => {
           tema: data.tema || '',
           data_inicio: data.data_inicio || '',
           data_fim: data.data_fim || '',
-          valor: data.valor || '',
+          valor: data.valor !== null && data.valor !== undefined ? data.valor : '',
+          valor_diferenciado: data.valor_diferenciado !== null && data.valor_diferenciado !== undefined ? data.valor_diferenciado : '',
+          idade_min_diferenciada: data.idade_min_diferenciada !== null && data.idade_min_diferenciada !== undefined ? data.idade_min_diferenciada : '',
+          idade_max_diferenciada: data.idade_max_diferenciada !== null && data.idade_max_diferenciada !== undefined ? data.idade_max_diferenciada : '',
+          descricao_valor_diferenciado: data.descricao_valor_diferenciado || '',
           inclui_camiseta: Boolean(data.inclui_camiseta),
           status: data.status || 'ATIVO',
           equipes: data.equipes || []
@@ -97,6 +105,10 @@ export const EditarEvento = () => {
         data_inicio: formData.data_inicio || null,
         data_fim: formData.data_fim || null,
         valor: formData.valor ? parseFloat(formData.valor) : null,
+        valor_diferenciado: formData.valor_diferenciado ? parseFloat(formData.valor_diferenciado) : null,
+        idade_min_diferenciada: formData.idade_min_diferenciada ? parseInt(formData.idade_min_diferenciada) : null,
+        idade_max_diferenciada: formData.idade_max_diferenciada ? parseInt(formData.idade_max_diferenciada) : null,
+        descricao_valor_diferenciado: formData.descricao_valor_diferenciado || null,
         inclui_camiseta: Boolean(formData.inclui_camiseta),
         status: formData.status,
         equipes: formData.equipes
@@ -107,10 +119,21 @@ export const EditarEvento = () => {
         .update(updateData)
         .eq('id', id);
 
-      if (dbError && dbError.message && dbError.message.includes('inclui_camiseta')) {
-        console.warn('Coluna inclui_camiseta ainda não existe em apc_evento no banco. Atualizando sem a coluna...');
-        delete updateData.inclui_camiseta;
-        const fallbackRes = await supabase.from('apc_evento').update(updateData).eq('id', id);
+      if (dbError && dbError.message && (
+        dbError.message.includes('valor_diferenciado') ||
+        dbError.message.includes('idade_min_diferenciada') ||
+        dbError.message.includes('inclui_camiseta')
+      )) {
+        console.warn('Coluna nova ainda não existe em apc_evento no banco. Atualizando sem ela como fallback...');
+        const fallbackData = { ...updateData };
+        delete fallbackData.valor_diferenciado;
+        delete fallbackData.idade_min_diferenciada;
+        delete fallbackData.idade_max_diferenciada;
+        delete fallbackData.descricao_valor_diferenciado;
+        if (dbError.message.includes('inclui_camiseta')) {
+          delete fallbackData.inclui_camiseta;
+        }
+        const fallbackRes = await supabase.from('apc_evento').update(fallbackData).eq('id', id);
         dbError = fallbackRes.error;
       }
 
@@ -225,7 +248,7 @@ export const EditarEvento = () => {
 
           <div className="form-grid">
             <div className="form-group">
-              <label className="form-label" htmlFor="valor">Valor Inscrição (R$)</label>
+              <label className="form-label" htmlFor="valor">Valor Inscrição Padrão (R$)</label>
               <input
                 id="valor"
                 name="valor"
@@ -233,7 +256,7 @@ export const EditarEvento = () => {
                 step="0.01"
                 min="0"
                 className="form-input"
-                placeholder="Ex: 150.00"
+                placeholder="Ex: 450.00"
                 value={formData.valor}
                 onChange={handleChange}
               />
@@ -251,6 +274,84 @@ export const EditarEvento = () => {
                 <option value="NAO">Não inclui camiseta</option>
                 <option value="SIM">Sim, camiseta inclusa no valor</option>
               </select>
+            </div>
+          </div>
+
+          {/* Valor Diferenciado por Faixa Etária */}
+          <div style={{
+            background: 'var(--bg-secondary)',
+            border: '1px solid var(--border-color)',
+            borderRadius: '8px',
+            padding: '1.25rem',
+            marginBottom: '1.5rem'
+          }}>
+            <div style={{ marginBottom: '1rem' }}>
+              <h4 style={{ margin: 0, fontSize: '0.95rem', color: 'var(--accent-primary)', fontWeight: 'bold' }}>
+                Valor Diferenciado por Faixa Etária (Opcional)
+              </h4>
+              <p style={{ margin: '0.25rem 0 0', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                Defina um valor específico para participantes em um intervalo de idade (ex: crianças de 8 a 12 anos pagam R$ 295,00).
+              </p>
+            </div>
+
+            <div className="form-grid">
+              <div className="form-group">
+                <label className="form-label" htmlFor="idade_min_diferenciada">Idade Mínima</label>
+                <input
+                  id="idade_min_diferenciada"
+                  name="idade_min_diferenciada"
+                  type="number"
+                  min="0"
+                  max="120"
+                  className="form-input"
+                  placeholder="Ex: 8"
+                  value={formData.idade_min_diferenciada}
+                  onChange={handleChange}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" htmlFor="idade_max_diferenciada">Idade Máxima</label>
+                <input
+                  id="idade_max_diferenciada"
+                  name="idade_max_diferenciada"
+                  type="number"
+                  min="0"
+                  max="120"
+                  className="form-input"
+                  placeholder="Ex: 12"
+                  value={formData.idade_max_diferenciada}
+                  onChange={handleChange}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" htmlFor="valor_diferenciado">Valor Diferenciado (R$)</label>
+                <input
+                  id="valor_diferenciado"
+                  name="valor_diferenciado"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  className="form-input"
+                  placeholder="Ex: 295.00"
+                  value={formData.valor_diferenciado}
+                  onChange={handleChange}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" htmlFor="descricao_valor_diferenciado">Rótulo / Descrição da Faixa</label>
+                <input
+                  id="descricao_valor_diferenciado"
+                  name="descricao_valor_diferenciado"
+                  type="text"
+                  className="form-input"
+                  placeholder="Ex: Crianças de 8 a 12 anos"
+                  value={formData.descricao_valor_diferenciado}
+                  onChange={handleChange}
+                />
+              </div>
             </div>
           </div>
 

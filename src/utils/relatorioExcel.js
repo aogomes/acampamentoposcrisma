@@ -47,6 +47,10 @@ const calcularIdade = (dataNasc) => {
   }
 };
 
+const formatarMoeda = (val) => {
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
+};
+
 /**
  * Busca todas as informações das pessoas inscritas em um evento e gera um arquivo Excel (.xlsx)
  * @param {Object} evento - Objeto do evento selecionado (id, descricao, local, etc)
@@ -54,6 +58,18 @@ const calcularIdade = (dataNasc) => {
 export const exportarRelatorioExcelEvento = async (evento) => {
   if (!evento || !evento.id) {
     throw new Error('Evento inválido.');
+  }
+
+  // Busca dados completos do evento (garantindo valores e regras de faixa etária)
+  let dadosEvento = evento;
+  const { data: evData } = await supabase
+    .from('apc_evento')
+    .select('*')
+    .eq('id', evento.id)
+    .single();
+
+  if (evData) {
+    dadosEvento = { ...evento, ...evData };
   }
 
   // 1. Busca inscrições do evento juntamente com os dados completos de apc_pessoa
@@ -74,8 +90,19 @@ export const exportarRelatorioExcelEvento = async (evento) => {
   if (acampError) throw acampError;
 
   if (!acampamentos || acampamentos.length === 0) {
-    return { count: 0, message: `Nenhuma inscrição encontrada para o evento "${evento.descricao}".` };
+    return { count: 0, message: `Nenhuma inscrição encontrada para o evento "${dadosEvento.descricao}".` };
   }
+
+  const valorEvento = Number(dadosEvento.valor || 0);
+  const valorDif = dadosEvento.valor_diferenciado !== null && dadosEvento.valor_diferenciado !== undefined && dadosEvento.valor_diferenciado !== ''
+    ? Number(dadosEvento.valor_diferenciado)
+    : null;
+  const idadeMin = dadosEvento.idade_min_diferenciada !== null && dadosEvento.idade_min_diferenciada !== undefined && dadosEvento.idade_min_diferenciada !== ''
+    ? parseInt(dadosEvento.idade_min_diferenciada, 10)
+    : null;
+  const idadeMax = dadosEvento.idade_max_diferenciada !== null && dadosEvento.idade_max_diferenciada !== undefined && dadosEvento.idade_max_diferenciada !== ''
+    ? parseInt(dadosEvento.idade_max_diferenciada, 10)
+    : null;
 
   // Coleta IDs das pessoas para buscar dados complementares
   const pessoaIds = acampamentos.map(a => a.pessoa_id).filter(Boolean);
@@ -121,6 +148,12 @@ export const exportarRelatorioExcelEvento = async (evento) => {
   // 3. Busca dependentes (filhos / mascotes)
   const dependentesMap = {};
   const todosDependentes = [];
+  const dependenteIdsVistos = new Set();
+  let totalCriancasPagantes = 0;
+  let totalCriancasNaoPagantes = 0;
+  let totalCriancasQueVao = 0;
+  let totalValorCriancas = 0;
+
   if (pessoaIds.length > 0) {
     const { data: dependentes } = await supabase
       .from('apc_dependente')
@@ -132,13 +165,76 @@ export const exportarRelatorioExcelEvento = async (evento) => {
         if (!dependentesMap[d.pessoa_id]) dependentesMap[d.pessoa_id] = [];
         dependentesMap[d.pessoa_id].push(d);
 
+        const jaProcessado = dependenteIdsVistos.has(d.id);
+        if (!jaProcessado) {
+          dependenteIdsVistos.add(d.id);
+        }
+
         const resp = acampamentos.find(a => a.pessoa_id === d.pessoa_id)?.apc_pessoa;
+        const idadeDep = calcularIdade(d.data_nascimento);
+        const vaiAoAcampamento = !!d.mascote;
+
+        let ehPagante = false;
+        let valorDep = 0;
+        let condicaoFaixa = 'Não vai ao acampamento';
+
+        if (vaiAoAcampamento) {
+          if (!jaProcessado) {
+            totalCriancasQueVao++;
+          }
+
+          if (valorDif !== null && idadeMin !== null && idadeMax !== null) {
+            if (idadeDep !== '' && idadeDep !== null && !isNaN(idadeDep)) {
+              if (idadeDep >= idadeMin && idadeDep <= idadeMax) {
+                ehPagante = true;
+                valorDep = valorDif;
+                condicaoFaixa = `Faixa diferenciada (${idadeMin} a ${idadeMax} anos)`;
+              } else if (idadeDep < idadeMin) {
+                ehPagante = false;
+                valorDep = 0;
+                condicaoFaixa = `Não pagante / Isento (< ${idadeMin} anos)`;
+              } else {
+                ehPagante = true;
+                valorDep = valorEvento;
+                condicaoFaixa = `Adulto (> ${idadeMax} anos)`;
+              }
+            } else {
+              ehPagante = true;
+              valorDep = valorDif;
+              condicaoFaixa = 'Faixa diferenciada (sem data)';
+            }
+          } else {
+            if (valorEvento > 0) {
+              ehPagante = true;
+              valorDep = valorEvento;
+              condicaoFaixa = 'Valor integral';
+            } else {
+              ehPagante = false;
+              valorDep = 0;
+              condicaoFaixa = 'Gratuito';
+            }
+          }
+
+          if (!jaProcessado) {
+            if (ehPagante) {
+              totalCriancasPagantes++;
+            } else {
+              totalCriancasNaoPagantes++;
+            }
+            totalValorCriancas += valorDep;
+          }
+        }
+
         todosDependentes.push({
           'Responsável (Titular)': resp?.nome || 'Não identificado',
           'Nome do Dependente': d.nome,
           'Data de Nascimento': formatarData(d.data_nascimento),
-          'Idade': calcularIdade(d.data_nascimento),
-          'Tipo': d.mascote ? 'Mascote' : 'Dependente'
+          'Idade': idadeDep,
+          'Tipo': vaiAoAcampamento ? 'Mascote (Vai ao acampamento)' : 'Dependente (Não vai)',
+          'Vai ao Acampamento?': vaiAoAcampamento ? 'SIM' : 'NÃO',
+          'Condição de Pagamento': vaiAoAcampamento ? (ehPagante ? 'PAGANTE' : 'NÃO PAGANTE (ISENTO)') : 'NÃO SE APLICA',
+          'Faixa / Detalhe': condicaoFaixa,
+          'Valor Previsto (R$)': valorDep
         });
       });
     }
@@ -161,8 +257,6 @@ export const exportarRelatorioExcelEvento = async (evento) => {
   }
 
   // 5. Monta as linhas da planilha de participantes
-  const valorEvento = Number(evento.valor || 0);
-
   const mapearLinhaParticipante = (acamp, index) => {
     const p = acamp.apc_pessoa || {};
     const vinc = vinculosMap[p.id] || {};
@@ -189,7 +283,7 @@ export const exportarRelatorioExcelEvento = async (evento) => {
       'Nº': index + 1,
       'Nome Completo': p.nome || '',
       'Como Irá Participar': p.tipo_pessoa || '',
-      'Equipe no Evento': acamp.equipe || 'Não definida',
+      // 'Equipe no Evento': acamp.equipe || 'Não definida',
       'Data de Nascimento': formatarData(dataNasc),
       'Idade': idade,
       'Sexo': p.sexo || '',
@@ -316,19 +410,34 @@ export const exportarRelatorioExcelEvento = async (evento) => {
   const totalOutros = outrosRows.length;
   const totalArrecadado = Object.values(pagamentosMap).reduce((a, b) => a + b, 0);
 
+  const totalPessoas = totalInscritos + totalCriancasQueVao;
+  const totalValorAdultos = totalInscritos * valorEvento;
+  const valorTotalPrevisto = totalValorAdultos + totalValorCriancas;
+  const saldoRestante = Math.max(0, valorTotalPrevisto - totalArrecadado);
+
   const resumoRows = [
-    { 'Item': 'Nome do Evento', 'Informação': evento.descricao },
-    { 'Item': 'Tema', 'Informação': evento.tema || 'Não informado' },
-    { 'Item': 'Local', 'Informação': evento.local || 'Não informado' },
-    { 'Item': 'Período', 'Informação': `${formatarData(evento.data_inicio)} a ${formatarData(evento.data_fim)}` },
-    { 'Item': 'Valor da Inscrição', 'Informação': valorEvento > 0 ? `R$ ${valorEvento.toFixed(2)}` : 'Gratuito / Não definido' },
-    { 'Item': 'Inclui Camiseta no Valor', 'Informação': evento.inclui_camiseta ? 'Sim' : 'Não' },
-    { 'Item': 'Total de Inscritos no Evento', 'Informação': totalInscritos },
-    { 'Item': 'Total de Padrinhos e Madrinhas', 'Informação': totalPadrinhos },
+    { 'Item': 'Nome do Evento', 'Informação': dadosEvento.descricao },
+    { 'Item': 'Tema', 'Informação': dadosEvento.tema || 'Não informado' },
+    { 'Item': 'Local', 'Informação': dadosEvento.local || 'Não informado' },
+    { 'Item': 'Período', 'Informação': `${formatarData(dadosEvento.data_inicio)} a ${formatarData(dadosEvento.data_fim)}` },
+    { 'Item': 'Valor da Inscrição (Padrão)', 'Informação': valorEvento > 0 ? formatarMoeda(valorEvento) : 'Gratuito / Não definido' },
+    ...(valorDif !== null ? [
+      { 'Item': 'Valor da Inscrição (Diferenciado)', 'Informação': `${formatarMoeda(valorDif)} (${dadosEvento.descricao_valor_diferenciado || `${idadeMin || 0} a ${idadeMax || 0} anos`})` }
+    ] : []),
+    { 'Item': 'Inclui Camiseta no Valor', 'Informação': dadosEvento.inclui_camiseta ? 'Sim' : 'Não' },
+    { 'Item': '----------------------------------------', 'Informação': '----------------------------------------' },
+    { 'Item': 'Total de Pessoas no Acampamento', 'Informação': totalPessoas },
+    { 'Item': 'Total de Padrinhos', 'Informação': totalPadrinhos },
     { 'Item': 'Total de Afilhados', 'Informação': totalAfilhados },
-    { 'Item': 'Total de Outros Tipos', 'Informação': totalOutros },
-    { 'Item': 'Total de Dependentes / Filhos', 'Informação': todosDependentes.length },
-    { 'Item': 'Total Arrecadado em Pagamentos', 'Informação': `R$ ${totalArrecadado.toFixed(2)}` },
+    { 'Item': 'Total de Outros', 'Informação': totalOutros },
+    { 'Item': 'Total de Crianças no Acampamento', 'Informação': totalCriancasQueVao },
+    { 'Item': 'Total de Crianças Pagantes', 'Informação': totalCriancasPagantes },
+    { 'Item': 'Total de Crianças Isentas', 'Informação': totalCriancasNaoPagantes },
+    { 'Item': '----------------------------------------', 'Informação': '----------------------------------------' },
+    { 'Item': 'Valor Total Previsto', 'Informação': formatarMoeda(valorTotalPrevisto) },
+    { 'Item': 'Total Arrecadado em Pagamentos', 'Informação': formatarMoeda(totalArrecadado) },
+    { 'Item': 'Saldo Restante a Receber', 'Informação': formatarMoeda(saldoRestante) },
+    { 'Item': '----------------------------------------', 'Informação': '----------------------------------------' },
     { 'Item': 'Data de Emissão do Relatório', 'Informação': new Date().toLocaleString('pt-BR') }
   ];
 

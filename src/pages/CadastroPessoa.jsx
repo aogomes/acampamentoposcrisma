@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { UserPlus, ArrowLeft, Users, Edit2, Trash2, Plus } from 'lucide-react';
+import { ModalDependente, ListaDependentes, prepararPayloadDependente } from '../components/ModalDependente';
 
 export const CadastroPessoa = () => {
   const { userProfile } = useAuth();
@@ -35,6 +36,9 @@ export const CadastroPessoa = () => {
     camiseta: ''
   });
   const [dependentes, setDependentes] = useState([]);
+  const [modalDependenteOpen, setModalDependenteOpen] = useState(false);
+  const [dependenteEmEdicao, setDependenteEmEdicao] = useState(null);
+  const [dependenteEdicaoIndex, setDependenteEdicaoIndex] = useState(null);
 
   const [potenciaisConjuges, setPotenciaisConjuges] = useState([]);
   const [usuarios, setUsuarios] = useState([]);
@@ -168,18 +172,38 @@ export const CadastroPessoa = () => {
     });
   };
 
-  const handleAddDependente = () => {
-    setDependentes([...dependentes, { nome: '', data_nascimento: '', mascote: false }]);
+  const handleAbrirModalNovoDependente = () => {
+    setDependenteEmEdicao(null);
+    setDependenteEdicaoIndex(null);
+    setModalDependenteOpen(true);
+  };
+
+  const handleAbrirModalEditarDependente = (index) => {
+    setDependenteEmEdicao(dependentes[index]);
+    setDependenteEdicaoIndex(index);
+    setModalDependenteOpen(true);
+  };
+
+  const handleFecharModalDependente = () => {
+    setModalDependenteOpen(false);
+    setDependenteEmEdicao(null);
+    setDependenteEdicaoIndex(null);
+  };
+
+  const handleSalvarDependenteModal = (dependenteNormalizado, index) => {
+    if (index !== null && index >= 0) {
+      setDependentes(prev => {
+        const novos = [...prev];
+        novos[index] = dependenteNormalizado;
+        return novos;
+      });
+    } else {
+      setDependentes(prev => [...prev, dependenteNormalizado]);
+    }
   };
 
   const handleRemoveDependente = (index) => {
     setDependentes(dependentes.filter((_, i) => i !== index));
-  };
-
-  const handleDependenteChange = (index, field, value) => {
-    const newDeps = [...dependentes];
-    newDeps[index][field] = value;
-    setDependentes(newDeps);
   };
 
   const handleSubmit = async (e) => {
@@ -235,15 +259,21 @@ export const CadastroPessoa = () => {
       if (dependentes.length > 0 && newPessoa) {
         const depsToInsert = dependentes
           .filter(d => d.nome.trim() !== '')
-          .map(d => ({
-            pessoa_id: newPessoa.id,
-            nome: d.nome,
-            data_nascimento: d.data_nascimento || null,
-            mascote: d.mascote
-          }));
+          .map(d => prepararPayloadDependente(d, newPessoa.id));
 
         if (depsToInsert.length > 0) {
-          await supabase.from('apc_dependente').insert(depsToInsert);
+          try {
+            await supabase.from('apc_dependente').insert(depsToInsert);
+          } catch (depErr) {
+            console.warn('Erro ao inserir dependentes com ficha médica completa, tentando fallback:', depErr);
+            const fallback = depsToInsert.map(d => ({
+              pessoa_id: d.pessoa_id,
+              nome: d.nome,
+              data_nascimento: d.data_nascimento,
+              mascote: d.mascote
+            }));
+            await supabase.from('apc_dependente').insert(fallback);
+          }
         }
       }
 
@@ -553,78 +583,12 @@ export const CadastroPessoa = () => {
 
             {/* Dependentes */}
             {(formData.tipo_pessoa === 'PADRINHO' || formData.tipo_pessoa === 'MADRINHA') && (
-              <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '1px solid var(--border-color)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                  <h3 style={{ fontSize: '1.25rem', margin: 0, fontWeight: 'bold' }}>Dependentes (Filhos)</h3>
-                  <button type="button" onClick={handleAddDependente} className="btn btn-secondary" style={{ padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <Plus size={16} /> Adicionar
-                  </button>
-                </div>
-
-                {dependentes.length === 0 ? (
-                  <p style={{ color: 'var(--text-secondary)' }}>Nenhum dependente adicionado.</p>
-                ) : (
-                  <div style={{ overflowX: 'auto', background: 'var(--bg-secondary)', borderRadius: '8px', padding: '1rem' }}>
-                    <table className="table-compact" style={{ minWidth: '600px', margin: 0 }}>
-                      <thead>
-                        <tr>
-                          <th style={{ width: '40%' }}>Nome do Dependente *</th>
-                          <th style={{ width: '30%' }}>Data de Nascimento</th>
-                          <th style={{ width: '20%', textAlign: 'center' }}>Vai para o acampamento?</th>
-                          <th style={{ width: '10%', textAlign: 'center' }}>Ações</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {dependentes.map((dep, index) => (
-                          <tr key={index}>
-                            <td style={{ padding: '0.5rem' }}>
-                              <input
-                                type="text"
-                                className="form-input"
-                                value={dep.nome}
-                                onChange={(e) => handleDependenteChange(index, 'nome', e.target.value)}
-                                required
-                                placeholder="Nome"
-                                style={{ marginBottom: 0 }}
-                              />
-                            </td>
-                            <td style={{ padding: '0.5rem' }}>
-                              <input
-                                type="date"
-                                className="form-input"
-                                value={dep.data_nascimento}
-                                onChange={(e) => handleDependenteChange(index, 'data_nascimento', e.target.value)}
-                                style={{ marginBottom: 0 }}
-                              />
-                            </td>
-                            <td style={{ padding: '0.5rem', textAlign: 'center' }}>
-                              <input
-                                type="checkbox"
-                                id={`mascote-${index}`}
-                                checked={dep.mascote}
-                                onChange={(e) => handleDependenteChange(index, 'mascote', e.target.checked)}
-                                style={{ width: '1.25rem', height: '1.25rem', cursor: 'pointer' }}
-                                title="Vai para o acampamento?"
-                              />
-                            </td>
-                            <td style={{ padding: '0.5rem', textAlign: 'center' }}>
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveDependente(index)}
-                                className="btn btn-secondary"
-                                style={{ color: 'var(--danger)', padding: '0.4rem' }}
-                                title="Remover"
-                              >
-                                <Trash2 size={20} />
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
+              <ListaDependentes
+                dependentes={dependentes}
+                onAdicionar={handleAbrirModalNovoDependente}
+                onEditar={handleAbrirModalEditarDependente}
+                onRemover={handleRemoveDependente}
+              />
             )}
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '2rem' }}>
@@ -633,6 +597,15 @@ export const CadastroPessoa = () => {
               </button>
             </div>
           </form>
+
+          {/* Modal / Popup de Dependente */}
+          <ModalDependente
+            isOpen={modalDependenteOpen}
+            onClose={handleFecharModalDependente}
+            onSave={handleSalvarDependenteModal}
+            initialData={dependenteEmEdicao}
+            edicaoIndex={dependenteEdicaoIndex}
+          />
         </div>
       </div>
     );

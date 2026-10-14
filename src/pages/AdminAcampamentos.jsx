@@ -5,6 +5,18 @@ import { Tent, Plus, Trash2, Edit2, Search, Filter, ArrowLeft, DollarSign, Check
 import { useParams, Link } from 'react-router-dom';
 import { registrarAuditoria } from '../services/auditoriaService';
 
+const calcularIdade = (dataNascimento) => {
+  if (!dataNascimento) return null;
+  const hoje = new Date();
+  const nasc = new Date(dataNascimento);
+  let idade = hoje.getFullYear() - nasc.getFullYear();
+  const m = hoje.getMonth() - nasc.getMonth();
+  if (m < 0 || (m === 0 && hoje.getDate() < nasc.getDate())) {
+    idade--;
+  }
+  return idade;
+};
+
 const DependentesAccordion = ({ dependentes }) => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -36,30 +48,124 @@ const DependentesAccordion = ({ dependentes }) => {
 
       {isOpen && (
         <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.5rem', paddingLeft: '1rem', borderLeft: '2px solid var(--accent-primary)' }}>
-          {dependentes.map(d => (
-            <span
-              key={d.id}
-              title={d.mascote ? "Filho(a): Sim, vai para o acampamento" : "Filho(a): Não vai para o acampamento"}
-              style={{
-                fontSize: '0.75rem',
-                color: 'var(--text-primary)',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.3rem',
-                whiteSpace: 'nowrap',
-                background: 'var(--bg-secondary)',
-                padding: '0.25rem 0.5rem',
-                borderRadius: '6px',
-                border: '1px solid var(--border-color)'
-              }}
-            >
-              {d.nome} {d.mascote ? <CheckCircle2 size={14} color="var(--success)" /> : <X size={14} color="var(--error)" />}
-            </span>
-          ))}
+          {dependentes.map(d => {
+            const idade = calcularIdade(d.data_nascimento);
+            return (
+              <span
+                key={d.id}
+                title={d.mascote ? `Filho(a): Sim, vai para o acampamento${idade !== null ? ` (${idade} anos)` : ''}` : `Filho(a): Não vai para o acampamento${idade !== null ? ` (${idade} anos)` : ''}`}
+                style={{
+                  fontSize: '0.75rem',
+                  color: 'var(--text-primary)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.3rem',
+                  whiteSpace: 'nowrap',
+                  background: 'var(--bg-secondary)',
+                  padding: '0.25rem 0.5rem',
+                  borderRadius: '6px',
+                  border: '1px solid var(--border-color)'
+                }}
+              >
+                {d.nome} {idade !== null && <span style={{ color: 'var(--text-secondary)', fontSize: '0.7rem' }}>({idade}a)</span>} {d.mascote ? <CheckCircle2 size={14} color="var(--success)" /> : <X size={14} color="var(--error)" />}
+              </span>
+            );
+          })}
         </div>
       )}
     </div>
   );
+};
+
+const formatCurrency = (val) => {
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
+};
+
+const calcularValorTotal = (acampamento, evento) => {
+  if (!evento) return { total: 0, itens: [] };
+
+  const valorPadrao = parseFloat(evento.valor || 0);
+  const valorDif = evento.valor_diferenciado !== null && evento.valor_diferenciado !== undefined && evento.valor_diferenciado !== ''
+    ? parseFloat(evento.valor_diferenciado)
+    : null;
+  const idadeMin = evento.idade_min_diferenciada !== null && evento.idade_min_diferenciada !== undefined && evento.idade_min_diferenciada !== ''
+    ? parseInt(evento.idade_min_diferenciada, 10)
+    : null;
+  const idadeMax = evento.idade_max_diferenciada !== null && evento.idade_max_diferenciada !== undefined && evento.idade_max_diferenciada !== ''
+    ? parseInt(evento.idade_max_diferenciada, 10)
+    : null;
+
+  const tipo = acampamento.apc_pessoa?.tipo_pessoa;
+  const itens = [];
+
+  // Se for AFILHADO (inscrição individual do afilhado)
+  if (tipo === 'AFILHADO') {
+    itens.push({
+      descricao: `Afilhado(a): ${acampamento.apc_pessoa?.nome || 'Afilhado'}`,
+      valor: valorPadrao
+    });
+    return {
+      total: valorPadrao,
+      itens
+    };
+  }
+
+  // Se for PADRINHO, MADRINHA, VOLUNTÁRIO ou outro tipo familiar
+  // 1. Titular
+  if (acampamento.apc_pessoa) {
+    itens.push({
+      descricao: `Titular (${acampamento.apc_pessoa.nome})`,
+      valor: valorPadrao
+    });
+  }
+
+  // 2. Cônjuge (apenas se inscrito no acampamento via apc_acampamento)
+  if (acampamento.conjuge_inscricao && acampamento.apc_pessoa?.conjuge) {
+    itens.push({
+      descricao: `Cônjuge (${acampamento.apc_pessoa.conjuge.nome})`,
+      valor: valorPadrao
+    });
+  }
+
+  // 3. Dependentes (apenas os que vão para o acampamento: mascote === true)
+  const dependentes = acampamento.apc_pessoa?.dependentes_agrupados || [];
+  dependentes.forEach(dep => {
+    if (!dep.mascote) return;
+
+    const idade = calcularIdade(dep.data_nascimento);
+    let valorDep = 0;
+    let descFaixa = '';
+
+    if (valorDif !== null && idadeMin !== null && idadeMax !== null) {
+      if (idade !== null) {
+        if (idade >= idadeMin && idade <= idadeMax) {
+          valorDep = valorDif;
+          descFaixa = `${idadeMin} a ${idadeMax} anos`;
+        } else if (idade < idadeMin) {
+          valorDep = 0;
+          descFaixa = `Isento (< ${idadeMin} anos)`;
+        } else {
+          valorDep = valorPadrao;
+          descFaixa = `Adulto (> ${idadeMax} anos)`;
+        }
+      } else {
+        // Sem data de nascimento informada
+        valorDep = valorDif;
+        descFaixa = `Faixa diferenciada`;
+      }
+    } else {
+      valorDep = valorPadrao;
+      descFaixa = `Integral`;
+    }
+
+    itens.push({
+      descricao: `Filho(a): ${dep.nome}${idade !== null ? ` (${idade} anos)` : ''} - ${descFaixa}`,
+      valor: valorDep
+    });
+  });
+
+  const total = itens.reduce((acc, item) => acc + item.valor, 0);
+  return { total, itens };
 };
 
 export const AdminAcampamentos = () => {
@@ -108,7 +214,7 @@ export const AdminAcampamentos = () => {
       // 1. Busca todos os eventos
       const { data: eventosData } = await supabase
         .from('apc_evento')
-        .select('id, descricao, equipes, status')
+        .select('*')
         .order('data_inicio', { ascending: false });
 
       setEventos(eventosData || []);
@@ -118,7 +224,7 @@ export const AdminAcampamentos = () => {
         .from('apc_pessoa')
         .select(`
           id, nome, tipo_pessoa, conjuge_id, ano,
-          apc_dependente ( id, nome, mascote )
+          apc_dependente ( id, nome, mascote, data_nascimento )
         `)
         .order('nome', { ascending: true });
 
@@ -131,8 +237,8 @@ export const AdminAcampamentos = () => {
           .select(`
             id,
             equipe,
-            apc_evento ( id, descricao ),
-            apc_pessoa ( id, nome, tipo_pessoa, conjuge_id, ano, apc_dependente ( id, nome, mascote ) )
+            apc_evento ( * ),
+            apc_pessoa ( id, nome, tipo_pessoa, conjuge_id, ano, apc_dependente ( id, nome, mascote, data_nascimento ) )
           `)
           .eq('evento_id', evento_id)
           .order('created_at', { ascending: false });
@@ -529,6 +635,11 @@ export const AdminAcampamentos = () => {
 
   const currentEvento = eventos.find(e => e.id === evento_id);
 
+  const totalPrevisto = filteredAcampamentos.reduce((acc, a) => {
+    const { total } = calcularValorTotal(a, currentEvento || a.apc_evento);
+    return acc + total;
+  }, 0);
+
   return (
     <div className="main-content">
       <div className="glass-panel" style={{ padding: '1.5rem', marginBottom: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -565,9 +676,24 @@ export const AdminAcampamentos = () => {
             {isCreating ? 'Voltar para Lista' : <><Plus size={20} /> Nova Inscrição</>}
           </button>
         </div>
-        <p style={{ margin: 0, fontSize: '1rem', color: 'var(--text-secondary)' }}>
-          {isCreating ? 'Vincule uma pessoa a este evento e selecione suas equipes.' : 'Gerencie as inscrições do acampamento.'}
-        </p>
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+          <p style={{ margin: 0, fontSize: '1rem', color: 'var(--text-secondary)' }}>
+            {isCreating ? 'Vincule uma pessoa a este evento e selecione suas equipes.' : 'Gerencie as inscrições do acampamento.'}
+          </p>
+
+          {!isCreating && currentEvento && currentEvento.valor && (
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.6rem', fontSize: '0.8rem', color: 'var(--text-secondary)', background: 'var(--bg-secondary)', padding: '0.35rem 0.75rem', borderRadius: '6px', border: '1px solid var(--border-color)', flexWrap: 'wrap' }}>
+              <span><strong>Valor padrão:</strong> {formatCurrency(currentEvento.valor)}</span>
+              {currentEvento.valor_diferenciado && (
+                <>
+                  <span>•</span>
+                  <span><strong>Diferenciado ({currentEvento.descricao_valor_diferenciado || `${currentEvento.idade_min_diferenciada || 0} a ${currentEvento.idade_max_diferenciada || 0} anos`}):</strong> {formatCurrency(currentEvento.valor_diferenciado)}</span>
+                </>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {error && <div className="alert alert-error" style={{ marginBottom: '2rem' }}>{error}</div>}
@@ -702,26 +828,30 @@ export const AdminAcampamentos = () => {
 
           {/* Cards de Métricas */}
           {!loadingData && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
-              <div style={{ background: 'var(--bg-secondary)', padding: '0.2rem', borderRadius: '8px', textAlign: 'center', border: '1px solid var(--border-color)' }}>
-                <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Padrinhos</div>
-                <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--accent-primary)' }}>{countPadrinhos}</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
+              <div style={{ background: 'var(--bg-secondary)', padding: '0.5rem', borderRadius: '8px', textAlign: 'center', border: '1px solid var(--border-color)' }}>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Padrinhos</div>
+                <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: 'var(--accent-primary)' }}>{countPadrinhos}</div>
               </div>
-              <div style={{ background: 'var(--bg-secondary)', padding: '0.2rem', borderRadius: '8px', textAlign: 'center', border: '1px solid var(--border-color)' }}>
-                <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Filhos</div>
-                <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--accent-primary)' }}>{countFilhos}</div>
+              <div style={{ background: 'var(--bg-secondary)', padding: '0.5rem', borderRadius: '8px', textAlign: 'center', border: '1px solid var(--border-color)' }}>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Filhos</div>
+                <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: 'var(--accent-primary)' }}>{countFilhos}</div>
               </div>
-              <div style={{ background: 'var(--bg-secondary)', padding: '0.2rem', borderRadius: '8px', textAlign: 'center', border: '1px solid var(--border-color)' }}>
-                <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Afilhados</div>
-                <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--accent-primary)' }}>{countAfilhados}</div>
+              <div style={{ background: 'var(--bg-secondary)', padding: '0.5rem', borderRadius: '8px', textAlign: 'center', border: '1px solid var(--border-color)' }}>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Afilhados</div>
+                <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: 'var(--accent-primary)' }}>{countAfilhados}</div>
               </div>
-              <div style={{ background: 'var(--bg-secondary)', padding: '0.2rem', borderRadius: '8px', textAlign: 'center', border: '1px solid var(--border-color)' }}>
-                <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Voluntários</div>
-                <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--accent-primary)' }}>{countVoluntarios}</div>
+              <div style={{ background: 'var(--bg-secondary)', padding: '0.5rem', borderRadius: '8px', textAlign: 'center', border: '1px solid var(--border-color)' }}>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Voluntários</div>
+                <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: 'var(--accent-primary)' }}>{countVoluntarios}</div>
               </div>
-              <div style={{ background: 'var(--bg-primary)', padding: '0.2rem', borderRadius: '8px', textAlign: 'center', border: '2px solid var(--accent-primary)', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
-                <div style={{ fontSize: '0.875rem', fontWeight: 'bold' }}>Total Geral</div>
-                <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--accent-primary)' }}>{totalParticipantes}</div>
+              <div style={{ background: 'var(--bg-primary)', padding: '0.5rem', borderRadius: '8px', textAlign: 'center', border: '2px solid var(--accent-primary)', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
+                <div style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>Total Pessoas</div>
+                <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: 'var(--accent-primary)' }}>{totalParticipantes}</div>
+              </div>
+              <div style={{ background: 'var(--bg-secondary)', padding: '0.5rem', borderRadius: '8px', textAlign: 'center', border: '1px solid var(--border-color)' }}>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Total Previsto</div>
+                <div style={{ fontSize: '1.3rem', fontWeight: 'bold', color: 'var(--success)' }}>{formatCurrency(totalPrevisto)}</div>
               </div>
             </div>
           )}
@@ -801,87 +931,123 @@ export const AdminAcampamentos = () => {
                 <thead>
                   <tr>
                     <th>Ano</th>
-                    <th style={{ width: '30%', minWidth: '250px' }}>Nome</th>
+                    <th style={{ width: '28%', minWidth: '230px' }}>Nome</th>
                     <th>Equipe</th>
                     <th>Padrinhos</th>
+                    <th>Valor Total</th>
                     <th style={{ textAlign: 'right' }}>Ações</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredAcampamentos.map((a) => (
-                    <tr key={a.id}>
-                      <td>{a.apc_pessoa?.ano}</td>
-                      <td>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.35rem' }}>
-                            <span style={{ fontWeight: '500', display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'help' }} title="Sim, vai para o Acampamento">
-                              {a.apc_pessoa?.nome} <CheckCircle2 size={14} color="var(--success)" />
-                            </span>
-                            {a.apc_pessoa?.conjuge && (
-                              <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'help' }} title={a.conjuge_inscricao ? "Sim, vai para o Acampamento" : "Não vai para o Acampamento"}>
-                                {' e '} {a.apc_pessoa.conjuge.nome}
-                                {a.conjuge_inscricao ? (
-                                  <CheckCircle2 size={14} color="var(--success)" />
-                                ) : (
-                                  <X size={14} color="var(--error)" />
-                                )}
+                  {filteredAcampamentos.map((a) => {
+                    const { total: valorTotal, itens: itensValor } = calcularValorTotal(a, currentEvento || a.apc_evento);
+                    const tooltipTexto = itensValor.length > 0
+                      ? itensValor.map(item => `${item.descricao}: ${formatCurrency(item.valor)}`).join('\n') + (itensValor.length > 1 ? `\n-------------------------\nTotal: ${formatCurrency(valorTotal)}` : '')
+                      : 'Sem cobrança';
+
+                    return (
+                      <tr key={a.id}>
+                        <td>{a.apc_pessoa?.ano}</td>
+                        <td>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.35rem' }}>
+                              <span style={{ fontWeight: '600', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'help' }} title="Sim, vai para o Acampamento">
+                                {a.apc_pessoa?.nome} <CheckCircle2 size={14} color="var(--success)" />
                               </span>
-                            )}
+                              {a.apc_pessoa?.conjuge && (
+                                <span style={{ fontWeight: '600', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'help' }} title={a.conjuge_inscricao ? "Sim, vai para o Acampamento" : "Não vai para o Acampamento"}>
+                                  {' e '} {a.apc_pessoa.conjuge.nome}
+                                  {a.conjuge_inscricao ? (
+                                    <CheckCircle2 size={14} color="var(--success)" />
+                                  ) : (
+                                    <X size={14} color="var(--error)" />
+                                  )}
+                                </span>
+                              )}
+                            </div>
+                            <DependentesAccordion dependentes={a.apc_pessoa?.dependentes_agrupados} />
                           </div>
-                          <DependentesAccordion dependentes={a.apc_pessoa?.dependentes_agrupados} />
-                        </div>
-                      </td>
-                      <td>
-                        <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                          {(() => {
-                            const combined = Array.from(new Set([...(a.equipe || []), ...(a.conjuge_inscricao?.equipe || [])]));
-                            if (combined.length === 0) {
-                              return <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>Nenhuma</span>;
-                            }
-                            return combined.map(eq => {
-                              let bg = 'rgba(59, 130, 246, 0.1)';
-                              let color = 'var(--accent-primary)';
-
-                              if (eq === 'Padrinhos') {
-                                bg = 'rgba(16, 185, 129, 0.1)';
-                                color = '#059669';
-                              } else if (eq === 'Afilhado(a)') {
-                                bg = 'rgba(245, 158, 11, 0.1)';
-                                color = '#d97706';
+                        </td>
+                        <td>
+                          <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                            {(() => {
+                              const combined = Array.from(new Set([...(a.equipe || []), ...(a.conjuge_inscricao?.equipe || [])]));
+                              if (combined.length === 0) {
+                                return <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>Nenhuma</span>;
                               }
+                              return combined.map(eq => {
+                                let bg = 'rgba(59, 130, 246, 0.1)';
+                                let color = 'var(--accent-primary)';
 
-                              return (
-                                <span key={eq} style={{ background: bg, color: color, padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: '500' }}>{eq}</span>
-                              );
-                            });
-                          })()}
-                        </div>
-                      </td>
+                                if (eq === 'Padrinhos') {
+                                  bg = 'rgba(16, 185, 129, 0.1)';
+                                  color = '#059669';
+                                } else if (eq === 'Afilhado(a)') {
+                                  bg = 'rgba(245, 158, 11, 0.1)';
+                                  color = '#d97706';
+                                }
 
-                      <td style={{ fontWeight: '500' }}>
-                        {a.apc_pessoa?.vinculo ? (
-                          <div>
-                            {a.apc_pessoa.vinculo.padrinho?.nome || '-'} e {a.apc_pessoa.vinculo.madrinha?.nome || '-'}
+                                return (
+                                  <span key={eq} style={{ background: bg, color: color, padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: '500' }}>{eq}</span>
+                                );
+                              });
+                            })()}
                           </div>
-                        ) : (
-                          <span style={{ color: 'var(--text-secondary)' }}>-</span>
-                        )}
-                      </td>
-                      <td style={{ textAlign: 'right', verticalAlign: 'middle' }}>
-                        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', height: '100%', alignItems: 'center' }}>
-                          <Link to={`/admin/pagamentos/${a.id}`} state={{ from: `/admin/acampamentos/${evento_id}` }} className="btn btn-secondary" style={{ padding: '0.4rem 0.5rem', color: 'var(--success)', display: 'flex', alignItems: 'center', gap: '0.25rem' }} title="Pagamentos da Família">
-                            <DollarSign size={16} />
-                          </Link>
-                          <button onClick={() => handleEdit(a)} className="btn btn-primary" style={{ padding: '0.4rem 0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }} title="Editar Família">
-                            <Edit2 size={16} />
-                          </button>
-                          <button onClick={() => handleDelete(a)} className="btn btn-danger" style={{ padding: '0.4rem 0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }} title="Excluir Inscrição da Família">
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+
+                        <td style={{ fontWeight: '400', fontSize: '0.7rem' }}>
+                          {a.apc_pessoa?.vinculo ? (
+                            <div>
+                              {a.apc_pessoa.vinculo.padrinho?.nome || '-'} e {a.apc_pessoa.vinculo.madrinha?.nome || '-'}
+                            </div>
+                          ) : (
+                            <span style={{ color: 'var(--text-secondary)' }}>-</span>
+                          )}
+                        </td>
+
+                        <td style={{ verticalAlign: 'middle' }}>
+                          <div
+                            title={tooltipTexto}
+                            style={{
+                              cursor: 'help',
+                              display: 'inline-flex',
+                              flexDirection: 'column',
+                              gap: '0.15rem'
+                            }}
+                          >
+                            <span style={{
+                              fontWeight: '700',
+                              fontSize: '0.9rem',
+                              color: valorTotal > 0 ? 'var(--text-primary)' : 'var(--text-secondary)'
+                            }}>
+                              {formatCurrency(valorTotal)}
+                            </span>
+                            <span style={{ fontSize: '0.725rem', color: 'var(--text-secondary)' }}>
+                              {itensValor.length === 0
+                                ? 'Isento'
+                                : itensValor.length === 1
+                                  ? '1 participante'
+                                  : `${itensValor.length} participantes`}
+                            </span>
+                          </div>
+                        </td>
+
+                        <td style={{ textAlign: 'right', verticalAlign: 'middle' }}>
+                          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', height: '100%', alignItems: 'center' }}>
+                            <Link to={`/admin/pagamentos/${a.id}`} state={{ from: `/admin/acampamentos/${evento_id}` }} className="btn btn-secondary" style={{ padding: '0.4rem 0.5rem', color: 'var(--success)', display: 'flex', alignItems: 'center', gap: '0.25rem' }} title="Pagamentos da Família">
+                              <DollarSign size={16} />
+                            </Link>
+                            <button onClick={() => handleEdit(a)} className="btn btn-primary" style={{ padding: '0.4rem 0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }} title="Editar Família">
+                              <Edit2 size={16} />
+                            </button>
+                            <button onClick={() => handleDelete(a)} className="btn btn-danger" style={{ padding: '0.4rem 0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }} title="Excluir Inscrição da Família">
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
