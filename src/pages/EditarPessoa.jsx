@@ -18,6 +18,7 @@ import {
   FileText
 } from 'lucide-react';
 import { ModalDependente, ListaDependentes, normalizarDependente, prepararPayloadDependente } from '../components/ModalDependente';
+import { validarCPF, formatarCPF } from '../utils/cpf';
 
 export const EditarPessoa = () => {
   const { userProfile, refreshProfile } = useAuth();
@@ -200,7 +201,7 @@ export const EditarPessoa = () => {
           vinculo_padrinho_id: '',
           vinculo_madrinha_id: '',
           rg: data.rg || '',
-          cpf: data.cpf || '',
+          cpf: formatarCPF(data.cpf || ''),
           contato_emergencia: data.contato_emergencia || '',
           nome_responsavel: data.nome_responsavel || (data.nome_pai || data.nome_mae || ''),
           nome_pai: data.nome_pai || '',
@@ -278,7 +279,8 @@ export const EditarPessoa = () => {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    const val = type === 'checkbox' ? checked : value;
+    const rawVal = type === 'checkbox' ? checked : value;
+    const val = name === 'cpf' ? formatarCPF(rawVal) : rawVal;
 
     setFormData(prev => {
       const updated = {
@@ -386,6 +388,18 @@ export const EditarPessoa = () => {
 
     if (!formData.nome || !formData.nome.trim()) {
       setError('Por favor, informe o Nome Completo.');
+      window.scrollTo({ top: 300, behavior: 'smooth' });
+      return;
+    }
+
+    if (!formData.cpf || !formData.cpf.trim()) {
+      setError('Por favor, informe o CPF do Participante.');
+      window.scrollTo({ top: 300, behavior: 'smooth' });
+      return;
+    }
+
+    if (!validarCPF(formData.cpf)) {
+      setError('Por favor, informe um CPF válido.');
       window.scrollTo({ top: 300, behavior: 'smooth' });
       return;
     }
@@ -837,7 +851,7 @@ export const EditarPessoa = () => {
             </div>
 
             <div className="form-group">
-              <label className="form-label" htmlFor="cpf">CPF do Participante</label>
+              <label className="form-label" htmlFor="cpf">CPF do Participante *</label>
               <input
                 id="cpf"
                 name="cpf"
@@ -846,6 +860,8 @@ export const EditarPessoa = () => {
                 placeholder="000.000.000-00"
                 value={formData.cpf}
                 onChange={handleChange}
+                maxLength={14}
+                required
               />
             </div>
           </div>

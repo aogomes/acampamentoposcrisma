@@ -29,6 +29,7 @@ import {
   Activity,
   FileText
 } from 'lucide-react';
+import { validarCPF, formatarCPF } from '../utils/cpf';
 
 export const FormularioInscricao = () => {
   const { user, userProfile, pessoaProfile, refreshProfile } = useAuth();
@@ -340,7 +341,7 @@ ALTER TABLE public.apc_dependente
             padrinhos_catequistas: p.padrinhos_catequistas || '',
             ano: p.ano ? p.ano.toString() : anoPadrao,
             rg: p.rg || '',
-            cpf: p.cpf || '',
+            cpf: formatarCPF(p.cpf || ''),
             contato_emergencia: p.contato_emergencia || '',
             nome_responsavel: p.nome_responsavel || (p.nome_pai || p.nome_mae || ''),
             nome_pai: p.nome_pai || '',
@@ -481,7 +482,8 @@ ALTER TABLE public.apc_dependente
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    const val = type === 'checkbox' ? checked : value;
+    const rawVal = type === 'checkbox' ? checked : value;
+    const val = name === 'cpf' ? formatarCPF(rawVal) : rawVal;
 
     setFormData(prev => {
       const updated = { ...prev, [name]: val };
@@ -599,6 +601,11 @@ ALTER TABLE public.apc_dependente
     const pendencias = [];
     if (!formData.nome || !formData.nome.trim()) {
       pendencias.push('Nome Completo do Participante');
+    }
+    if (!formData.cpf || !formData.cpf.trim()) {
+      pendencias.push('CPF do Participante');
+    } else if (!validarCPF(formData.cpf)) {
+      pendencias.push('CPF do Participante (informe um CPF válido)');
     }
     if (!formData.telefone || !formData.telefone.trim()) {
       pendencias.push('Telefone do Participante');
@@ -1363,7 +1370,7 @@ ALTER TABLE public.apc_dependente
 
             <div className="form-group">
               <label className="form-label" htmlFor="cpf">
-                CPF do Participante
+                CPF do Participante *
               </label>
               <input
                 id="cpf"
@@ -1373,6 +1380,8 @@ ALTER TABLE public.apc_dependente
                 placeholder="000.000.000-00"
                 value={formData.cpf}
                 onChange={handleChange}
+                maxLength={14}
+                required
               />
             </div>
           </div>

@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { UserPlus, ArrowLeft, Users, Edit2, Trash2, Plus } from 'lucide-react';
 import { ModalDependente, ListaDependentes, prepararPayloadDependente } from '../components/ModalDependente';
+import { validarCPF, formatarCPF } from '../utils/cpf';
 
 export const CadastroPessoa = () => {
   const { userProfile } = useAuth();
@@ -19,6 +20,7 @@ export const CadastroPessoa = () => {
 
   const [formData, setFormData] = useState({
     nome: '',
+    cpf: '',
     email: '',
     telefone: '',
     sexo: '',
@@ -117,9 +119,10 @@ export const CadastroPessoa = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    const finalValue = name === 'cpf' ? formatarCPF(value) : value;
     setFormData(prev => ({
       ...prev,
-      [name]: value,
+      [name]: finalValue,
       // Se mudar o tipo de pessoa, limpa o conjuge selecionado
       ...(name === 'tipo_pessoa' ? { conjuge_id: '' } : {})
     }));
@@ -208,13 +211,30 @@ export const CadastroPessoa = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
     setError('');
     setSuccess('');
 
+    if (!formData.nome || !formData.nome.trim()) {
+      setError('Por favor, informe o Nome Completo.');
+      return;
+    }
+
+    if (!formData.cpf || !formData.cpf.trim()) {
+      setError('Por favor, informe o CPF.');
+      return;
+    }
+
+    if (!validarCPF(formData.cpf)) {
+      setError('Por favor, informe um CPF válido.');
+      return;
+    }
+
+    setLoading(true);
+
     try {
       const insertData = {
-        nome: formData.nome,
+        nome: formData.nome.trim(),
+        cpf: formData.cpf.trim(),
         email: formData.email || null,
         telefone: formData.telefone || null,
         sexo: formData.sexo || null,
@@ -278,7 +298,7 @@ export const CadastroPessoa = () => {
       }
 
       setSuccess('Pessoa cadastrada com sucesso!');
-      setFormData({ nome: '', email: '', telefone: '', sexo: '', data_nascimento: '', tipo_pessoa: 'AFILHADO', ano: '', conjuge_id: '', user_id: '', vinculo_padrinho_id: '', vinculo_madrinha_id: '', nome_pai: '', nome_mae: '', fone_responsavel: '', necessidade_medica: '', camiseta: '' });
+      setFormData({ nome: '', cpf: '', email: '', telefone: '', sexo: '', data_nascimento: '', tipo_pessoa: 'AFILHADO', ano: '', conjuge_id: '', user_id: '', vinculo_padrinho_id: '', vinculo_madrinha_id: '', nome_pai: '', nome_mae: '', fone_responsavel: '', necessidade_medica: '', camiseta: '' });
       setDependentes([]);
 
       setTimeout(() => {
@@ -347,15 +367,17 @@ export const CadastroPessoa = () => {
 
             <div className="form-grid">
               <div className="form-group">
-                <label className="form-label" htmlFor="email">E-mail</label>
+                <label className="form-label" htmlFor="cpf">CPF *</label>
                 <input
-                  id="email"
-                  name="email"
-                  type="email"
+                  id="cpf"
+                  name="cpf"
+                  type="text"
                   className="form-input"
-                  placeholder="email@exemplo.com"
-                  value={formData.email}
+                  placeholder="000.000.000-00"
+                  value={formData.cpf}
                   onChange={handleChange}
+                  maxLength={14}
+                  required
                 />
               </div>
 
@@ -371,6 +393,19 @@ export const CadastroPessoa = () => {
                   onChange={handleChange}
                 />
               </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" htmlFor="email">E-mail</label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                className="form-input"
+                placeholder="email@exemplo.com"
+                value={formData.email}
+                onChange={handleChange}
+              />
             </div>
 
             <div className="form-grid">
@@ -613,7 +648,8 @@ export const CadastroPessoa = () => {
 
   const filteredPessoas = pessoas.filter(p => {
     const matchesSearch = p.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (p.email && p.email.toLowerCase().includes(searchTerm.toLowerCase()));
+      (p.email && p.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (p.cpf && p.cpf.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesTipo = filterTipo === 'TODOS' || p.tipo_pessoa === filterTipo;
     return matchesSearch && matchesTipo;
   }).sort((a, b) => a.nome.localeCompare(b.nome));
