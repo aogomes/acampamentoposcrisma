@@ -1403,46 +1403,6 @@ export const EditarPessoa = () => {
           </div>
         </div> */}
 
-        {/* ========================================================================= */}
-        {/* SEÇÃO 5: TERMOS DE ACEITE */}
-        {/* ========================================================================= */}
-        <div className="glass-panel form-section-card" style={{ background: 'rgba(59, 130, 246, 0.03)' }}>
-          <div className="section-header">
-            <ShieldCheck size={22} color="var(--accent-primary)" />
-            <h3>5. Termos e Autorizações</h3>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
-              <input
-                type="checkbox"
-                id="aceite_termos_dados"
-                name="aceite_termos_dados"
-                checked={formData.aceite_termos_dados}
-                onChange={handleChange}
-                style={{ width: '1.3rem', height: '1.3rem', marginTop: '0.2rem', cursor: 'pointer' }}
-              />
-              <label htmlFor="aceite_termos_dados" style={{ cursor: 'pointer', fontSize: '0.9rem' }}>
-                <strong>PAIS OU RESPONSÁVEIS:</strong> Concordo com o tratamento de meus dados pessoais e os dados do menor sob os meus cuidados para as finalidades a seguir determinadas: registro no <strong>VIII Acampamento do Pós-Crisma</strong>, possível apresentação no El Rancho e à empresa de transporte.
-              </label>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
-              <input
-                type="checkbox"
-                id="aceite_termo_imagem"
-                name="aceite_termo_imagem"
-                checked={formData.aceite_termo_imagem}
-                onChange={handleChange}
-                style={{ width: '1.3rem', height: '1.3rem', marginTop: '0.2rem', cursor: 'pointer' }}
-              />
-              <label htmlFor="aceite_termo_imagem" style={{ cursor: 'pointer', fontSize: '0.9rem' }}>
-                <strong>PAIS OU RESPONSÁVEIS:</strong> Autorizo o uso da imagem de meu/minha filho(a) para uso em campanhas de divulgação do evento em sites e redes sociais da Paróquia Santa Maria dos Pobres.
-              </label>
-            </div>
-          </div>
-        </div>
-
         {/* Cônjuge (Se Padrinho/Madrinha) */}
         {(formData.tipo_pessoa === 'PADRINHO' || formData.tipo_pessoa === 'MADRINHA') && (
           <div className="glass-panel form-section-card">

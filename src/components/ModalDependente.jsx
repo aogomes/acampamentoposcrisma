@@ -182,7 +182,7 @@ export const ModalDependente = ({
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 9999,
-        padding: '1rem'
+        padding: '0.75rem'
       }}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
@@ -193,39 +193,39 @@ export const ModalDependente = ({
         style={{
           width: '100%',
           maxWidth: '850px',
-          maxHeight: '90vh',
+          maxHeight: '92vh',
           overflowY: 'auto',
           background: 'var(--bg-primary, #0f172a)',
           border: '1px solid var(--border-color)',
           borderRadius: '16px',
           boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
-          padding: '2rem',
+          padding: '1.25rem 1.5rem',
           position: 'relative',
           display: 'flex',
           flexDirection: 'column',
-          gap: '1.5rem'
+          gap: '1rem'
         }}
       >
         {/* Cabeçalho */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <div style={{
-              width: '42px',
-              height: '42px',
-              borderRadius: '10px',
+              width: '38px',
+              height: '38px',
+              borderRadius: '8px',
               background: 'rgba(16, 185, 129, 0.1)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               color: 'var(--accent-primary)'
             }}>
-              <Users size={24} />
+              <Users size={22} />
             </div>
             <div>
-              <h3 style={{ margin: 0, fontSize: '1.35rem', color: 'var(--text-primary)', fontWeight: 'bold' }}>
+              <h3 style={{ margin: 0, fontSize: '1.25rem', color: 'var(--text-primary)', fontWeight: 'bold' }}>
                 {edicaoIndex !== null && edicaoIndex >= 0 ? 'Editar Dependente' : 'Adicionar Dependente'}
               </h3>
-              <p style={{ margin: '0.2rem 0 0', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+              <p style={{ margin: '0.15rem 0 0', fontSize: '0.825rem', color: 'var(--text-secondary)' }}>
                 Preencha os dados e a ficha médica completa do dependente
               </p>
             </div>
@@ -238,7 +238,7 @@ export const ModalDependente = ({
               border: 'none',
               color: 'var(--text-secondary)',
               cursor: 'pointer',
-              padding: '0.5rem',
+              padding: '0.4rem',
               borderRadius: '6px',
               display: 'flex',
               alignItems: 'center',
@@ -246,7 +246,7 @@ export const ModalDependente = ({
             }}
             title="Fechar"
           >
-            <X size={22} />
+            <X size={20} />
           </button>
         </div>
 
@@ -271,14 +271,14 @@ export const ModalDependente = ({
         )}
 
         {/* 1. DADOS BÁSICOS */}
-        <div style={{ background: 'var(--bg-secondary)', padding: '1.25rem', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
-          <h4 style={{ margin: '0 0 1rem', fontSize: '1rem', color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <User size={18} /> 1. Dados Pessoais do Dependente
+        <div style={{ background: 'var(--bg-secondary)', padding: '0.85rem 1rem', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+          <h4 style={{ margin: '0 0 0.75rem', fontSize: '0.95rem', color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <User size={17} /> 1. Dados Pessoais do Dependente
           </h4>
 
-          <div className="form-grid">
+          <div className="form-grid" style={{ gap: '0.85rem' }}>
             <div className="form-group" style={{ gridColumn: 'span 2' }}>
-              <label className="form-label">
+              <label className="form-label" style={{ marginBottom: '0.25rem' }}>
                 Nome Completo do Dependente *
               </label>
               <input
@@ -292,7 +292,7 @@ export const ModalDependente = ({
             </div>
 
             <div className="form-group">
-              <label className="form-label">
+              <label className="form-label" style={{ marginBottom: '0.25rem' }}>
                 Data de Nascimento
               </label>
               <input
@@ -302,7 +302,7 @@ export const ModalDependente = ({
                 onChange={(e) => handleChange('data_nascimento', e.target.value)}
               />
               {form.data_nascimento && (
-                <small style={{ color: 'var(--text-secondary)', marginTop: '0.25rem', display: 'block' }}>
+                <small style={{ color: 'var(--text-secondary)', marginTop: '0.2rem', display: 'block', fontSize: '0.75rem' }}>
                   Idade calculada: {calcularIdade(form.data_nascimento)} anos
                 </small>
               )}
@@ -313,24 +313,24 @@ export const ModalDependente = ({
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '0.75rem',
+                  gap: '0.65rem',
                   cursor: 'pointer',
                   background: form.mascote ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
                   border: form.mascote ? '1px solid var(--accent-primary)' : '1px solid var(--border-color)',
-                  padding: '0.75rem 1rem',
+                  padding: '0.5rem 0.75rem',
                   borderRadius: '8px',
                   transition: 'all 0.2s ease',
-                  marginTop: '1.5rem'
+                  marginTop: '0.5rem'
                 }}
               >
                 <input
                   type="checkbox"
                   checked={Boolean(form.mascote)}
                   onChange={(e) => handleChange('mascote', e.target.checked)}
-                  style={{ width: '1.25rem', height: '1.25rem', cursor: 'pointer' }}
+                  style={{ width: '1.15rem', height: '1.15rem', cursor: 'pointer' }}
                 />
                 <div>
-                  <strong style={{ display: 'block', fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+                  <strong style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-primary)' }}>
                     Vai para o acampamento? (Mascote)
                   </strong>
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
@@ -343,17 +343,17 @@ export const ModalDependente = ({
         </div>
 
         {/* 2. FICHA MÉDICA E CUIDADOS DE SAÚDE */}
-        <div style={{ background: 'var(--bg-secondary)', padding: '1.25rem', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
-            <HeartPulse size={20} color="var(--accent-primary)" />
-            <h4 style={{ margin: 0, fontSize: '1rem', color: 'var(--accent-primary)' }}>
+        <div style={{ background: 'var(--bg-secondary)', padding: '0.85rem 1rem', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+            <HeartPulse size={18} color="var(--accent-primary)" />
+            <h4 style={{ margin: 0, fontSize: '0.95rem', color: 'var(--accent-primary)' }}>
               2. Ficha Médica e Cuidados de Saúde
             </h4>
           </div>
 
           {/* Tipo Sanguíneo */}
-          <div className="form-group" style={{ maxWidth: '300px', marginBottom: '1.25rem' }}>
-            <label className="form-label">
+          <div className="form-group" style={{ maxWidth: '300px', marginBottom: '0.75rem' }}>
+            <label className="form-label" style={{ marginBottom: '0.25rem' }}>
               Tipo Sanguíneo / Fator RH
             </label>
             <select
@@ -373,14 +373,14 @@ export const ModalDependente = ({
             </select>
           </div>
 
-          <hr style={{ border: 'none', borderTop: '1px solid var(--border-color)', margin: '1.25rem 0' }} />
+          <hr style={{ border: 'none', borderTop: '1px solid var(--border-color)', margin: '0.75rem 0' }} />
 
           {/* 1. Problema Crônico */}
-          <div style={{ marginBottom: '1.25rem' }}>
-            <label className="form-label" style={{ marginBottom: '0.4rem' }}>
+          <div style={{ marginBottom: '0.75rem' }}>
+            <label className="form-label" style={{ marginBottom: '0.25rem' }}>
               Tem algum problema crônico de saúde?
             </label>
-            <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '0.5rem' }}>
+            <div style={{ display: 'flex', gap: '1.25rem', marginBottom: '0.35rem' }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
                 <input
                   type="radio"
@@ -414,11 +414,11 @@ export const ModalDependente = ({
           </div>
 
           {/* 2. Convulsão / Epilepsia */}
-          <div style={{ marginBottom: '1.25rem' }}>
-            <label className="form-label" style={{ marginBottom: '0.4rem' }}>
+          <div style={{ marginBottom: '0.75rem' }}>
+            <label className="form-label" style={{ marginBottom: '0.25rem' }}>
               Tem ou já teve: convulsão, epilepsia, sangramentos constantes?
             </label>
-            <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '0.5rem' }}>
+            <div style={{ display: 'flex', gap: '1.25rem', marginBottom: '0.35rem' }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
                 <input
                   type="radio"
@@ -452,11 +452,11 @@ export const ModalDependente = ({
           </div>
 
           {/* 3. Tratamento Médico */}
-          <div style={{ marginBottom: '1.25rem' }}>
-            <label className="form-label" style={{ marginBottom: '0.4rem' }}>
+          <div style={{ marginBottom: '0.75rem' }}>
+            <label className="form-label" style={{ marginBottom: '0.25rem' }}>
               Está fazendo algum tratamento médico? (Ex: Psicológico, Pediátrico, outros)
             </label>
-            <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '0.5rem' }}>
+            <div style={{ display: 'flex', gap: '1.25rem', marginBottom: '0.35rem' }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
                 <input
                   type="radio"
@@ -490,11 +490,11 @@ export const ModalDependente = ({
           </div>
 
           {/* 4. Medicamento Contínuo */}
-          <div style={{ marginBottom: '1.25rem' }}>
-            <label className="form-label" style={{ marginBottom: '0.4rem' }}>
+          <div style={{ marginBottom: '0.75rem' }}>
+            <label className="form-label" style={{ marginBottom: '0.25rem' }}>
               Faz uso de medicamento contínuo?
             </label>
-            <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '0.5rem' }}>
+            <div style={{ display: 'flex', gap: '1.25rem', marginBottom: '0.35rem' }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
                 <input
                   type="radio"
@@ -517,7 +517,7 @@ export const ModalDependente = ({
               </label>
             </div>
             {form.medicamento_continuo === 'SIM' && (
-              <div className="form-grid">
+              <div className="form-grid" style={{ gap: '0.75rem' }}>
                 <div className="form-group">
                   <input
                     type="text"
@@ -541,11 +541,11 @@ export const ModalDependente = ({
           </div>
 
           {/* 5. Lesão ou Contusão */}
-          <div style={{ marginBottom: '1.25rem' }}>
-            <label className="form-label" style={{ marginBottom: '0.4rem' }}>
+          <div style={{ marginBottom: '0.75rem' }}>
+            <label className="form-label" style={{ marginBottom: '0.25rem' }}>
               Possui atualmente alguma lesão ou contusão?
             </label>
-            <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '0.5rem' }}>
+            <div style={{ display: 'flex', gap: '1.25rem', marginBottom: '0.35rem' }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
                 <input
                   type="radio"
@@ -579,11 +579,11 @@ export const ModalDependente = ({
           </div>
 
           {/* 6. Restrição Alimentar */}
-          <div style={{ marginBottom: '1.25rem' }}>
-            <label className="form-label" style={{ marginBottom: '0.4rem' }}>
+          <div style={{ marginBottom: '0.75rem' }}>
+            <label className="form-label" style={{ marginBottom: '0.25rem' }}>
               Possui restrição alimentar? (Ex: Glúten, Lactose, Corantes, outros)
             </label>
-            <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '0.5rem' }}>
+            <div style={{ display: 'flex', gap: '1.25rem', marginBottom: '0.35rem' }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
                 <input
                   type="radio"
@@ -617,11 +617,11 @@ export const ModalDependente = ({
           </div>
 
           {/* 7. Doença Respiratória e Bombinha */}
-          <div style={{ marginBottom: '1.25rem' }}>
-            <label className="form-label" style={{ marginBottom: '0.4rem' }}>
+          <div style={{ marginBottom: '0.75rem' }}>
+            <label className="form-label" style={{ marginBottom: '0.25rem' }}>
               Tem doença respiratória? (Ex: Asma, Bronquite)
             </label>
-            <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '0.5rem' }}>
+            <div style={{ display: 'flex', gap: '1.25rem', marginBottom: '0.35rem' }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
                 <input
                   type="radio"
@@ -644,11 +644,11 @@ export const ModalDependente = ({
               </label>
             </div>
             {form.doenca_respiratoria === 'SIM' && (
-              <div style={{ background: 'var(--bg-primary)', padding: '0.75rem 1rem', borderRadius: '8px', marginTop: '0.5rem', border: '1px solid var(--border-color)' }}>
-                <label className="form-label" style={{ marginBottom: '0.4rem' }}>
+              <div style={{ background: 'var(--bg-primary)', padding: '0.5rem 0.75rem', borderRadius: '8px', marginTop: '0.35rem', border: '1px solid var(--border-color)' }}>
+                <label className="form-label" style={{ marginBottom: '0.25rem' }}>
                   Faz uso de bombinha?
                 </label>
-                <div style={{ display: 'flex', gap: '1.5rem' }}>
+                <div style={{ display: 'flex', gap: '1.25rem' }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
                     <input
                       type="radio"
@@ -675,11 +675,11 @@ export const ModalDependente = ({
           </div>
 
           {/* 8. Alergia a Medicação */}
-          <div style={{ marginBottom: '1.25rem' }}>
-            <label className="form-label" style={{ marginBottom: '0.4rem' }}>
+          <div style={{ marginBottom: '0.75rem' }}>
+            <label className="form-label" style={{ marginBottom: '0.25rem' }}>
               Tem alergia à algum tipo de medicação?
             </label>
-            <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '0.5rem' }}>
+            <div style={{ display: 'flex', gap: '1.25rem', marginBottom: '0.35rem' }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
                 <input
                   type="radio"
@@ -713,11 +713,11 @@ export const ModalDependente = ({
           </div>
 
           {/* 9. Alergia a Alimento */}
-          <div style={{ marginBottom: '1.25rem' }}>
-            <label className="form-label" style={{ marginBottom: '0.4rem' }}>
+          <div style={{ marginBottom: '0.75rem' }}>
+            <label className="form-label" style={{ marginBottom: '0.25rem' }}>
               Tem alergia à algum tipo de alimento?
             </label>
-            <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '0.5rem' }}>
+            <div style={{ display: 'flex', gap: '1.25rem', marginBottom: '0.35rem' }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
                 <input
                   type="radio"
@@ -751,11 +751,11 @@ export const ModalDependente = ({
           </div>
 
           {/* 10. Cuidados Especiais */}
-          <div style={{ marginBottom: '1.25rem' }}>
-            <label className="form-label" style={{ marginBottom: '0.4rem' }}>
+          <div style={{ marginBottom: '0.75rem' }}>
+            <label className="form-label" style={{ marginBottom: '0.25rem' }}>
               Demanda algum tipo de cuidado especial?
             </label>
-            <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '0.5rem' }}>
+            <div style={{ display: 'flex', gap: '1.25rem', marginBottom: '0.35rem' }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
                 <input
                   type="radio"
@@ -790,12 +790,12 @@ export const ModalDependente = ({
 
           {/* 11. Medicação para Febre / Sintomas Comuns */}
           <div className="form-group" style={{ marginBottom: 0 }}>
-            <label className="form-label">
+            <label className="form-label" style={{ marginBottom: '0.25rem' }}>
               Em caso de Febre, Dor de Cabeça ou Mal-estar, qual tipo de medicação costuma tomar e dosagem?
             </label>
             <textarea
               className="form-input"
-              rows="3"
+              rows="2"
               placeholder="Ex: Paracetamol infantil em gotas, Dipirona, etc."
               value={form.medicacao_sintomas || ''}
               onChange={(e) => handleChange('medicacao_sintomas', e.target.value)}
@@ -807,15 +807,15 @@ export const ModalDependente = ({
         <div style={{
           display: 'flex',
           justifyContent: 'flex-end',
-          gap: '1rem',
+          gap: '0.75rem',
           borderTop: '1px solid var(--border-color)',
-          paddingTop: '1.25rem'
+          paddingTop: '0.85rem'
         }}>
           <button
             type="button"
             onClick={onClose}
             className="btn btn-secondary"
-            style={{ padding: '0.65rem 1.5rem' }}
+            style={{ padding: '0.5rem 1.25rem' }}
           >
             Cancelar
           </button>
@@ -824,10 +824,10 @@ export const ModalDependente = ({
             onClick={handleSalvar}
             className="btn btn-primary"
             style={{
-              padding: '0.65rem 1.75rem',
+              padding: '0.5rem 1.4rem',
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '0.5rem',
+              gap: '0.4rem',
               fontWeight: 600
             }}
           >
@@ -847,13 +847,13 @@ export const ListaDependentes = ({
   onRemover
 }) => {
   return (
-    <div className="glass-panel form-section-card" style={{ marginTop: '1.5rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+    <div className="glass-panel form-section-card" style={{ marginTop: '1rem', padding: '1.25rem', marginBottom: '1rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
         <div className="section-header" style={{ marginBottom: 0 }}>
-          <Users size={22} color="var(--accent-primary)" />
+          <Users size={20} color="var(--accent-primary)" />
           <div>
-            <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 'bold' }}>Dependentes (Filhos / Mascotes)</h3>
-            <p style={{ margin: '0.25rem 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+            <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 'bold' }}>Dependentes (Filhos / Mascotes)</h3>
+            <p style={{ margin: '0.2rem 0 0', fontSize: '0.825rem', color: 'var(--text-secondary)' }}>
               Cadastre os filhos com os respectivos dados cadastrais e ficha médica completa.
             </p>
           </div>
@@ -862,38 +862,38 @@ export const ListaDependentes = ({
           type="button"
           onClick={onAdicionar}
           className="btn btn-primary"
-          style={{ padding: '0.6rem 1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}
+          style={{ padding: '0.45rem 1rem', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.875rem', fontWeight: 600 }}
         >
-          <Plus size={18} /> Adicionar Dependente
+          <Plus size={16} /> Adicionar Dependente
         </button>
       </div>
 
       {dependentes.length === 0 ? (
         <div style={{
           textAlign: 'center',
-          padding: '2.5rem 1rem',
+          padding: '1.5rem 1rem',
           background: 'var(--bg-secondary)',
           borderRadius: '8px',
           border: '1px dashed var(--border-color)'
         }}>
-          <Users size={36} color="var(--text-secondary)" style={{ opacity: 0.5, marginBottom: '0.75rem' }} />
-          <p style={{ color: 'var(--text-primary)', margin: '0 0 0.5rem', fontWeight: 500 }}>
+          <Users size={32} color="var(--text-secondary)" style={{ opacity: 0.5, marginBottom: '0.5rem' }} />
+          <p style={{ color: 'var(--text-primary)', margin: '0 0 0.35rem', fontWeight: 500, fontSize: '0.9rem' }}>
             Nenhum dependente cadastrado até o momento.
           </p>
-          <p style={{ color: 'var(--text-secondary)', margin: '0 0 1rem', fontSize: '0.9rem' }}>
+          <p style={{ color: 'var(--text-secondary)', margin: '0 0 0.75rem', fontSize: '0.85rem' }}>
             Clique no botão acima para adicionar um dependente com seus dados e ficha médica.
           </p>
           <button
             type="button"
             onClick={onAdicionar}
             className="btn btn-secondary"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem' }}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', padding: '0.4rem 0.85rem' }}
           >
-            <Plus size={16} /> Adicionar Primeiro Dependente
+            <Plus size={15} /> Adicionar Primeiro Dependente
           </button>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           {dependentes.map((dep, index) => {
             const idadeDep = calcularIdade(dep.data_nascimento);
             const temRestricoes = dep.restricao_alimentar === 'SIM';
@@ -909,23 +909,23 @@ export const ListaDependentes = ({
                   background: 'var(--bg-secondary)',
                   border: '1px solid var(--border-color)',
                   borderRadius: '10px',
-                  padding: '1.25rem',
+                  padding: '0.85rem 1rem',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '0.75rem',
+                  gap: '0.5rem',
                   transition: 'border-color 0.2s ease, box-shadow 0.2s ease'
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.65rem' }}>
                   <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-                      <h4 style={{ margin: 0, fontSize: '1.15rem', color: 'var(--text-primary)', fontWeight: 'bold' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
+                      <h4 style={{ margin: 0, fontSize: '1.05rem', color: 'var(--text-primary)', fontWeight: 'bold' }}>
                         {dep.nome || 'Dependente sem nome'}
                       </h4>
                       <span
                         style={{
                           fontSize: '0.75rem',
-                          padding: '0.2rem 0.6rem',
+                          padding: '0.15rem 0.5rem',
                           borderRadius: '999px',
                           fontWeight: 600,
                           background: dep.mascote ? 'rgba(16, 185, 129, 0.15)' : 'rgba(148, 163, 184, 0.15)',
@@ -936,7 +936,7 @@ export const ListaDependentes = ({
                         {dep.mascote ? '✓ Vai para o Acampamento (Mascote)' : 'Não vai para o Acampamento'}
                       </span>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '0.4rem', color: 'var(--text-secondary)', fontSize: '0.875rem', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', marginTop: '0.3rem', color: 'var(--text-secondary)', fontSize: '0.825rem', flexWrap: 'wrap' }}>
                       <span>
                         <strong>Nascimento:</strong> {dep.data_nascimento ? formatarDataBR(dep.data_nascimento) : 'Não informado'}
                         {idadeDep && ` (${idadeDep} anos)`}
@@ -949,37 +949,37 @@ export const ListaDependentes = ({
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', gap: '0.4rem' }}>
                     <button
                       type="button"
                       onClick={() => onEditar(index)}
                       className="btn btn-secondary"
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', padding: '0.45rem 0.85rem', fontSize: '0.875rem' }}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.35rem 0.75rem', fontSize: '0.825rem' }}
                       title="Editar Dados e Ficha Médica"
                     >
-                      <Edit3 size={16} /> Editar Ficha
+                      <Edit3 size={15} /> Editar Ficha
                     </button>
                     <button
                       type="button"
                       onClick={() => onRemover(index)}
                       className="btn btn-secondary"
-                      style={{ color: 'var(--danger)', padding: '0.45rem 0.75rem' }}
+                      style={{ color: 'var(--danger)', padding: '0.35rem 0.65rem' }}
                       title="Remover Dependente"
                     >
-                      <Trash2 size={16} />
+                      <Trash2 size={15} />
                     </button>
                   </div>
                 </div>
 
                 {/* Resumo da Ficha Médica */}
                 <div style={{
-                  paddingTop: '0.65rem',
+                  paddingTop: '0.45rem',
                   borderTop: '1px solid var(--border-color)',
                   display: 'flex',
                   alignItems: 'center',
                   flexWrap: 'wrap',
-                  gap: '0.5rem',
-                  fontSize: '0.8rem'
+                  gap: '0.4rem',
+                  fontSize: '0.775rem'
                 }}>
                   <span style={{ color: 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontWeight: 600 }}>
                     <HeartPulse size={14} color="var(--accent-primary)" /> Ficha Médica:
