@@ -290,6 +290,7 @@ export const CadastroPessoa = () => {
               pessoa_id: d.pessoa_id,
               nome: d.nome,
               data_nascimento: d.data_nascimento,
+              acampamento: d.acampamento,
               mascote: d.mascote
             }));
             await supabase.from('apc_dependente').insert(fallback);

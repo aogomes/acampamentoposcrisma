@@ -73,21 +73,41 @@ export const exportarRelatorioExcelEvento = async (evento) => {
   }
 
   // 1. Busca inscrições do evento juntamente com os dados completos de apc_pessoa
-  const { data: acampamentos, error: acampError } = await supabase
+  let acampamentos = null;
+  const { data: acampDataFk, error: acampErrorFk } = await supabase
     .from('apc_acampamento')
     .select(`
       id,
       equipe,
       created_at,
       pessoa_id,
-      apc_pessoa (
+      apc_pessoa!apc_acampamento_pessoa_id_fkey (
         *
       )
     `)
     .eq('evento_id', evento.id)
     .order('created_at', { ascending: true });
 
-  if (acampError) throw acampError;
+  if (acampErrorFk) {
+    const { data: acampDataFb, error: acampErrorFb } = await supabase
+      .from('apc_acampamento')
+      .select(`
+        id,
+        equipe,
+        created_at,
+        pessoa_id,
+        apc_pessoa!pessoa_id (
+          *
+        )
+      `)
+      .eq('evento_id', evento.id)
+      .order('created_at', { ascending: true });
+
+    if (acampErrorFb) throw acampErrorFb;
+    acampamentos = acampDataFb;
+  } else {
+    acampamentos = acampDataFk;
+  }
 
   if (!acampamentos || acampamentos.length === 0) {
     return { count: 0, message: `Nenhuma inscrição encontrada para o evento "${dadosEvento.descricao}".` };
@@ -152,6 +172,7 @@ export const exportarRelatorioExcelEvento = async (evento) => {
   let totalCriancasPagantes = 0;
   let totalCriancasNaoPagantes = 0;
   let totalCriancasQueVao = 0;
+  let totalMascotes = 0;
   let totalValorCriancas = 0;
 
   if (pessoaIds.length > 0) {
@@ -172,7 +193,8 @@ export const exportarRelatorioExcelEvento = async (evento) => {
 
         const resp = acampamentos.find(a => a.pessoa_id === d.pessoa_id)?.apc_pessoa;
         const idadeDep = calcularIdade(d.data_nascimento);
-        const vaiAoAcampamento = !!d.mascote;
+        const vaiAoAcampamento = Boolean(d.acampamento !== undefined ? d.acampamento : d.mascote);
+        const ehMascote = vaiAoAcampamento && Boolean(d.mascote);
 
         let ehPagante = false;
         let valorDep = 0;
@@ -181,6 +203,9 @@ export const exportarRelatorioExcelEvento = async (evento) => {
         if (vaiAoAcampamento) {
           if (!jaProcessado) {
             totalCriancasQueVao++;
+            if (ehMascote) {
+              totalMascotes++;
+            }
           }
 
           if (valorDif !== null && idadeMin !== null && idadeMax !== null) {
@@ -230,8 +255,9 @@ export const exportarRelatorioExcelEvento = async (evento) => {
           'Nome do Dependente': d.nome,
           'Data de Nascimento': formatarData(d.data_nascimento),
           'Idade': idadeDep,
-          'Tipo': vaiAoAcampamento ? 'Mascote (Vai ao acampamento)' : 'Dependente (Não vai)',
+          'Tipo': vaiAoAcampamento ? (ehMascote ? 'Mascote (Vai ao acampamento)' : 'Dependente (Vai ao acampamento)') : 'Dependente (Não vai)',
           'Vai ao Acampamento?': vaiAoAcampamento ? 'SIM' : 'NÃO',
+          'É Mascote?': ehMascote ? 'SIM' : 'NÃO',
           'Condição de Pagamento': vaiAoAcampamento ? (ehPagante ? 'PAGANTE' : 'NÃO PAGANTE (ISENTO)') : 'NÃO SE APLICA',
           'Faixa / Detalhe': condicaoFaixa,
           'Valor Previsto (R$)': valorDep
@@ -261,7 +287,7 @@ export const exportarRelatorioExcelEvento = async (evento) => {
     const p = acamp.apc_pessoa || {};
     const vinc = vinculosMap[p.id] || {};
     const deps = dependentesMap[p.id] || [];
-    const depsTexto = deps.map(d => `${d.nome} (${d.mascote ? 'Mascote' : 'Dependente'})`).join('; ');
+    const depsTexto = deps.map(d => `${d.nome} (${(d.acampamento ?? d.mascote) ? 'Mascote' : 'Dependente'})`).join('; ');
     const totalPago = pagamentosMap[acamp.id] || 0;
     const saldo = valorEvento > 0 ? valorEvento - totalPago : 0;
 
@@ -431,6 +457,7 @@ export const exportarRelatorioExcelEvento = async (evento) => {
     { 'Item': 'Total de Afilhados', 'Informação': totalAfilhados },
     { 'Item': 'Total de Outros', 'Informação': totalOutros },
     { 'Item': 'Total de Crianças no Acampamento', 'Informação': totalCriancasQueVao },
+    { 'Item': 'Total de Mascotes no Acampamento', 'Informação': totalMascotes },
     { 'Item': 'Total de Crianças Pagantes', 'Informação': totalCriancasPagantes },
     { 'Item': 'Total de Crianças Isentas', 'Informação': totalCriancasNaoPagantes },
     { 'Item': '----------------------------------------', 'Informação': '----------------------------------------' },

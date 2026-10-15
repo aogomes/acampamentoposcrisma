@@ -44,7 +44,7 @@ export const AdminPagamentos = () => {
           id,
           evento_id,
           apc_evento ( id, descricao, valor ),
-          apc_pessoa ( id, nome, conjuge_id )
+          apc_pessoa!apc_acampamento_pessoa_id_fkey ( id, nome, conjuge_id )
         `)
         .eq('id', acampamento_id)
         .single();
@@ -53,14 +53,14 @@ export const AdminPagamentos = () => {
       setAcampamento(acampData);
 
       let cAcamp = null;
-      if (acampData.apc_pessoa.conjuge_id) {
+      if (acampData.apc_pessoa?.conjuge_id) {
         const { data: conjugeData } = await supabase
           .from('apc_acampamento')
           .select(`
              id,
              evento_id,
              apc_evento ( id, descricao, valor ),
-             apc_pessoa ( id, nome, conjuge_id )
+             apc_pessoa!apc_acampamento_pessoa_id_fkey ( id, nome, conjuge_id )
            `)
           .eq('evento_id', acampData.evento_id)
           .eq('pessoa_id', acampData.apc_pessoa.conjuge_id)

@@ -8,12 +8,15 @@ import {
   Check,
   Plus,
   Edit3,
-  Trash2
+  Trash2,
+  Loader2
 } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
 export const dependenteVazio = {
   nome: '',
   data_nascimento: '',
+  acampamento: false,
   mascote: false,
   tipo_sanguineo: '',
   problema_saude: 'NAO',
@@ -63,41 +66,49 @@ export const calcularIdade = (dataNasc) => {
   return idadeCalc >= 0 ? idadeCalc.toString() : '';
 };
 
-export const normalizarDependente = (d) => ({
-  ...d,
-  data_nascimento: d?.data_nascimento ? d.data_nascimento.split('T')[0] : '',
-  mascote: Boolean(d?.mascote),
-  tipo_sanguineo: d?.tipo_sanguineo || '',
-  problema_saude: d?.problema_saude === true || d?.problema_saude === 'SIM' ? 'SIM' : 'NAO',
-  problema_saude_qual: d?.problema_saude_qual || '',
-  historico_convulsao: d?.historico_convulsao === true || d?.historico_convulsao === 'SIM' ? 'SIM' : 'NAO',
-  historico_convulsao_tempo: d?.historico_convulsao_tempo || '',
-  tratamento_medico: d?.tratamento_medico === true || d?.tratamento_medico === 'SIM' ? 'SIM' : 'NAO',
-  tratamento_medico_qual: d?.tratamento_medico_qual || '',
-  medicamento_continuo: d?.medicamento_continuo === true || d?.medicamento_continuo === 'SIM' ? 'SIM' : 'NAO',
-  medicamento_continuo_qual: d?.medicamento_continuo_qual || '',
-  medicamento_continuo_dosagem: d?.medicamento_continuo_dosagem || '',
-  lesao_contusao: d?.lesao_contusao === true || d?.lesao_contusao === 'SIM' ? 'SIM' : 'NAO',
-  lesao_contusao_qual: d?.lesao_contusao_qual || '',
-  restricao_alimentar: d?.restricao_alimentar === true || d?.restricao_alimentar === 'SIM' ? 'SIM' : 'NAO',
-  restricao_alimentar_qual: d?.restricao_alimentar_qual || '',
-  doenca_respiratoria: d?.doenca_respiratoria === true || d?.doenca_respiratoria === 'SIM' ? 'SIM' : 'NAO',
-  usa_bombinha: d?.usa_bombinha === true || d?.usa_bombinha === 'SIM' ? 'SIM' : 'NAO',
-  alergia_medicamento: d?.alergia_medicamento === true || d?.alergia_medicamento === 'SIM' ? 'SIM' : 'NAO',
-  alergia_medicamento_qual: d?.alergia_medicamento_qual || '',
-  alergia_alimento: d?.alergia_alimento === true || d?.alergia_alimento === 'SIM' ? 'SIM' : 'NAO',
-  alergia_alimento_qual: d?.alergia_alimento_qual || '',
-  cuidado_especial: d?.cuidado_especial === true || d?.cuidado_especial === 'SIM' ? 'SIM' : 'NAO',
-  cuidado_especial_qual: d?.cuidado_especial_qual || '',
-  medicacao_sintomas: d?.medicacao_sintomas || ''
-});
+export const normalizarDependente = (d) => {
+  const vaiAcampamento = d?.acampamento !== undefined ? Boolean(d.acampamento) : Boolean(d?.mascote);
+  const ehMascote = vaiAcampamento && Boolean(d?.mascote);
+  return {
+    ...d,
+    data_nascimento: d?.data_nascimento ? d.data_nascimento.split('T')[0] : '',
+    acampamento: vaiAcampamento,
+    mascote: ehMascote,
+    tipo_sanguineo: d?.tipo_sanguineo || '',
+    problema_saude: d?.problema_saude === true || d?.problema_saude === 'SIM' ? 'SIM' : 'NAO',
+    problema_saude_qual: d?.problema_saude_qual || '',
+    historico_convulsao: d?.historico_convulsao === true || d?.historico_convulsao === 'SIM' ? 'SIM' : 'NAO',
+    historico_convulsao_tempo: d?.historico_convulsao_tempo || '',
+    tratamento_medico: d?.tratamento_medico === true || d?.tratamento_medico === 'SIM' ? 'SIM' : 'NAO',
+    tratamento_medico_qual: d?.tratamento_medico_qual || '',
+    medicamento_continuo: d?.medicamento_continuo === true || d?.medicamento_continuo === 'SIM' ? 'SIM' : 'NAO',
+    medicamento_continuo_qual: d?.medicamento_continuo_qual || '',
+    medicamento_continuo_dosagem: d?.medicamento_continuo_dosagem || '',
+    lesao_contusao: d?.lesao_contusao === true || d?.lesao_contusao === 'SIM' ? 'SIM' : 'NAO',
+    lesao_contusao_qual: d?.lesao_contusao_qual || '',
+    restricao_alimentar: d?.restricao_alimentar === true || d?.restricao_alimentar === 'SIM' ? 'SIM' : 'NAO',
+    restricao_alimentar_qual: d?.restricao_alimentar_qual || '',
+    doenca_respiratoria: d?.doenca_respiratoria === true || d?.doenca_respiratoria === 'SIM' ? 'SIM' : 'NAO',
+    usa_bombinha: d?.usa_bombinha === true || d?.usa_bombinha === 'SIM' ? 'SIM' : 'NAO',
+    alergia_medicamento: d?.alergia_medicamento === true || d?.alergia_medicamento === 'SIM' ? 'SIM' : 'NAO',
+    alergia_medicamento_qual: d?.alergia_medicamento_qual || '',
+    alergia_alimento: d?.alergia_alimento === true || d?.alergia_alimento === 'SIM' ? 'SIM' : 'NAO',
+    alergia_alimento_qual: d?.alergia_alimento_qual || '',
+    cuidado_especial: d?.cuidado_especial === true || d?.cuidado_especial === 'SIM' ? 'SIM' : 'NAO',
+    cuidado_especial_qual: d?.cuidado_especial_qual || '',
+    medicacao_sintomas: d?.medicacao_sintomas || ''
+  };
+};
 
 export const prepararPayloadDependente = (d, pessoaId) => {
+  const vaiAcampamento = Boolean(d.acampamento);
+  const ehMascote = vaiAcampamento && Boolean(d.mascote);
   const dep = {
     pessoa_id: d.pessoa_id || pessoaId,
     nome: (d.nome || '').trim(),
     data_nascimento: d.data_nascimento || null,
-    mascote: Boolean(d.mascote),
+    acampamento: vaiAcampamento,
+    mascote: ehMascote,
     tipo_sanguineo: d.tipo_sanguineo || null,
     problema_saude: d.problema_saude === 'SIM',
     problema_saude_qual: d.problema_saude === 'SIM' ? (d.problema_saude_qual || null) : null,
@@ -133,15 +144,18 @@ export const ModalDependente = ({
   onClose,
   onSave,
   initialData,
-  edicaoIndex
+  edicaoIndex,
+  pessoaId
 }) => {
   const [form, setForm] = useState(dependenteVazio);
   const [erro, setErro] = useState('');
+  const [salvando, setSalvando] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       setForm(initialData ? normalizarDependente(initialData) : { ...dependenteVazio });
       setErro('');
+      setSalvando(false);
     }
   }, [isOpen, initialData]);
 
@@ -154,7 +168,7 @@ export const ModalDependente = ({
     }));
   };
 
-  const handleSalvar = (e) => {
+  const handleSalvar = async (e) => {
     if (e) e.preventDefault();
     if (!form.nome || !form.nome.trim()) {
       setErro('Por favor, informe o nome do dependente.');
@@ -166,8 +180,110 @@ export const ModalDependente = ({
       nome: form.nome.trim()
     };
 
-    onSave(normalizado, edicaoIndex);
-    onClose();
+    const targetPessoaId = pessoaId || form.pessoa_id || initialData?.pessoa_id;
+
+    // Se temos pessoaId ou se o dependente já possui ID no banco, persiste diretamente no Supabase
+    if (targetPessoaId || normalizado.id) {
+      try {
+        setSalvando(true);
+        setErro('');
+        const payload = prepararPayloadDependente(normalizado, targetPessoaId);
+
+        let savedRecord = null;
+
+        if (normalizado.id) {
+          // UPDATE existente
+          const updateData = { ...payload };
+          if (!updateData.pessoa_id) delete updateData.pessoa_id;
+
+          const { data, error: updErr } = await supabase
+            .from('apc_dependente')
+            .update(updateData)
+            .eq('id', normalizado.id)
+            .select()
+            .single();
+
+          if (updErr) {
+            console.warn('Tentando fallback para update de dependente:', updErr);
+            const fallbackData = {
+              nome: payload.nome,
+              data_nascimento: payload.data_nascimento,
+              acampamento: payload.acampamento,
+              mascote: payload.mascote
+            };
+            if (payload.pessoa_id) fallbackData.pessoa_id = payload.pessoa_id;
+
+            const { data: fbData, error: fbErr } = await supabase
+              .from('apc_dependente')
+              .update(fallbackData)
+              .eq('id', normalizado.id)
+              .select()
+              .single();
+
+            if (fbErr) throw fbErr;
+            savedRecord = fbData;
+          } else {
+            savedRecord = data;
+          }
+        } else if (targetPessoaId) {
+          // INSERT novo para pessoa existente
+          const insertData = { ...payload };
+          delete insertData.id;
+          insertData.pessoa_id = targetPessoaId;
+
+          const { data, error: insErr } = await supabase
+            .from('apc_dependente')
+            .insert([insertData])
+            .select()
+            .single();
+
+          if (insErr) {
+            console.warn('Tentando fallback para insert de dependente:', insErr);
+            const fallbackData = {
+              pessoa_id: targetPessoaId,
+              nome: payload.nome,
+              data_nascimento: payload.data_nascimento,
+              acampamento: payload.acampamento,
+              mascote: payload.mascote
+            };
+
+            const { data: fbData, error: fbErr } = await supabase
+              .from('apc_dependente')
+              .insert([fallbackData])
+              .select()
+              .single();
+
+            if (fbErr) throw fbErr;
+            savedRecord = fbData;
+          } else {
+            savedRecord = data;
+          }
+        }
+
+        const dependenteFinal = {
+          ...normalizado,
+          ...(savedRecord ? normalizarDependente(savedRecord) : {}),
+          id: savedRecord?.id || normalizado.id,
+          pessoa_id: savedRecord?.pessoa_id || targetPessoaId || normalizado.pessoa_id
+        };
+
+        if (onSave) {
+          onSave(dependenteFinal, edicaoIndex);
+        }
+        onClose();
+      } catch (err) {
+        console.error('Erro ao salvar dependente diretamente:', err);
+        setErro('Erro ao salvar no banco de dados: ' + (err.message || 'Tente novamente.'));
+      } finally {
+        setSalvando(false);
+      }
+    } else {
+      // Caso não tenha pessoaId ainda (cadastro inicial de nova pessoa)
+      if (onSave) {
+        onSave(normalizado, edicaoIndex);
+      }
+      onClose();
+    }
   };
 
   return (
@@ -273,7 +389,7 @@ export const ModalDependente = ({
         {/* 1. DADOS BÁSICOS */}
         <div style={{ background: 'var(--bg-secondary)', padding: '0.85rem 1rem', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
           <h4 style={{ margin: '0 0 0.75rem', fontSize: '0.95rem', color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <User size={17} /> 1. Dados Pessoais do Dependente
+            <User size={17} /> 1. Dados do Dependente
           </h4>
 
           <div className="form-grid" style={{ gap: '0.85rem' }}>
@@ -308,15 +424,15 @@ export const ModalDependente = ({
               )}
             </div>
 
-            <div className="form-group" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', justifyContent: 'center' }}>
               <label
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   gap: '0.65rem',
                   cursor: 'pointer',
-                  background: form.mascote ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
-                  border: form.mascote ? '1px solid var(--accent-primary)' : '1px solid var(--border-color)',
+                  background: form.acampamento ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
+                  border: form.acampamento ? '1px solid var(--accent-primary)' : '1px solid var(--border-color)',
                   padding: '0.5rem 0.75rem',
                   borderRadius: '8px',
                   transition: 'all 0.2s ease',
@@ -325,19 +441,57 @@ export const ModalDependente = ({
               >
                 <input
                   type="checkbox"
-                  checked={Boolean(form.mascote)}
-                  onChange={(e) => handleChange('mascote', e.target.checked)}
+                  checked={Boolean(form.acampamento)}
+                  onChange={(e) => {
+                    const isChecked = e.target.checked;
+                    handleChange('acampamento', isChecked);
+                    if (!isChecked) {
+                      handleChange('mascote', false);
+                    }
+                  }}
                   style={{ width: '1.15rem', height: '1.15rem', cursor: 'pointer' }}
                 />
                 <div>
                   <strong style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-primary)' }}>
-                    Vai para o acampamento? (Mascote)
+                    Vai para o acampamento?
                   </strong>
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                    Marque se participará do acampamento
+                    Marque se o dependente vai para o acampamento
                   </span>
                 </div>
               </label>
+
+              {form.acampamento && (
+                <label
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.65rem',
+                    cursor: 'pointer',
+                    background: form.mascote ? 'rgba(245, 158, 11, 0.12)' : 'rgba(0, 0, 0, 0.02)',
+                    border: form.mascote ? '1px solid #f59e0b' : '1px dashed var(--border-color)',
+                    padding: '0.5rem 0.75rem',
+                    borderRadius: '8px',
+                    transition: 'all 0.2s ease',
+                    marginLeft: '0.75rem'
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={Boolean(form.mascote)}
+                    onChange={(e) => handleChange('mascote', e.target.checked)}
+                    style={{ width: '1.15rem', height: '1.15rem', cursor: 'pointer', accentColor: '#f59e0b' }}
+                  />
+                  <div>
+                    <strong style={{ display: 'block', fontSize: '0.85rem', color: form.mascote ? '#d97706' : 'var(--text-primary)' }}>
+                      Vai ser Mascote?
+                    </strong>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                      Marque se ele vai ser mascote do acampamento
+                    </span>
+                  </div>
+                </label>
+              )}
             </div>
           </div>
         </div>
@@ -347,7 +501,7 @@ export const ModalDependente = ({
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
             <HeartPulse size={18} color="var(--accent-primary)" />
             <h4 style={{ margin: 0, fontSize: '0.95rem', color: 'var(--accent-primary)' }}>
-              2. Ficha Médica e Cuidados de Saúde
+              2. Ficha Médica
             </h4>
           </div>
 
@@ -814,6 +968,7 @@ export const ModalDependente = ({
           <button
             type="button"
             onClick={onClose}
+            disabled={salvando}
             className="btn btn-secondary"
             style={{ padding: '0.5rem 1.25rem' }}
           >
@@ -822,6 +977,7 @@ export const ModalDependente = ({
           <button
             type="button"
             onClick={handleSalvar}
+            disabled={salvando}
             className="btn btn-primary"
             style={{
               padding: '0.5rem 1.4rem',
@@ -831,8 +987,17 @@ export const ModalDependente = ({
               fontWeight: 600
             }}
           >
-            <Check size={18} />
-            {edicaoIndex !== null && edicaoIndex >= 0 ? 'Salvar Alterações' : 'Confirmar e Adicionar'}
+            {salvando ? (
+              <>
+                <Loader2 size={18} className="spin" />
+                <span>Salvando...</span>
+              </>
+            ) : (
+              <>
+                <Check size={18} />
+                <span>{edicaoIndex !== null && edicaoIndex >= 0 ? 'Salvar Alterações' : 'Confirmar e Adicionar'}</span>
+              </>
+            )}
           </button>
         </div>
       </div>
@@ -928,12 +1093,20 @@ export const ListaDependentes = ({
                           padding: '0.15rem 0.5rem',
                           borderRadius: '999px',
                           fontWeight: 600,
-                          background: dep.mascote ? 'rgba(16, 185, 129, 0.15)' : 'rgba(148, 163, 184, 0.15)',
-                          color: dep.mascote ? '#10b981' : 'var(--text-secondary)',
-                          border: dep.mascote ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(148, 163, 184, 0.3)'
+                          background: dep.acampamento
+                            ? (dep.mascote ? 'rgba(245, 158, 11, 0.15)' : 'rgba(16, 185, 129, 0.15)')
+                            : 'rgba(148, 163, 184, 0.15)',
+                          color: dep.acampamento
+                            ? (dep.mascote ? '#d97706' : '#10b981')
+                            : 'var(--text-secondary)',
+                          border: dep.acampamento
+                            ? (dep.mascote ? '1px solid rgba(245, 158, 11, 0.3)' : '1px solid rgba(16, 185, 129, 0.3)')
+                            : '1px solid rgba(148, 163, 184, 0.3)'
                         }}
                       >
-                        {dep.mascote ? '✓ Vai para o Acampamento (Mascote)' : 'Não vai para o Acampamento'}
+                        {dep.acampamento
+                          ? (dep.mascote ? '✓ Vai para o Acampamento (Mascote)' : '✓ Vai para o Acampamento')
+                          : 'Não vai para o Acampamento'}
                       </span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', marginTop: '0.3rem', color: 'var(--text-secondary)', fontSize: '0.825rem', flexWrap: 'wrap' }}>
@@ -957,7 +1130,7 @@ export const ListaDependentes = ({
                       style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.35rem 0.75rem', fontSize: '0.825rem' }}
                       title="Editar Dados e Ficha Médica"
                     >
-                      <Edit3 size={15} /> Editar Ficha
+                      <Edit3 size={15} /> Editar
                     </button>
                     <button
                       type="button"

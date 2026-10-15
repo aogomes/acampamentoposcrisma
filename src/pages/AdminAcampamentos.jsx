@@ -50,10 +50,12 @@ const DependentesAccordion = ({ dependentes }) => {
         <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.5rem', paddingLeft: '1rem', borderLeft: '2px solid var(--accent-primary)' }}>
           {dependentes.map(d => {
             const idade = calcularIdade(d.data_nascimento);
+            const vaiAcampamento = Boolean(d.acampamento !== undefined ? d.acampamento : d.mascote);
+            const ehMascote = vaiAcampamento && Boolean(d.mascote);
             return (
               <span
                 key={d.id}
-                title={d.mascote ? `Filho(a): Sim, vai para o acampamento${idade !== null ? ` (${idade} anos)` : ''}` : `Filho(a): Não vai para o acampamento${idade !== null ? ` (${idade} anos)` : ''}`}
+                title={vaiAcampamento ? `Filho(a): Sim, vai para o acampamento${ehMascote ? ' (Mascote)' : ''}${idade !== null ? ` (${idade} anos)` : ''}` : `Filho(a): Não vai para o acampamento${idade !== null ? ` (${idade} anos)` : ''}`}
                 style={{
                   fontSize: '0.75rem',
                   color: 'var(--text-primary)',
@@ -67,7 +69,7 @@ const DependentesAccordion = ({ dependentes }) => {
                   border: '1px solid var(--border-color)'
                 }}
               >
-                {d.nome} {idade !== null && <span style={{ color: 'var(--text-secondary)', fontSize: '0.7rem' }}>({idade}a)</span>} {d.mascote ? <CheckCircle2 size={14} color="var(--success)" /> : <X size={14} color="var(--error)" />}
+                {d.nome} {idade !== null && <span style={{ color: 'var(--text-secondary)', fontSize: '0.7rem' }}>({idade}a)</span>} {ehMascote && <span style={{ fontSize: '0.65rem', background: '#fef3c7', color: '#b45309', padding: '0.1rem 0.35rem', borderRadius: '4px', fontWeight: 600 }}>Mascote</span>} {vaiAcampamento ? <CheckCircle2 size={14} color="var(--success)" /> : <X size={14} color="var(--error)" />}
               </span>
             );
           })}
@@ -127,10 +129,10 @@ const calcularValorTotal = (acampamento, evento) => {
     });
   }
 
-  // 3. Dependentes (apenas os que vão para o acampamento: mascote === true)
+  // 3. Dependentes (apenas os que vão para o acampamento: acampamento === true ou mascote === true)
   const dependentes = acampamento.apc_pessoa?.dependentes_agrupados || [];
   dependentes.forEach(dep => {
-    if (!dep.mascote) return;
+    if (!(dep.acampamento ?? dep.mascote)) return;
 
     const idade = calcularIdade(dep.data_nascimento);
     let valorDep = 0;
@@ -224,7 +226,7 @@ export const AdminAcampamentos = () => {
         .from('apc_pessoa')
         .select(`
           id, nome, tipo_pessoa, conjuge_id, ano,
-          apc_dependente ( id, nome, mascote, data_nascimento )
+          apc_dependente ( id, nome, mascote, acampamento, data_nascimento )
         `)
         .order('nome', { ascending: true });
 
@@ -232,18 +234,36 @@ export const AdminAcampamentos = () => {
 
       // 3. Busca as inscrições se não estiver no modo de criação
       if (!isCreating) {
-        const { data: acampData, error: acampError } = await supabase
+        let acampData = null;
+        const { data: acampDataFk, error: acampErrorFk } = await supabase
           .from('apc_acampamento')
           .select(`
             id,
             equipe,
             apc_evento ( * ),
-            apc_pessoa ( id, nome, tipo_pessoa, conjuge_id, ano, apc_dependente ( id, nome, mascote, data_nascimento ) )
+            apc_pessoa!apc_acampamento_pessoa_id_fkey ( id, nome, tipo_pessoa, conjuge_id, ano, apc_dependente ( id, nome, mascote, acampamento, data_nascimento ) )
           `)
           .eq('evento_id', evento_id)
           .order('created_at', { ascending: false });
 
-        if (acampError) throw acampError;
+        if (acampErrorFk) {
+          // Fallback caso a constraint tenha o nome de coluna ou padrão
+          const { data: acampDataFb, error: acampErrorFb } = await supabase
+            .from('apc_acampamento')
+            .select(`
+              id,
+              equipe,
+              apc_evento ( * ),
+              apc_pessoa!pessoa_id ( id, nome, tipo_pessoa, conjuge_id, ano, apc_dependente ( id, nome, mascote, acampamento, data_nascimento ) )
+            `)
+            .eq('evento_id', evento_id)
+            .order('created_at', { ascending: false });
+
+          if (acampErrorFb) throw acampErrorFb;
+          acampData = acampDataFb;
+        } else {
+          acampData = acampDataFk;
+        }
 
         // Busca vínculos para os afilhados e mescla
         const afilhadoIds = (acampData || [])
@@ -623,7 +643,7 @@ export const AdminAcampamentos = () => {
   filteredAcampamentos.forEach(a => {
     if (a.apc_pessoa?.dependentes_agrupados) {
       a.apc_pessoa.dependentes_agrupados.forEach(d => {
-        if (d.mascote && !filhosContados.has(d.id)) {
+        if ((d.acampamento ?? d.mascote) && !filhosContados.has(d.id)) {
           filhosContados.add(d.id);
           countFilhos++;
         }
@@ -645,9 +665,9 @@ export const AdminAcampamentos = () => {
       <div className="glass-panel" style={{ padding: '1.5rem', marginBottom: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            {/* <Link to="/admin/eventos" className="btn btn-secondary" style={{ padding: '0.5rem' }}>
+            <Link to="/admin/eventos" className="btn btn-secondary" style={{ padding: '0.5rem' }}>
               <ArrowLeft size={20} />
-            </Link> */}
+            </Link>
             <h1 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', margin: 0, fontSize: '1.75rem', flexWrap: 'wrap' }}>
               <Tent size={32} color="var(--accent-primary)" />
               {isCreating ? (formData.id ? 'Editar Inscrição' : 'Nova Inscrição') : `${currentEvento?.descricao || 'Carregando...'}`}

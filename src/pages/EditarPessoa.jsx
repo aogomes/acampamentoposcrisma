@@ -373,9 +373,14 @@ export const EditarPessoa = () => {
     }
   };
 
-  const handleRemoveDependente = (index) => {
+  const handleRemoveDependente = async (index) => {
     const depToRemove = dependentes[index];
     if (depToRemove?.id) {
+      try {
+        await supabase.from('apc_dependente').delete().eq('id', depToRemove.id);
+      } catch (err) {
+        console.error('Erro ao excluir dependente do banco:', err);
+      }
       setDeletedDependentes(prev => [...prev, depToRemove.id]);
     }
     setDependentes(prev => prev.filter((_, i) => i !== index));
@@ -553,6 +558,7 @@ export const EditarPessoa = () => {
             pessoa_id: d.pessoa_id,
             nome: d.nome,
             data_nascimento: d.data_nascimento,
+            acampamento: d.acampamento,
             mascote: d.mascote
           }));
           const fallbackUpdate = depsToUpdate.map(d => ({
@@ -560,6 +566,7 @@ export const EditarPessoa = () => {
             pessoa_id: d.pessoa_id,
             nome: d.nome,
             data_nascimento: d.data_nascimento,
+            acampamento: d.acampamento,
             mascote: d.mascote
           }));
           if (fallbackInsert.length > 0) {
@@ -1484,6 +1491,7 @@ export const EditarPessoa = () => {
         onSave={handleSalvarDependenteModal}
         initialData={dependenteEmEdicao}
         edicaoIndex={dependenteEdicaoIndex}
+        pessoaId={id}
       />
     </div>
   );

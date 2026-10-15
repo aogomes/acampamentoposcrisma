@@ -18,6 +18,7 @@ import {
 
 import { ModalAlterarSenhaObrigatoria } from './ModalAlterarSenhaObrigatoria';
 import { registrarAuditoria } from '../services/auditoriaService';
+import { supabase } from '../lib/supabase';
 
 export const Layout = ({ children }) => {
   const { user, signOut, userProfile, pessoaProfile } = useAuth();
@@ -26,8 +27,34 @@ export const Layout = ({ children }) => {
   // State for sidebar collapse (desktop) and mobile drawer
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [temEventoAtivo, setTemEventoAtivo] = useState(false);
 
   const perfil = userProfile?.perfil || 'PENDENTE';
+
+  // Verificar se existe evento ATIVO para exibir o menu de Acampamento
+  useEffect(() => {
+    let isMounted = true;
+    const verificarEventoAtivo = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('apc_evento')
+          .select('id')
+          .eq('status', 'ATIVO')
+          .limit(1);
+
+        if (!error && data && data.length > 0) {
+          if (isMounted) setTemEventoAtivo(true);
+        } else {
+          if (isMounted) setTemEventoAtivo(false);
+        }
+      } catch (err) {
+        console.warn('Erro ao verificar eventos ativos:', err);
+      }
+    };
+
+    verificarEventoAtivo();
+    return () => { isMounted = false; };
+  }, []);
 
   // Auto-close mobile menu when clicking outside or resizing
   useEffect(() => {
@@ -109,6 +136,17 @@ export const Layout = ({ children }) => {
             <div className="nav-item-icon"><Users size={20} /></div>
             <span className="nav-item-text">Meu Painel</span>
           </NavLink>
+
+          {temEventoAtivo && (
+            <NavLink
+              to="/minhas-inscricoes"
+              className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+              onClick={() => setIsMobileOpen(false)}
+            >
+              <div className="nav-item-icon"><Tent size={20} /></div>
+              <span className="nav-item-text">Acampamento</span>
+            </NavLink>
+          )}
 
           {(pessoaProfile?.tipo_pessoa === 'PADRINHO' || pessoaProfile?.tipo_pessoa === 'MADRINHA') && (
             <NavLink

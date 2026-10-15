@@ -16,6 +16,7 @@ import { AdminAcampamentos } from './pages/AdminAcampamentos';
 import { AdminPagamentos } from './pages/AdminPagamentos';
 import { AdminAuditoria } from './pages/AdminAuditoria';
 import { MeusAfilhados } from './pages/MeusAfilhados';
+import { MinhasInscricoesAcampamento as InscricoesAcampamento } from './pages/InscricoesAcampamento';
 import { RedefinirSenha } from './pages/RedefinirSenha';
 import { iniciarMonitoramentoErrosGlobais } from './services/auditoriaService';
 import './index.css';
@@ -32,7 +33,7 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/redefinir-senha" element={<RedefinirSenha />} />
-            
+
             {/* Protected Routes */}
             <Route path="/" element={
               <ProtectedRoute>
@@ -41,7 +42,7 @@ function App() {
                 </Layout>
               </ProtectedRoute>
             } />
-            
+
             <Route path="/inscricao" element={
               <ProtectedRoute>
                 <Layout>
@@ -66,6 +67,14 @@ function App() {
               </ProtectedRoute>
             } />
 
+            <Route path="/minhas-inscricoes" element={
+              <ProtectedRoute>
+                <Layout>
+                  <InscricoesAcampamento />
+                </Layout>
+              </ProtectedRoute>
+            } />
+
             <Route path="/cadastro-pessoa" element={
               <ProtectedRoute>
                 <Layout>
@@ -73,7 +82,7 @@ function App() {
                 </Layout>
               </ProtectedRoute>
             } />
-            
+
             <Route path="/editar-pessoa/:id" element={
               <ProtectedRoute>
                 <Layout>
@@ -81,7 +90,7 @@ function App() {
                 </Layout>
               </ProtectedRoute>
             } />
-            
+
             <Route path="/meus-afilhados" element={
               <ProtectedRoute>
                 <Layout>
@@ -89,7 +98,7 @@ function App() {
                 </Layout>
               </ProtectedRoute>
             } />
-            
+
             <Route path="/admin/credenciamento" element={
               <ProtectedRoute>
                 <Layout>
