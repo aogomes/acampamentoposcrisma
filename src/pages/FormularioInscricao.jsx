@@ -2929,25 +2929,13 @@ CREATE INDEX IF NOT EXISTS idx_apc_acampamento_criador_id ON public.apc_acampame
                     )}
                     <div>
                       <strong style={{ display: 'block', fontSize: '1rem' }}>
-                        {jaInscritoEvento ? 'Participante já está inscrito no acampamento' : 'Confirmar Inscrição no Acampamento Oficial'}
+                        {jaInscritoEvento ? 'Participante já está inscrito ' : 'Inscrição para'}
                       </strong>
                       <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                        Evento: {eventoSelecionado.descricao}
+                        {eventoSelecionado.descricao}
                       </span>
                     </div>
                   </div>
-
-                  {!jaInscritoEvento && (
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: 'bold' }}>
-                      <input
-                        type="checkbox"
-                        checked={confirmarInscricaoEvento}
-                        onChange={(e) => setConfirmarInscricaoEvento(e.target.checked)}
-                        style={{ width: '1.2rem', height: '1.2rem', cursor: 'pointer' }}
-                      />
-                      <span>Confirmar vaga automaticamente ao salvar</span>
-                    </label>
-                  )}
                 </div>
               </div>
             )}
@@ -3010,7 +2998,7 @@ CREATE INDEX IF NOT EXISTS idx_apc_acampamento_criador_id ON public.apc_acampame
                 disabled={loading}
               >
                 <Save size={20} />
-                {loading ? 'Salvando Inscrição...' : targetId ? 'Salvar Ficha de Inscrição' : `Enviar Inscrição${eventoSelecionado?.descricao ? ` - ${eventoSelecionado.descricao}` : ''}`}
+                {loading ? 'Salvando Inscrição...' : targetId ? 'Salvar Inscrição' : `Confirmar Inscrição`}
               </button>
             </div>
           </form>

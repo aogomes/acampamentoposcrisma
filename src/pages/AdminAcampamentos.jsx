@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { Tent, Plus, Trash2, Edit2, Search, Filter, ArrowLeft, DollarSign, CheckCircle2, XCircle, Users, X, ChevronDown, ChevronRight } from 'lucide-react';
+import { Tent, Plus, Trash2, Edit2, Search, Filter, ArrowLeft, DollarSign, CheckCircle2, XCircle, Users, X, Check } from 'lucide-react';
 import { useParams, Link } from 'react-router-dom';
 import { registrarAuditoria } from '../services/auditoriaService';
 
@@ -15,68 +15,6 @@ const calcularIdade = (dataNascimento) => {
     idade--;
   }
   return idade;
-};
-
-const DependentesAccordion = ({ dependentes }) => {
-  const [isOpen, setIsOpen] = useState(false);
-
-  if (!dependentes || dependentes.length === 0) return null;
-
-  return (
-    <div style={{ marginTop: '0.5rem' }}>
-      <div
-        onClick={() => setIsOpen(!isOpen)}
-        title='Filho(s) inscrito(s) no acampamento'
-        style={{
-          fontSize: '0.75rem',
-          color: 'var(--text-secondary)',
-          cursor: 'pointer',
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '0.25rem',
-          userSelect: 'none',
-          padding: '0.2rem 0.5rem',
-          background: 'var(--bg-secondary)',
-          borderRadius: '4px',
-          border: '1px solid var(--border-color)'
-        }}
-      >
-        <Users size={12} />
-        {isOpen ? 'Filho(s)' : `Ver Filho(s) (${dependentes.length})`}
-        {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-      </div>
-
-      {isOpen && (
-        <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.5rem', paddingLeft: '1rem', borderLeft: '2px solid var(--accent-primary)' }}>
-          {dependentes.map(d => {
-            const idade = calcularIdade(d.data_nascimento);
-            const vaiAcampamento = Boolean(d.acampamento !== undefined ? d.acampamento : d.mascote);
-            const ehMascote = vaiAcampamento && Boolean(d.mascote);
-            return (
-              <span
-                key={d.id}
-                title={vaiAcampamento ? `Filho(a): Sim, vai para o acampamento${ehMascote ? ' (Mascote)' : ''}${idade !== null ? ` (${idade} anos)` : ''}` : `Filho(a): Não vai para o acampamento${idade !== null ? ` (${idade} anos)` : ''}`}
-                style={{
-                  fontSize: '0.75rem',
-                  color: 'var(--text-primary)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.3rem',
-                  whiteSpace: 'nowrap',
-                  background: 'var(--bg-secondary)',
-                  padding: '0.25rem 0.5rem',
-                  borderRadius: '6px',
-                  border: '1px solid var(--border-color)'
-                }}
-              >
-                {d.nome} {idade !== null && <span style={{ color: 'var(--text-secondary)', fontSize: '0.7rem' }}>({idade}a)</span>} {ehMascote && <span style={{ fontSize: '0.65rem', background: '#fef3c7', color: '#b45309', padding: '0.1rem 0.35rem', borderRadius: '4px', fontWeight: 600 }}>Mascote</span>} {vaiAcampamento ? <CheckCircle2 size={14} color="var(--success)" /> : <X size={14} color="var(--error)" />}
-              </span>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
 };
 
 const formatCurrency = (val) => {
@@ -186,7 +124,7 @@ export const AdminAcampamentos = () => {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterVinculo, setFilterVinculo] = useState('TODOS');
-  const [filterEquipe, setFilterEquipe] = useState('TODOS');
+  const [filterTipo, setFilterTipo] = useState('TODOS');
   const [filterAno, setFilterAno] = useState('TODOS');
 
   const [formData, setFormData] = useState({
@@ -202,6 +140,64 @@ export const AdminAcampamentos = () => {
   });
 
   const [equipesDisponiveis, setEquipesDisponiveis] = useState([]);
+  const [modalFilhos, setModalFilhos] = useState({
+    isOpen: false,
+    titularNome: '',
+    conjugeNome: '',
+    dependentes: []
+  });
+  const [caixaPadrinhos, setCaixaPadrinhos] = useState(null);
+
+  const handleOpenPadrinhos = (e, pessoa) => {
+    e.stopPropagation();
+    const rect = e.currentTarget.getBoundingClientRect();
+    const popoverWidth = 280;
+
+    let left = rect.left;
+    if (left + popoverWidth > window.innerWidth - 16) {
+      left = window.innerWidth - popoverWidth - 16;
+    }
+    if (left < 16) left = 16;
+
+    let top = rect.bottom + 6;
+    if (top + 190 > window.innerHeight) {
+      top = Math.max(16, rect.top - 190);
+    }
+
+    setCaixaPadrinhos({
+      isOpen: true,
+      afilhadoNome: pessoa?.nome,
+      padrinho: pessoa?.vinculo?.padrinho,
+      madrinha: pessoa?.vinculo?.madrinha,
+      padrinhosTexto: pessoa?.padrinhos_catequistas,
+      pos: { top, left }
+    });
+  };
+
+  const handleOpenFilhos = (e, a) => {
+    e.stopPropagation();
+    const rect = e.currentTarget.getBoundingClientRect();
+    const popoverWidth = 350;
+
+    let left = rect.left;
+    if (left + popoverWidth > window.innerWidth - 16) {
+      left = window.innerWidth - popoverWidth - 16;
+    }
+    if (left < 16) left = 16;
+
+    let top = rect.bottom + 6;
+    if (top + 280 > window.innerHeight) {
+      top = Math.max(16, rect.top - 280);
+    }
+
+    setModalFilhos({
+      isOpen: true,
+      titularNome: a.apc_pessoa?.nome,
+      conjugeNome: a.apc_pessoa?.conjuge?.nome,
+      dependentes: a.apc_pessoa?.dependentes_agrupados || [],
+      pos: { top, left }
+    });
+  };
 
   useEffect(() => {
     if (userProfile?.perfil === 'ADMIN' || userProfile?.perfil === 'GESTOR') {
@@ -225,8 +221,8 @@ export const AdminAcampamentos = () => {
       const { data: pessoasData } = await supabase
         .from('apc_pessoa')
         .select(`
-          id, nome, tipo_pessoa, conjuge_id, ano,
-          apc_dependente ( id, nome, mascote, acampamento, data_nascimento )
+          id, nome, tipo_pessoa, conjuge_id, ano, telefone, email, padrinhos_catequistas,
+          apc_dependente ( * )
         `)
         .order('nome', { ascending: true });
 
@@ -241,7 +237,7 @@ export const AdminAcampamentos = () => {
             id,
             equipe,
             apc_evento ( * ),
-            apc_pessoa!apc_acampamento_pessoa_id_fkey ( id, nome, tipo_pessoa, conjuge_id, ano, apc_dependente ( id, nome, mascote, acampamento, data_nascimento ) )
+            apc_pessoa!apc_acampamento_pessoa_id_fkey ( id, nome, tipo_pessoa, conjuge_id, ano, telefone, email, padrinhos_catequistas, apc_dependente ( * ) )
           `)
           .eq('evento_id', evento_id)
           .order('created_at', { ascending: false });
@@ -254,7 +250,7 @@ export const AdminAcampamentos = () => {
               id,
               equipe,
               apc_evento ( * ),
-              apc_pessoa!pessoa_id ( id, nome, tipo_pessoa, conjuge_id, ano, apc_dependente ( id, nome, mascote, acampamento, data_nascimento ) )
+              apc_pessoa!pessoa_id ( id, nome, tipo_pessoa, conjuge_id, ano, telefone, email, padrinhos_catequistas, apc_dependente ( * ) )
             `)
             .eq('evento_id', evento_id)
             .order('created_at', { ascending: false });
@@ -604,13 +600,24 @@ export const AdminAcampamentos = () => {
       }
     }
 
-    const matchesEquipe = filterEquipe === 'TODOS' ||
-      (a.equipe && a.equipe.includes(filterEquipe)) ||
-      (a.conjuge_inscricao?.equipe && a.conjuge_inscricao.equipe.includes(filterEquipe));
+    let matchesTipo = true;
+    if (filterTipo !== 'TODOS') {
+      const tipoTitular = a.apc_pessoa?.tipo_pessoa;
+      const tipoConjuge = a.conjuge_inscricao?.apc_pessoa?.tipo_pessoa;
+
+      if (filterTipo === 'PADRINHOS') {
+        matchesTipo = tipoTitular === 'PADRINHO' || tipoTitular === 'MADRINHA' ||
+          tipoConjuge === 'PADRINHO' || tipoConjuge === 'MADRINHA';
+      } else if (filterTipo === 'AFILHADO') {
+        matchesTipo = tipoTitular === 'AFILHADO' || tipoConjuge === 'AFILHADO';
+      } else if (filterTipo === 'VOLUNTARIO') {
+        matchesTipo = tipoTitular === 'VOLUNTARIO' || tipoConjuge === 'VOLUNTARIO';
+      }
+    }
 
     const matchesAno = filterAno === 'TODOS' || (a.apc_pessoa?.ano && a.apc_pessoa.ano.toString() === filterAno);
 
-    return matchesSearch && matchesVinculo && matchesEquipe && matchesAno;
+    return matchesSearch && matchesVinculo && matchesTipo && matchesAno;
   }).sort((a, b) => (a.apc_pessoa?.nome || '').localeCompare(b.apc_pessoa?.nome || ''));
 
   const todasEquipes = Array.from(new Set(eventos.flatMap(e => e.equipes || []))).sort();
@@ -922,18 +929,18 @@ export const AdminAcampamentos = () => {
                 </select>
               </div>
 
-              <div style={{ position: 'relative', minWidth: '200px' }}>
+              <div style={{ position: 'relative', minWidth: '180px' }}>
                 <Filter size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
                 <select
                   className="form-input"
                   style={{ paddingLeft: '2.5rem', margin: 0 }}
-                  value={filterEquipe}
-                  onChange={(e) => setFilterEquipe(e.target.value)}
+                  value={filterTipo}
+                  onChange={(e) => setFilterTipo(e.target.value)}
                 >
-                  <option value="TODOS">Filtro por Equipes</option>
-                  {todasEquipes.map(eq => (
-                    <option key={eq} value={eq}>{eq}</option>
-                  ))}
+                  <option value="TODOS">Filtro por Tipo</option>
+                  <option value="PADRINHOS">Padrinhos</option>
+                  <option value="AFILHADO">Afilhado(a)</option>
+                  <option value="VOLUNTARIO">Voluntário(a)</option>
                 </select>
               </div>
             </div>
@@ -951,10 +958,10 @@ export const AdminAcampamentos = () => {
                 <thead>
                   <tr>
                     <th>Ano</th>
-                    <th style={{ width: '28%', minWidth: '230px' }}>Nome</th>
-                    <th>Equipe</th>
-                    <th>Padrinhos</th>
-                    <th>Valor Total</th>
+                    <th>Nome</th>
+                    <th style={{ textAlign: 'center' }}>Filhos</th>
+                    <th>Tipo</th>
+                    <th>Valor</th>
                     <th style={{ textAlign: 'right' }}>Ações</th>
                   </tr>
                 </thead>
@@ -969,60 +976,126 @@ export const AdminAcampamentos = () => {
                       <tr key={a.id}>
                         <td>{a.apc_pessoa?.ano}</td>
                         <td>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.35rem' }}>
-                              <span style={{ fontWeight: '600', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'help' }} title="Sim, vai para o Acampamento">
-                                {a.apc_pessoa?.nome} <CheckCircle2 size={14} color="var(--success)" />
+                          <div style={{ alignItems: 'center', flexWrap: 'wrap', gap: '0.35rem' }}>
+                            <span style={{ fontWeight: '600', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'help' }} title="Sim, vai para o Acampamento">
+                              {a.apc_pessoa?.nome} <Check size={12} color="var(--success)" />
+                            </span>
+                            {a.apc_pessoa?.conjuge && (
+                              <span style={{ fontWeight: '600', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'help' }} title={a.conjuge_inscricao ? "Sim, vai para o Acampamento" : "Não vai para o Acampamento"}>
+                                {a.apc_pessoa.conjuge.nome}
+                                {a.conjuge_inscricao ? (
+                                  <Check size={12} color="var(--success)" />
+                                ) : (
+                                  <X size={12} color="var(--error)" />
+                                )}
                               </span>
-                              {a.apc_pessoa?.conjuge && (
-                                <span style={{ fontWeight: '600', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'help' }} title={a.conjuge_inscricao ? "Sim, vai para o Acampamento" : "Não vai para o Acampamento"}>
-                                  {' e '} {a.apc_pessoa.conjuge.nome}
-                                  {a.conjuge_inscricao ? (
-                                    <CheckCircle2 size={14} color="var(--success)" />
-                                  ) : (
-                                    <X size={14} color="var(--error)" />
-                                  )}
-                                </span>
-                              )}
-                            </div>
-                            <DependentesAccordion dependentes={a.apc_pessoa?.dependentes_agrupados} />
+                            )}
                           </div>
+                        </td>
+
+                        <td style={{ textAlign: 'center', verticalAlign: 'middle' }}>
+                          {(() => {
+                            const dependentes = a.apc_pessoa?.dependentes_agrupados || [];
+                            if (dependentes.length === 0) {
+                              return <span style={{ color: 'var(--text-secondary)' }}>-</span>;
+                            }
+                            const vaiAcampamentoCount = dependentes.filter(d => Boolean(d.acampamento !== undefined ? d.acampamento : d.mascote)).length;
+
+                            return (
+                              <button
+                                type="button"
+                                onClick={(e) => handleOpenFilhos(e, a)}
+                                title={`Filhos no acampamento: ${vaiAcampamentoCount} de ${dependentes.length}. Clique para ver todos os dependentes.`}
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.35rem',
+                                  padding: '0.2rem 0.55rem',
+                                  borderRadius: '6px',
+                                  fontSize: '0.75rem',
+                                  fontWeight: '600',
+                                  background: vaiAcampamentoCount > 0 ? 'rgba(16, 185, 129, 0.12)' : 'var(--bg-secondary)',
+                                  color: vaiAcampamentoCount > 0 ? '#059669' : 'var(--text-secondary)',
+                                  border: vaiAcampamentoCount > 0 ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid var(--border-color)',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.15s ease'
+                                }}
+                              >
+                                <Users size={13} />
+                                <span>{vaiAcampamentoCount}</span>
+                              </button>
+                            );
+                          })()}
                         </td>
                         <td>
-                          <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                            {(() => {
-                              const combined = Array.from(new Set([...(a.equipe || []), ...(a.conjuge_inscricao?.equipe || [])]));
-                              if (combined.length === 0) {
-                                return <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>Nenhuma</span>;
-                              }
-                              return combined.map(eq => {
-                                let bg = 'rgba(59, 130, 246, 0.1)';
-                                let color = 'var(--accent-primary)';
+                          {(() => {
+                            const tipo = a.apc_pessoa?.tipo_pessoa;
+                            let label = tipo || '-';
+                            let bg = 'var(--bg-secondary)';
+                            let color = 'var(--text-secondary)';
+                            let border = '1px solid var(--border-color)';
 
-                                if (eq === 'Padrinhos') {
-                                  bg = 'rgba(16, 185, 129, 0.1)';
-                                  color = '#059669';
-                                } else if (eq === 'Afilhado(a)') {
-                                  bg = 'rgba(245, 158, 11, 0.1)';
-                                  color = '#d97706';
-                                }
+                            if (tipo === 'PADRINHO' || tipo === 'MADRINHA') {
+                              label = 'Padrinhos';
+                              bg = 'rgba(16, 185, 129, 0.1)';
+                              color = '#059669';
+                              border = '1px solid rgba(16, 185, 129, 0.25)';
+                            } else if (tipo === 'AFILHADO') {
+                              label = 'Afilhado(a)';
+                              bg = 'rgba(245, 158, 11, 0.1)';
+                              color = '#d97706';
+                              border = '1px solid rgba(245, 158, 11, 0.25)';
+                            } else if (tipo === 'VOLUNTARIO') {
+                              label = 'Voluntário(a)';
+                              bg = 'rgba(59, 130, 246, 0.1)';
+                              color = '#2563eb';
+                              border = '1px solid rgba(59, 130, 246, 0.25)';
+                            }
 
-                                return (
-                                  <span key={eq} style={{ background: bg, color: color, padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: '500' }}>{eq}</span>
-                                );
-                              });
-                            })()}
-                          </div>
-                        </td>
-
-                        <td style={{ fontWeight: '400', fontSize: '0.7rem' }}>
-                          {a.apc_pessoa?.vinculo ? (
-                            <div>
-                              {a.apc_pessoa.vinculo.padrinho?.nome || '-'} e {a.apc_pessoa.vinculo.madrinha?.nome || '-'}
-                            </div>
-                          ) : (
-                            <span style={{ color: 'var(--text-secondary)' }}>-</span>
-                          )}
+                            return (
+                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                                <span style={{
+                                  fontSize: '0.75rem',
+                                  fontWeight: '600',
+                                  padding: '0.15rem 0.5rem',
+                                  borderRadius: '5px',
+                                  background: bg,
+                                  color: color,
+                                  border: border,
+                                  whiteSpace: 'nowrap'
+                                }}>
+                                  {label}
+                                </span>
+                                {tipo === 'AFILHADO' && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => handleOpenPadrinhos(e, a.apc_pessoa)}
+                                    title="Clique para ver os padrinhos"
+                                    style={{
+                                      background: 'rgba(245, 158, 11, 0.12)',
+                                      border: '1px solid rgba(245, 158, 11, 0.3)',
+                                      borderRadius: '5px',
+                                      color: '#d97706',
+                                      cursor: 'pointer',
+                                      padding: '0.15rem 0.35rem',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      transition: 'all 0.15s ease'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      e.currentTarget.style.background = 'rgba(245, 158, 11, 0.25)';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      e.currentTarget.style.background = 'rgba(245, 158, 11, 0.12)';
+                                    }}
+                                  >
+                                    <Users size={12} />
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </td>
 
                         <td style={{ verticalAlign: 'middle' }}>
@@ -1053,15 +1126,15 @@ export const AdminAcampamentos = () => {
                         </td>
 
                         <td style={{ textAlign: 'right', verticalAlign: 'middle' }}>
-                          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', height: '100%', alignItems: 'center' }}>
+                          <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'flex-end' }}>
                             <Link to={`/admin/pagamentos/${a.id}`} state={{ from: `/admin/acampamentos/${evento_id}` }} className="btn btn-secondary" style={{ padding: '0.4rem 0.5rem', color: 'var(--success)', display: 'flex', alignItems: 'center', gap: '0.25rem' }} title="Pagamentos da Família">
-                              <DollarSign size={16} />
+                              <DollarSign size={12} />
                             </Link>
                             <button onClick={() => handleEdit(a)} className="btn btn-primary" style={{ padding: '0.4rem 0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }} title="Editar Família">
-                              <Edit2 size={16} />
+                              <Edit2 size={12} />
                             </button>
                             <button onClick={() => handleDelete(a)} className="btn btn-danger" style={{ padding: '0.4rem 0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }} title="Excluir Inscrição da Família">
-                              <Trash2 size={16} />
+                              <Trash2 size={12} />
                             </button>
                           </div>
                         </td>
@@ -1073,6 +1146,310 @@ export const AdminAcampamentos = () => {
             </div>
           )}
         </div>
+      )}
+
+      {/* Caixinha suspensa / Popover de Padrinhos para Afilhados */}
+      {caixaPadrinhos?.isOpen && (
+        <>
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 9998,
+              cursor: 'default'
+            }}
+            onClick={() => setCaixaPadrinhos(null)}
+          />
+
+          <div
+            className="glass-panel"
+            style={{
+              position: 'fixed',
+              top: `${caixaPadrinhos.pos.top}px`,
+              left: `${caixaPadrinhos.pos.left}px`,
+              // width: '280px',
+              zIndex: 9999,
+              background: 'var(--bg-primary, #0f172a)',
+              border: '1px solid rgba(245, 158, 11, 0.35)',
+              borderRadius: '12px',
+              boxShadow: '0 15px 35px -5px rgba(0, 0, 0, 0.6), 0 0 15px rgba(245, 158, 11, 0.1)',
+              padding: '0.85rem 1rem'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.65rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                <div style={{
+                  width: '24px',
+                  height: '24px',
+                  borderRadius: '6px',
+                  background: 'rgba(245, 158, 11, 0.15)',
+                  color: '#d97706',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <Users size={14} />
+                </div>
+                <div>
+                  <h4 style={{ margin: 0, fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-primary)' }}>
+                    Afilhado(a)
+                  </h4>
+                  <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                    {caixaPadrinhos.afilhadoNome}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCaixaPadrinhos(null)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  padding: '0.2rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+                title="Fechar"
+              >
+                <X size={15} />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem', fontSize: '0.775rem' }}>
+              {caixaPadrinhos.padrinho || caixaPadrinhos.madrinha ? (
+                <>
+                  <div>
+                    <span style={{ fontSize: '0.68rem', textTransform: 'uppercase', color: 'var(--text-secondary)', fontWeight: '600', letterSpacing: '0.04em' }}>
+                      Padrinho
+                    </span>
+                    <div style={{ fontWeight: '600', color: caixaPadrinhos.padrinho ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+                      {caixaPadrinhos.padrinho?.nome || 'Não vinculado'}
+                    </div>
+                  </div>
+
+                  <div>
+                    <span style={{ fontSize: '0.68rem', textTransform: 'uppercase', color: 'var(--text-secondary)', fontWeight: '600', letterSpacing: '0.04em' }}>
+                      Madrinha
+                    </span>
+                    <div style={{ fontWeight: '600', color: caixaPadrinhos.madrinha ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+                      {caixaPadrinhos.madrinha?.nome || 'Não vinculada'}
+                    </div>
+                  </div>
+                </>
+              ) : caixaPadrinhos.padrinhosTexto ? (
+                <div>
+                  <span style={{ fontSize: '0.68rem', textTransform: 'uppercase', color: 'var(--text-secondary)', fontWeight: '600' }}>
+                    Padrinhos Informados
+                  </span>
+                  <div style={{ fontWeight: '600', color: 'var(--text-primary)' }}>
+                    {caixaPadrinhos.padrinhosTexto}
+                  </div>
+                </div>
+              ) : (
+                <div style={{ color: 'var(--text-secondary)', fontStyle: 'italic', padding: '0.25rem 0' }}>
+                  Nenhum padrinho vinculado no sistema.
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Popover / Caixinha suspensa de Filhos / Dependentes */}
+      {modalFilhos.isOpen && (
+        <>
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 9998,
+              cursor: 'default'
+            }}
+            onClick={() => setModalFilhos({ isOpen: false, titularNome: '', conjugeNome: '', dependentes: [], pos: null })}
+          />
+
+          <div
+            className="glass-panel"
+            style={{
+              position: 'fixed',
+              top: `${modalFilhos.pos?.top || 100}px`,
+              left: `${modalFilhos.pos?.left || 100}px`,
+              maxWidth: '390px',
+              overflowY: 'auto',
+              zIndex: 9999,
+              background: 'var(--bg-primary, #0f172a)',
+              border: '1px solid rgba(16, 185, 129, 0.35)',
+              borderRadius: '14px',
+              boxShadow: '0 20px 40px -8px rgba(0, 0, 0, 0.6), 0 0 15px rgba(16, 185, 129, 0.1)',
+              padding: '0.85rem 1rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.75rem'
+            }}
+          >
+            {/* Cabeçalho */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                <div style={{
+                  width: '26px',
+                  height: '26px',
+                  borderRadius: '6px',
+                  background: 'rgba(16, 185, 129, 0.15)',
+                  color: 'var(--success)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <Users size={15} />
+                </div>
+                <div>
+                  <h4 style={{ margin: 0, fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-primary)' }}>
+                    Filhos / Dependentes
+                  </h4>
+                  <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                    {modalFilhos.titularNome}{modalFilhos.conjugeNome ? ` e ${modalFilhos.conjugeNome}` : ''} • {modalFilhos.dependentes.filter(d => Boolean(d.acampamento !== undefined ? d.acampamento : d.mascote)).length} filho(s) no acampamento
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setModalFilhos({ isOpen: false, titularNome: '', conjugeNome: '', dependentes: [], pos: null })}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  padding: '0.2rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+                title="Fechar"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Lista dos Filhos */}
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {modalFilhos.dependentes.map(d => {
+                const idade = calcularIdade(d.data_nascimento);
+                const vaiAcampamento = Boolean(d.acampamento !== undefined ? d.acampamento : d.mascote);
+                const ehMascote = vaiAcampamento && Boolean(d.mascote);
+
+                return (
+                  <div
+                    key={d.id}
+                    style={{
+                      background: 'var(--bg-secondary)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '8px',
+                      padding: '0.25rem 0.1rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.4rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
+                        <strong style={{ fontSize: '0.825rem', color: 'var(--text-primary)' }}>
+                          {d.nome}
+                        </strong>
+                        {idade !== null && (
+                          <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', background: 'rgba(255,255,255,0.06)', padding: '0.05rem 0.35rem', borderRadius: '4px' }}>
+                            {idade} ano{idade === 1 ? '' : 's'}
+                          </span>
+                        )}
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', flexShrink: 0 }}>
+                        {ehMascote && (
+                          <span style={{
+                            fontSize: '0.65rem',
+                            fontWeight: '700',
+                            background: '#fef3c7',
+                            color: '#b45309',
+                            border: '1px solid #fde68a',
+                            padding: '0.1rem 0.4rem',
+                            borderRadius: '999px'
+                          }}>
+                            Mascote
+                          </span>
+                        )}
+
+                        <span
+                          style={{
+                            fontSize: '0.675rem',
+                            fontWeight: '600',
+                            padding: '0.1rem 0.4rem',
+                            borderRadius: '999px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.25rem',
+                            background: vaiAcampamento ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.1)',
+                            color: vaiAcampamento ? '#059669' : '#dc2626',
+                            border: vaiAcampamento ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(239, 68, 68, 0.25)'
+                          }} title={vaiAcampamento ? 'Vai para o acampamento' : 'Não vai para o acampamento'}
+                        >
+                          {vaiAcampamento ? (
+                            <>
+                              <CheckCircle2 size={11} color="#059669" />
+                            </>
+                          ) : (
+                            <>
+                              <X size={11} color="#dc2626" />
+                            </>
+                          )}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Detalhes Médicos se houver */}
+                    {(d.problema_saude === 'SIM' || d.problema_saude === true || d.medicamento_continuo === 'SIM' || d.medicamento_continuo === true || d.restricao_alimentar === 'SIM' || d.restricao_alimentar === true || d.alergia_medicamento === 'SIM' || d.alergia_medicamento === true || d.alergia_alimento === 'SIM' || d.alergia_alimento === true || d.cuidado_especial === 'SIM' || d.cuidado_especial === true) && (
+                      <div style={{
+                        marginTop: '0.15rem',
+                        paddingTop: '0.25rem',
+                        borderTop: '1px solid var(--border-color)',
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        gap: '0.25rem',
+                        fontSize: '0.675rem'
+                      }}>
+                        {(d.problema_saude === 'SIM' || d.problema_saude === true) && (
+                          <span style={{ color: '#ef4444', background: 'rgba(239, 68, 68, 0.08)', padding: '0.1rem 0.35rem', borderRadius: '4px' }}>
+                            Problema: {d.problema_saude_qual || 'Sim'}
+                          </span>
+                        )}
+                        {(d.medicamento_continuo === 'SIM' || d.medicamento_continuo === true) && (
+                          <span style={{ color: '#2563eb', background: 'rgba(37, 99, 235, 0.08)', padding: '0.1rem 0.35rem', borderRadius: '4px' }}>
+                            Medicamento: {d.medicamento_continuo_qual || 'Sim'}
+                          </span>
+                        )}
+                        {(d.restricao_alimentar === 'SIM' || d.restricao_alimentar === true) && (
+                          <span style={{ color: '#d97706', background: 'rgba(217, 119, 6, 0.08)', padding: '0.1rem 0.35rem', borderRadius: '4px' }}>
+                            Restrição: {d.restricao_alimentar_qual || 'Sim'}
+                          </span>
+                        )}
+                        {(d.alergia_medicamento === 'SIM' || d.alergia_medicamento === true || d.alergia_alimento === 'SIM' || d.alergia_alimento === true) && (
+                          <span style={{ color: '#ec4899', background: 'rgba(236, 72, 153, 0.08)', padding: '0.1rem 0.35rem', borderRadius: '4px' }}>
+                            Alergia: {[d.alergia_medicamento_qual, d.alergia_alimento_qual].filter(Boolean).join(', ') || 'Sim'}
+                          </span>
+                        )}
+                        {(d.cuidado_especial === 'SIM' || d.cuidado_especial === true) && (
+                          <span style={{ color: '#8b5cf6', background: 'rgba(139, 92, 246, 0.08)', padding: '0.1rem 0.35rem', borderRadius: '4px' }}>
+                            Cuidado Especial: {d.cuidado_especial_qual || 'Sim'}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </>
       )}
     </div>
   );

@@ -223,7 +223,7 @@ export const Dashboard = () => {
               eventosAtivos.map((evento) => (
                 <Link
                   key={evento.id}
-                  to={`/inscricao?eventoId=${evento.id}`}
+                  to={`/minhas-inscricoes`}
                   className="btn btn-tertiary"
                   style={{ padding: '0.5rem 1rem', fontSize: '0.875rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
                 >
