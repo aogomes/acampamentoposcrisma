@@ -1,32 +1,17 @@
-import { useState, useEffect, useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import {
   Tent,
   Plus,
   Search,
-  Calendar,
-  MapPin,
-  User,
-  Users,
-  ShieldCheck,
-  FileText,
   AlertCircle,
-  CheckCircle2,
-  Clock,
-  ArrowRight,
-  ExternalLink,
-  ChevronRight,
-  HeartPulse,
-  Tag,
-  DollarSign,
   Edit
 } from 'lucide-react';
-import { formatarCPF } from '../utils/cpf';
 
 export const MinhasInscricoesAcampamento = () => {
-  const { user, pessoaProfile } = useAuth();
+  const { pessoaProfile, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
   const [inscricoes, setInscricoes] = useState([]);
@@ -37,137 +22,87 @@ export const MinhasInscricoesAcampamento = () => {
   const [filtroEvento, setFiltroEvento] = useState('TODOS');
   const [filtroTipo, setFiltroTipo] = useState('TODOS'); // 'TODOS', 'MINHAS', 'DEPENDENTES'
 
-  useEffect(() => {
-    if (pessoaProfile?.id) {
-      fetchInscricoes();
-    } else {
-      setLoading(false);
-    }
-  }, [pessoaProfile?.id]);
-
-  const fetchInscricoes = async () => {
+  const fetchInscricoes = useCallback(async (pId) => {
     try {
       setLoading(true);
       setError('');
 
-      // 1. Carrega eventos ativos para permitir iniciar nova inscrição
-      const { data: evts } = await supabase
-        .from('apc_evento')
-        .select('*')
-        .order('data_inicio', { ascending: false });
-      setEventosAtivos(evts || []);
-
-      const pId = pessoaProfile.id;
-
-      // 2. Consulta apc_acampamento onde a pessoa é o participante OU foi a criadora da inscrição
-      let query = supabase
-        .from('apc_acampamento')
-        .select(`
-          id,
-          evento_id,
-          pessoa_id,
-          criador_id,
-          equipe,
-          created_at,
-          apc_evento (
+      // Executa as duas consultas em paralelo para eliminar o waterfall de rede
+      const [evtsPromise, inscricoesPromise] = await Promise.all([
+        supabase
+          .from('apc_evento')
+          .select('id, descricao, status')
+          .order('data_inicio', { ascending: false }),
+        supabase
+          .from('apc_acampamento')
+          .select(`
             id,
-            descricao,
-            data_inicio,
-            data_fim,
-            local,
-            valor,
-            status,
-            inclui_camiseta
-          ),
-          apc_pessoa!apc_acampamento_pessoa_id_fkey (
-            id,
-            nome,
-            cpf,
-            telefone,
-            email,
-            tipo_pessoa,
-            data_nascimento,
-            idade,
-            camiseta,
-            camiseta_infantil
-          )
-        `);
+            evento_id,
+            pessoa_id,
+            criador_id,
+            created_at,
+            apc_evento (
+              id,
+              descricao
+            ),
+            apc_pessoa!apc_acampamento_pessoa_id_fkey (
+              id,
+              nome,
+              cpf,
+              tipo_pessoa
+            )
+          `)
+          .or(`pessoa_id.eq.${pId},criador_id.eq.${pId}`)
+          .order('created_at', { ascending: false })
+      ]);
 
-      // Tenta consultar usando criador_id OR pessoa_id
-      const { data, error: queryErr } = await query.or(`pessoa_id.eq.${pId},criador_id.eq.${pId}`);
+      if (evtsPromise.data) {
+        setEventosAtivos(evtsPromise.data);
+      }
 
-      if (queryErr) {
-        // Se a coluna criador_id ainda não existir no Postgres do usuário, faz fallback consultando por pessoa_id
-        if (queryErr.message && queryErr.message.includes('criador_id')) {
-          console.warn('Coluna criador_id ainda não existe no banco. Fazendo fallback para pessoa_id.');
+      if (inscricoesPromise.error) {
+        // Fallback caso criador_id não exista em algum ambiente legado
+        if (inscricoesPromise.error.message?.includes('criador_id')) {
           const { data: fallbackData, error: fbErr } = await supabase
             .from('apc_acampamento')
             .select(`
               id,
               evento_id,
               pessoa_id,
-              equipe,
               created_at,
-              apc_evento (
-                id,
-                descricao,
-                data_inicio,
-                data_fim,
-                local,
-                valor,
-                status,
-                inclui_camiseta
-              ),
-              apc_pessoa!apc_acampamento_pessoa_id_fkey (
-                id,
-                nome,
-                cpf,
-                telefone,
-                email,
-                tipo_pessoa,
-                data_nascimento,
-                idade,
-                camiseta,
-                camiseta_infantil
-              )
+              apc_evento ( id, descricao ),
+              apc_pessoa!apc_acampamento_pessoa_id_fkey ( id, nome, cpf, tipo_pessoa )
             `)
-            .eq('pessoa_id', pId);
+            .eq('pessoa_id', pId)
+            .order('created_at', { ascending: false });
 
           if (fbErr) throw fbErr;
           setInscricoes(fallbackData || []);
           return;
         }
-        throw queryErr;
+        throw inscricoesPromise.error;
       }
 
-      setInscricoes(data || []);
+      setInscricoes(inscricoesPromise.data || []);
     } catch (err) {
       console.error('Erro ao buscar inscrições do acampamento:', err);
       setError('Não foi possível carregar as inscrições: ' + err.message);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const formatarDataBR = (dataStr) => {
-    if (!dataStr) return 'A definir';
-    const apenasData = dataStr.split('T')[0];
-    const partes = apenasData.split('-');
-    if (partes.length === 3) {
-      const [ano, mes, dia] = partes;
-      return `${dia}/${mes}/${ano}`;
+  useEffect(() => {
+    if (authLoading) return;
+
+    if (pessoaProfile?.id) {
+      fetchInscricoes(pessoaProfile.id);
+    } else {
+      setLoading(false);
     }
-    return dataStr;
-  };
+  }, [authLoading, pessoaProfile?.id, fetchInscricoes]);
 
-  const formatarValor = (valor) => {
-    const num = parseFloat(valor);
-    if (isNaN(num)) return valor || '-';
-    if (num <= 0) return 'Gratuito';
-    return `R$ ${num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  };
-
-  // Filtragem
+  // Filtragem memoizada
   const inscricoesFiltradas = useMemo(() => {
     return inscricoes.filter(item => {
       const participanteNome = item.apc_pessoa?.nome?.toLowerCase() || '';
@@ -194,10 +129,9 @@ export const MinhasInscricoesAcampamento = () => {
     });
   }, [inscricoes, busca, filtroEvento, filtroTipo, pessoaProfile?.id]);
 
-  // Contadores para métricas rápidas
   const totalInscricoes = inscricoes.length;
-  const totalMinhas = inscricoes.filter(i => i.pessoa_id === pessoaProfile?.id).length;
-  const totalDependentes = inscricoes.filter(i => i.pessoa_id !== pessoaProfile?.id).length;
+  const totalMinhas = useMemo(() => inscricoes.filter(i => i.pessoa_id === pessoaProfile?.id).length, [inscricoes, pessoaProfile?.id]);
+  const totalDependentes = useMemo(() => inscricoes.filter(i => i.pessoa_id !== pessoaProfile?.id).length, [inscricoes, pessoaProfile?.id]);
 
   return (
     <div className="main-content">
@@ -349,10 +283,8 @@ export const MinhasInscricoesAcampamento = () => {
         </div>
       )}
 
-
-
       {/* Conteúdo Principal */}
-      {loading ? (
+      {(loading || authLoading) ? (
         <div className="glass-panel" style={{ padding: '3rem', textAlign: 'center' }}>
           <div className="spin" style={{ display: 'inline-block', marginBottom: '0.75rem', color: 'var(--accent-primary)' }}>
             <Tent size={36} />

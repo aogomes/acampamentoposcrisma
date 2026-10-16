@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { Calendar, Plus, Trash2, Edit2, Search, Filter, FileSpreadsheet } from 'lucide-react';
@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
 import { exportarRelatorioExcelEvento } from '../utils/relatorioExcel';
 
 export const AdminEventos = () => {
-  const { userProfile } = useAuth();
+  const { userProfile, loading: authLoading } = useAuth();
 
   const [eventos, setEventos] = useState([]);
   const [isCreating, setIsCreating] = useState(false);
@@ -48,18 +48,28 @@ export const AdminEventos = () => {
     setFormData(prev => ({ ...prev, equipes: prev.equipes.filter(e => e !== equipe) }));
   };
 
-  useEffect(() => {
-    if ((userProfile?.perfil === 'ADMIN' || userProfile?.perfil === 'GESTOR') && !isCreating) {
-      fetchEventos();
-    }
-  }, [userProfile, isCreating]);
-
-  const fetchEventos = async () => {
+  const fetchEventos = useCallback(async () => {
     try {
       setLoadingData(true);
       const { data, error } = await supabase
         .from('apc_evento')
-        .select('*')
+        .select(`
+          id,
+          descricao,
+          local,
+          tema,
+          data_inicio,
+          data_fim,
+          valor,
+          valor_diferenciado,
+          idade_min_diferenciada,
+          idade_max_diferenciada,
+          descricao_valor_diferenciado,
+          inclui_camiseta,
+          status,
+          equipes,
+          apc_acampamento(count)
+        `)
         .order('data_inicio', { ascending: false });
 
       if (error) throw error;
@@ -69,7 +79,14 @@ export const AdminEventos = () => {
     } finally {
       setLoadingData(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (userProfile?.perfil === 'ADMIN' || userProfile?.perfil === 'GESTOR') {
+      fetchEventos();
+    }
+  }, [authLoading, userProfile?.perfil, fetchEventos]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -163,6 +180,8 @@ export const AdminEventos = () => {
         equipes: []
       });
 
+      fetchEventos();
+
       setTimeout(() => {
         setIsCreating(false);
         setSuccess('');
@@ -183,7 +202,7 @@ export const AdminEventos = () => {
       const { error } = await supabase.from('apc_evento').delete().eq('id', id);
       if (error) throw error;
 
-      setEventos(eventos.filter(e => e.id !== id));
+      setEventos(prev => prev.filter(e => e.id !== id));
       setSuccess('Evento excluído com sucesso!');
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
@@ -191,22 +210,17 @@ export const AdminEventos = () => {
     }
   };
 
-  if (userProfile?.perfil !== 'ADMIN' && userProfile?.perfil !== 'GESTOR') {
-    return (
-      <div className="main-content">
-        <div className="alert alert-error">Acesso negado. Você não tem permissão para acessar esta página.</div>
-      </div>
-    );
-  }
+  const filteredEventos = useMemo(() => {
+    const termo = searchTerm.trim().toLowerCase();
+    return eventos.filter(e => {
+      const matchesSearch = !termo ||
+        (e.descricao && e.descricao.toLowerCase().includes(termo)) ||
+        (e.tema && e.tema.toLowerCase().includes(termo));
+      const matchesStatus = filterStatus === 'TODOS' || e.status === filterStatus;
+      return matchesSearch && matchesStatus;
+    });
+  }, [eventos, searchTerm, filterStatus]);
 
-  const filteredEventos = eventos.filter(e => {
-    const matchesSearch = e.descricao.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (e.tema && e.tema.toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchesStatus = filterStatus === 'TODOS' || e.status === filterStatus;
-    return matchesSearch && matchesStatus;
-  });
-
-  // Função para formatar data
   const formatDate = (dateString) => {
     if (!dateString) return '-';
     const parts = dateString.split('-');
@@ -216,11 +230,18 @@ export const AdminEventos = () => {
     return dateString;
   };
 
-  // Função para formatar valor (moeda)
   const formatCurrency = (value) => {
     if (value === null || value === undefined) return '-';
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   };
+
+  if (userProfile?.perfil !== 'ADMIN' && userProfile?.perfil !== 'GESTOR') {
+    return (
+      <div className="main-content">
+        <div className="alert alert-error">Acesso negado. Você não tem permissão para acessar esta página.</div>
+      </div>
+    );
+  }
 
   return (
     <div className="main-content">
@@ -547,104 +568,104 @@ export const AdminEventos = () => {
                     <th>Data Início</th>
                     <th>Data Fim</th>
                     <th>Valor</th>
-                    {/* <th>Local</th> */}
                     <th>Status</th>
                     <th style={{ textAlign: 'right' }}>Ações</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredEventos.map((e) => (
-                    <tr key={e.id}>
-                      <td style={{ fontWeight: '500' }}>
-                        <Link
-                          to={`/admin/acampamentos/${e.id}`}
-                          style={{ color: 'var(--accent-primary)', textDecoration: 'none' }}
-                          title="Ver inscrições do acampamento"
-                        >
-                          {e.descricao}
-                        </Link>
-                      </td>
-                      {/* <td>{e.tema || '-'}</td> */}
-                      <td>{formatDate(e.data_inicio)}</td>
-                      <td>{formatDate(e.data_fim)}</td>
-                      <td>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                          <span style={{ fontWeight: 600 }}>{formatCurrency(e.valor)}</span>
-                          {e.valor_diferenciado && (
-                            <span style={{
-                              fontSize: '0.75rem',
-                              color: 'var(--accent-primary)',
-                              background: 'rgba(59, 130, 246, 0.1)',
-                              padding: '0.15rem 0.45rem',
-                              borderRadius: '4px',
-                              display: 'inline-block',
-                              width: 'fit-content',
-                              fontWeight: '500'
-                            }}>
-                              {formatCurrency(e.valor_diferenciado)} ({e.descricao_valor_diferenciado || `${e.idade_min_diferenciada || 0} a ${e.idade_max_diferenciada || 0} anos`})
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      {/* <td>{e.local || '-'}</td> */}
-                      <td>
-                        <span style={{
-                          background: e.status === 'ATIVO' ? 'rgba(16, 185, 129, 0.1)' : 'var(--bg-secondary)',
-                          color: e.status === 'ATIVO' ? '#10b981' : 'inherit',
-                          padding: '0.25rem 0.5rem',
-                          borderRadius: '4px',
-                          fontSize: '0.75rem',
-                          fontWeight: '500'
-                        }}>
-                          {e.status}
-                        </span>
-                      </td>
-                      <td style={{ textAlign: 'right' }}>
-                        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', alignItems: 'center' }}>
-                          <button
-                            type="button"
-                            onClick={() => handleGerarRelatorio(e)}
-                            className="btn btn-secondary"
-                            style={{
-                              padding: '0.4rem 0.65rem',
-                              fontSize: '0.875rem',
-                              color: '#16a34a',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '0.35rem'
-                            }}
-                            title="Gerar e Baixar Planilha Excel com Informações das Pessoas"
-                            disabled={exportingId === e.id}
-                          >
-                            {exportingId === e.id ? (
-                              <span style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Gerando...</span>
-                            ) : (
-                              <>
-                                <FileSpreadsheet size={16} />
-                                <span style={{ fontSize: '0.8rem', fontWeight: '600' }}>Relatório</span>
-                              </>
-                            )}
-                          </button>
+                  {filteredEventos.map((e) => {
+
+                    return (
+                      <tr key={e.id}>
+                        <td style={{ fontWeight: '500' }}>
                           <Link
-                            to={`/admin/eventos/${e.id}`}
-                            className="btn btn-secondary"
-                            style={{ padding: '0.4rem 0.75rem', fontSize: '0.875rem' }}
-                            title="Editar Evento"
+                            to={`/admin/acampamentos/${e.id}`}
+                            style={{ color: 'var(--accent-primary)', textDecoration: 'none' }}
+                            title="Ver inscrições do acampamento"
                           >
-                            <Edit2 size={16} />
+                            {e.descricao}
                           </Link>
-                          <button
-                            onClick={() => handleDelete(e.id)}
-                            className="btn btn-secondary"
-                            style={{ padding: '0.4rem 0.75rem', fontSize: '0.875rem', color: 'var(--error)' }}
-                            title="Remover Evento"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td>{formatDate(e.data_inicio)}</td>
+                        <td>{formatDate(e.data_fim)}</td>
+                        <td>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                            <span style={{ fontWeight: 600 }}>{formatCurrency(e.valor)}</span>
+                            {e.valor_diferenciado && (
+                              <span style={{
+                                fontSize: '0.75rem',
+                                color: 'var(--accent-primary)',
+                                background: 'rgba(59, 130, 246, 0.1)',
+                                padding: '0.15rem 0.45rem',
+                                borderRadius: '4px',
+                                display: 'inline-block',
+                                width: 'fit-content',
+                                fontWeight: '500'
+                              }}>
+                                {formatCurrency(e.valor_diferenciado)} ({e.descricao_valor_diferenciado || `${e.idade_min_diferenciada || 0} a ${e.idade_max_diferenciada || 0} anos`})
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td>
+                          <span style={{
+                            background: e.status === 'ATIVO' ? 'rgba(16, 185, 129, 0.1)' : 'var(--bg-secondary)',
+                            color: e.status === 'ATIVO' ? '#10b981' : 'inherit',
+                            padding: '0.25rem 0.5rem',
+                            borderRadius: '4px',
+                            fontSize: '0.75rem',
+                            fontWeight: '500'
+                          }}>
+                            {e.status}
+                          </span>
+                        </td>
+                        <td style={{ textAlign: 'right' }}>
+                          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', alignItems: 'center' }}>
+                            <button
+                              type="button"
+                              onClick={() => handleGerarRelatorio(e)}
+                              className="btn btn-secondary"
+                              style={{
+                                padding: '0.4rem 0.65rem',
+                                fontSize: '0.875rem',
+                                color: '#16a34a',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.35rem'
+                              }}
+                              title="Gerar e Baixar Planilha Excel com Informações das Pessoas"
+                              disabled={exportingId === e.id}
+                            >
+                              {exportingId === e.id ? (
+                                <span style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Gerando...</span>
+                              ) : (
+                                <>
+                                  <FileSpreadsheet size={16} />
+                                  <span style={{ fontSize: '0.8rem', fontWeight: '600' }}>Relatório</span>
+                                </>
+                              )}
+                            </button>
+                            <Link
+                              to={`/admin/eventos/${e.id}`}
+                              className="btn btn-secondary"
+                              style={{ padding: '0.4rem 0.75rem', fontSize: '0.875rem' }}
+                              title="Editar Evento"
+                            >
+                              <Edit2 size={16} />
+                            </Link>
+                            <button
+                              onClick={() => handleDelete(e.id)}
+                              className="btn btn-secondary"
+                              style={{ padding: '0.4rem 0.75rem', fontSize: '0.875rem', color: 'var(--error)' }}
+                              title="Remover Evento"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

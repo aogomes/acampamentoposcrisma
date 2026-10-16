@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { Tent, Plus, Trash2, Edit2, Search, Filter, ArrowLeft, DollarSign, CheckCircle2, XCircle, Users, X, Check, ArrowUpDown, ArrowUp, ArrowDown, Info } from 'lucide-react';
+import { Tent, Plus, Trash2, Edit2, Search, Filter, ArrowLeft, DollarSign, CheckCircle2, Users, X, Check, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { useParams, Link } from 'react-router-dom';
 import { registrarAuditoria } from '../services/auditoriaService';
 
@@ -230,153 +230,174 @@ export const AdminAcampamentos = () => {
     });
   };
 
-  useEffect(() => {
-    if (userProfile?.perfil === 'ADMIN' || userProfile?.perfil === 'GESTOR') {
-      fetchData();
-    }
-  }, [userProfile, isCreating]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoadingData(true);
 
-      // 1. Busca todos os eventos
-      const { data: eventosData } = await supabase
-        .from('apc_evento')
-        .select('*')
-        .order('data_inicio', { ascending: false });
+      // 1, 2 e 3: Dispara buscas em paralelo para eliminar o waterfall de rede
+      const [eventosRes, pessoasRes, acampRes] = await Promise.all([
+        supabase
+          .from('apc_evento')
+          .select('id, descricao, data_inicio, data_fim, local, valor, valor_diferenciado, descricao_valor_diferenciado, idade_min_diferenciada, idade_max_diferenciada, equipes, status')
+          .order('data_inicio', { ascending: false }),
 
-      setEventos(eventosData || []);
+        supabase
+          .from('apc_pessoa')
+          .select(`
+            id, nome, tipo_pessoa, conjuge_id, ano, telefone, email, padrinhos_catequistas,
+            apc_dependente ( id, pessoa_id, nome, data_nascimento, mascote, acampamento )
+          `)
+          .order('nome', { ascending: true }),
 
-      // 2. Busca todas as pessoas e seus dependentes
-      const { data: pessoasData } = await supabase
-        .from('apc_pessoa')
-        .select(`
-          id, nome, tipo_pessoa, conjuge_id, ano, telefone, email, padrinhos_catequistas,
-          apc_dependente ( * )
-        `)
-        .order('nome', { ascending: true });
-
-      setPessoas(pessoasData || []);
-
-      // 3. Busca as inscrições se não estiver no modo de criação
-      if (!isCreating) {
-        let acampData = null;
-        const { data: acampDataFk, error: acampErrorFk } = await supabase
+        supabase
           .from('apc_acampamento')
           .select(`
             id,
+            evento_id,
             equipe,
-            apc_evento ( * ),
-            apc_pessoa!apc_acampamento_pessoa_id_fkey ( id, nome, tipo_pessoa, conjuge_id, ano, telefone, email, padrinhos_catequistas, apc_dependente ( * ) )
+            created_at,
+            apc_pessoa!apc_acampamento_pessoa_id_fkey (
+              id, nome, tipo_pessoa, conjuge_id, ano, telefone, email, padrinhos_catequistas,
+              apc_dependente ( id, pessoa_id, nome, data_nascimento, mascote, acampamento )
+            )
+          `)
+          .eq('evento_id', evento_id)
+          .order('created_at', { ascending: false })
+      ]);
+
+      const eventosData = eventosRes.data || [];
+      const pessoasData = pessoasRes.data || [];
+      setEventos(eventosData);
+      setPessoas(pessoasData);
+
+      let acampData = null;
+      const acampErrorFk = acampRes.error;
+
+      if (acampErrorFk) {
+        // Fallback caso a constraint tenha o nome de coluna ou padrão
+        const { data: acampDataFb, error: acampErrorFb } = await supabase
+          .from('apc_acampamento')
+          .select(`
+            id,
+            evento_id,
+            equipe,
+            created_at,
+            apc_pessoa!pessoa_id (
+              id, nome, tipo_pessoa, conjuge_id, ano, telefone, email, padrinhos_catequistas,
+              apc_dependente ( id, pessoa_id, nome, data_nascimento, mascote, acampamento )
+            )
           `)
           .eq('evento_id', evento_id)
           .order('created_at', { ascending: false });
 
-        if (acampErrorFk) {
-          // Fallback caso a constraint tenha o nome de coluna ou padrão
-          const { data: acampDataFb, error: acampErrorFb } = await supabase
-            .from('apc_acampamento')
-            .select(`
-              id,
-              equipe,
-              apc_evento ( * ),
-              apc_pessoa!pessoa_id ( id, nome, tipo_pessoa, conjuge_id, ano, telefone, email, padrinhos_catequistas, apc_dependente ( * ) )
-            `)
-            .eq('evento_id', evento_id)
-            .order('created_at', { ascending: false });
+        if (acampErrorFb) throw acampErrorFb;
+        acampData = acampDataFb;
+      } else {
+        acampData = acampRes.data;
+      }
 
-          if (acampErrorFb) throw acampErrorFb;
-          acampData = acampDataFb;
-        } else {
-          acampData = acampDataFk;
-        }
+      const eventosMap = {};
+      eventosData.forEach(e => {
+        eventosMap[e.id] = e;
+      });
 
-        // Busca vínculos para todos os inscritos e mescla
-        const todosPessoaIds = (acampData || []).flatMap(a => [
-          a.apc_pessoa?.id,
-          a.apc_pessoa?.conjuge_id
-        ]).filter(Boolean);
+      const pessoasMap = {};
+      pessoasData.forEach(p => {
+        pessoasMap[p.id] = p;
+      });
 
-        if (todosPessoaIds.length > 0) {
-          const { data: vinculosData } = await supabase
-            .from('apc_vinculo')
-            .select('*')
-            .in('afilhado_id', todosPessoaIds)
-            .order('ano', { ascending: false });
+      // 4. Busca vínculos para todos os inscritos e mescla
+      const todosPessoaIds = (acampData || []).flatMap(a => [
+        a.apc_pessoa?.id,
+        a.apc_pessoa?.conjuge_id
+      ]).filter(Boolean);
 
-          const vinculosMap = {};
-          if (vinculosData) {
-            vinculosData.forEach(v => {
-              if (!vinculosMap[v.afilhado_id]) {
-                const padrinho = pessoasData?.find(p => p.id === v.padrinho_id);
-                const madrinha = pessoasData?.find(p => p.id === v.madrinha_id);
-                vinculosMap[v.afilhado_id] = {
-                  padrinho,
-                  madrinha,
-                  padrinho_id: v.padrinho_id,
-                  madrinha_id: v.madrinha_id
-                };
-              }
-            });
-          }
+      if (todosPessoaIds.length > 0) {
+        const { data: vinculosData } = await supabase
+          .from('apc_vinculo')
+          .select('afilhado_id, padrinho_id, madrinha_id, ano')
+          .in('afilhado_id', todosPessoaIds)
+          .order('ano', { ascending: false });
 
-          acampData.forEach(a => {
-            if (a.apc_pessoa && vinculosMap[a.apc_pessoa.id]) {
-              a.apc_pessoa.vinculo = vinculosMap[a.apc_pessoa.id];
+        const vinculosMap = {};
+        if (vinculosData) {
+          vinculosData.forEach(v => {
+            if (!vinculosMap[v.afilhado_id]) {
+              const padrinho = pessoasMap[v.padrinho_id];
+              const madrinha = pessoasMap[v.madrinha_id];
+              vinculosMap[v.afilhado_id] = {
+                padrinho,
+                madrinha,
+                padrinho_id: v.padrinho_id,
+                madrinha_id: v.madrinha_id
+              };
             }
           });
         }
 
-        // Mapeia o cônjuge e agrupa os dependentes
         acampData.forEach(a => {
-          if (a.apc_pessoa) {
-            let todosDependentes = [...(a.apc_pessoa.apc_dependente || [])];
-
-            if (a.apc_pessoa.conjuge_id) {
-              const conjuge = pessoasData?.find(p => p.id === a.apc_pessoa.conjuge_id);
-              if (conjuge) {
-                a.apc_pessoa.conjuge = conjuge;
-                // Adiciona os dependentes do cônjuge, evitando duplicação
-                const conjugeDeps = conjuge.apc_dependente || [];
-                conjugeDeps.forEach(cd => {
-                  if (!todosDependentes.find(d => d.id === cd.id)) {
-                    todosDependentes.push(cd);
-                  }
-                });
-              }
-            }
-
-            a.apc_pessoa.dependentes_agrupados = todosDependentes;
+          if (a.apc_pessoa && vinculosMap[a.apc_pessoa.id]) {
+            a.apc_pessoa.vinculo = vinculosMap[a.apc_pessoa.id];
           }
         });
-
-        const groupedAcampamentos = [];
-        const processedIds = new Set();
-
-        (acampData || []).forEach(a => {
-          if (!a.apc_pessoa) return;
-          if (processedIds.has(a.apc_pessoa.id)) return;
-
-          processedIds.add(a.apc_pessoa.id);
-          if (a.apc_pessoa.conjuge_id) {
-            processedIds.add(a.apc_pessoa.conjuge_id);
-          }
-
-          const conjugeAcamp = acampData.find(c => c.apc_pessoa?.id === a.apc_pessoa.conjuge_id);
-          a.conjuge_inscricao = conjugeAcamp || null;
-          groupedAcampamentos.push(a);
-        });
-
-        setAcampamentos(groupedAcampamentos);
       }
+
+      // Mapeia o cônjuge, evento e agrupa os dependentes
+      acampData.forEach(a => {
+        if (a.apc_pessoa) {
+          a.apc_evento = eventosMap[a.evento_id] || null;
+
+          let todosDependentes = [...(a.apc_pessoa.apc_dependente || [])];
+
+          if (a.apc_pessoa.conjuge_id) {
+            const conjuge = pessoasMap[a.apc_pessoa.conjuge_id];
+            if (conjuge) {
+              a.apc_pessoa.conjuge = conjuge;
+              // Adiciona os dependentes do cônjuge, evitando duplicação
+              const conjugeDeps = conjuge.apc_dependente || [];
+              conjugeDeps.forEach(cd => {
+                if (!todosDependentes.find(d => d.id === cd.id)) {
+                  todosDependentes.push(cd);
+                }
+              });
+            }
+          }
+
+          a.apc_pessoa.dependentes_agrupados = todosDependentes;
+        }
+      });
+
+      const groupedAcampamentos = [];
+      const processedIds = new Set();
+
+      (acampData || []).forEach(a => {
+        if (!a.apc_pessoa) return;
+        if (processedIds.has(a.apc_pessoa.id)) return;
+
+        processedIds.add(a.apc_pessoa.id);
+        if (a.apc_pessoa.conjuge_id) {
+          processedIds.add(a.apc_pessoa.conjuge_id);
+        }
+
+        const conjugeAcamp = acampData.find(c => c.apc_pessoa?.id === a.apc_pessoa.conjuge_id);
+        a.conjuge_inscricao = conjugeAcamp || null;
+        groupedAcampamentos.push(a);
+      });
+
+      setAcampamentos(groupedAcampamentos);
 
     } catch (err) {
       setError('Erro ao carregar dados: ' + err.message);
     } finally {
       setLoadingData(false);
     }
-  };
+  }, [evento_id]);
+
+  useEffect(() => {
+    if (userProfile?.perfil === 'ADMIN' || userProfile?.perfil === 'GESTOR') {
+      fetchData();
+    }
+  }, [userProfile?.perfil, fetchData]);
 
   // Quando o usuário seleciona um evento, atualizamos as equipes disponíveis
   useEffect(() => {
@@ -597,132 +618,136 @@ export const AdminAcampamentos = () => {
     }
   };
 
-  if (userProfile?.perfil !== 'ADMIN' && userProfile?.perfil !== 'GESTOR') {
-    return (
-      <div className="main-content">
-        <div className="alert alert-error">Acesso negado. Você não tem permissão para acessar esta página.</div>
-      </div>
-    );
-  }
-
   // 1. Filtragem global (Busca, Vínculo Padrinho, Ano) que se aplica a todas as abas
-  const baseAcampamentos = acampamentos.filter(a => {
-    const nomePessoa = a.apc_pessoa?.nome?.toLowerCase() || '';
-    const nomeConjuge = a.conjuge_inscricao?.apc_pessoa?.nome?.toLowerCase() || '';
-    const matchesSearch = nomePessoa.includes(searchTerm.toLowerCase()) || nomeConjuge.includes(searchTerm.toLowerCase());
+  const baseAcampamentos = useMemo(() => {
+    const termo = searchTerm.trim().toLowerCase();
+    const mapPessoas = new Map(pessoas.map(p => [p.id, p]));
 
-    let matchesVinculo = true;
-    if (filterVinculo !== 'TODOS') {
-      const selectedPessoa = pessoas.find(p => p.id === filterVinculo);
-      const spouse = pessoas.find(p => p.id === selectedPessoa?.conjuge_id || (p.conjuge_id && p.conjuge_id === selectedPessoa?.id));
+    return acampamentos.filter(a => {
+      const nomePessoa = a.apc_pessoa?.nome?.toLowerCase() || '';
+      const nomeConjuge = a.conjuge_inscricao?.apc_pessoa?.nome?.toLowerCase() || a.apc_pessoa?.conjuge?.nome?.toLowerCase() || '';
+      const matchesSearch = !termo || nomePessoa.includes(termo) || nomeConjuge.includes(termo);
 
-      const targetPadrinhoIds = new Set([
-        filterVinculo,
-        selectedPessoa?.conjuge_id,
-        spouse?.id
-      ].filter(Boolean));
+      if (!matchesSearch) return false;
 
-      const targetNames = [selectedPessoa?.nome, spouse?.nome]
-        .filter(Boolean)
-        .map(n => n.trim().toLowerCase());
+      let matchesVinculo = true;
+      if (filterVinculo !== 'TODOS') {
+        const selectedPessoa = mapPessoas.get(filterVinculo);
+        const spouse = selectedPessoa?.conjuge_id
+          ? mapPessoas.get(selectedPessoa.conjuge_id)
+          : pessoas.find(p => p.conjuge_id && p.conjuge_id === selectedPessoa?.id);
 
-      // 1. É a própria inscrição do Padrinho/Madrinha ou seu cônjuge (titular ou cônjuge no acampamento)
-      const rowPersonIds = [
-        a.apc_pessoa?.id,
-        a.apc_pessoa?.conjuge_id,
-        a.apc_pessoa?.conjuge?.id,
-        a.conjuge_inscricao?.apc_pessoa?.id,
-        a.conjuge_inscricao?.pessoa_id
-      ].filter(Boolean);
+        const targetPadrinhoIds = new Set([
+          filterVinculo,
+          selectedPessoa?.conjuge_id,
+          spouse?.id
+        ].filter(Boolean));
 
-      const isSelfOrSpouse = rowPersonIds.some(id => targetPadrinhoIds.has(id));
+        const targetNames = [selectedPessoa?.nome, spouse?.nome]
+          .filter(Boolean)
+          .map(n => n.trim().toLowerCase());
 
-      if (isSelfOrSpouse) {
-        matchesVinculo = true;
-      } else {
-        // 2. É um afilhado com vínculo formal (apc_vinculo) no titular ou no cônjuge
-        const vTitular = a.apc_pessoa?.vinculo;
-        const vConjuge = a.conjuge_inscricao?.apc_pessoa?.vinculo;
-        const hasVinculoFormal = [
-          vTitular?.padrinho_id,
-          vTitular?.madrinha_id,
-          vTitular?.padrinho?.id,
-          vTitular?.madrinha?.id,
-          vConjuge?.padrinho_id,
-          vConjuge?.madrinha_id,
-          vConjuge?.padrinho?.id,
-          vConjuge?.madrinha?.id
-        ].some(id => id && targetPadrinhoIds.has(id));
+        // 1. É a própria inscrição do Padrinho/Madrinha ou seu cônjuge (titular ou cônjuge no acampamento)
+        const rowPersonIds = [
+          a.apc_pessoa?.id,
+          a.apc_pessoa?.conjuge_id,
+          a.apc_pessoa?.conjuge?.id,
+          a.conjuge_inscricao?.apc_pessoa?.id,
+          a.conjuge_inscricao?.pessoa_id
+        ].filter(Boolean);
 
-        if (hasVinculoFormal) {
+        const isSelfOrSpouse = rowPersonIds.some(id => targetPadrinhoIds.has(id));
+
+        if (isSelfOrSpouse) {
           matchesVinculo = true;
         } else {
-          // 3. É um afilhado com nome dos padrinhos informado em texto (padrinhos_catequistas)
-          const textTitular = (a.apc_pessoa?.padrinhos_catequistas || '').toLowerCase();
-          const textConjuge = (a.conjuge_inscricao?.apc_pessoa?.padrinhos_catequistas || '').toLowerCase();
-          const combinedText = `${textTitular} ${textConjuge}`.trim();
+          // 2. É um afilhado com vínculo formal (apc_vinculo) no titular ou no cônjuge
+          const vTitular = a.apc_pessoa?.vinculo;
+          const vConjuge = a.conjuge_inscricao?.apc_pessoa?.vinculo;
+          const hasVinculoFormal = [
+            vTitular?.padrinho_id,
+            vTitular?.madrinha_id,
+            vTitular?.padrinho?.id,
+            vTitular?.madrinha?.id,
+            vConjuge?.padrinho_id,
+            vConjuge?.madrinha_id,
+            vConjuge?.padrinho?.id,
+            vConjuge?.madrinha?.id
+          ].some(id => id && targetPadrinhoIds.has(id));
 
-          const firstName = selectedPessoa?.nome ? selectedPessoa.nome.trim().split(' ')[0].toLowerCase() : '';
-          const spouseFirstName = spouse?.nome ? spouse.nome.trim().split(' ')[0].toLowerCase() : '';
+          if (hasVinculoFormal) {
+            matchesVinculo = true;
+          } else {
+            // 3. É um afilhado com nome dos padrinhos informado em texto (padrinhos_catequistas)
+            const textTitular = (a.apc_pessoa?.padrinhos_catequistas || '').toLowerCase();
+            const textConjuge = (a.conjuge_inscricao?.apc_pessoa?.padrinhos_catequistas || '').toLowerCase();
+            const combinedText = `${textTitular} ${textConjuge}`.trim();
 
-          const matchesTexto = combinedText && (
-            targetNames.some(fullName => fullName && fullName.length >= 3 && combinedText.includes(fullName)) ||
-            (firstName && firstName.length >= 3 && spouseFirstName && spouseFirstName.length >= 3 &&
-              combinedText.includes(firstName) && combinedText.includes(spouseFirstName)) ||
-            (!spouseFirstName && firstName && firstName.length >= 3 && combinedText.includes(firstName))
-          );
+            const firstName = selectedPessoa?.nome ? selectedPessoa.nome.trim().split(' ')[0].toLowerCase() : '';
+            const spouseFirstName = spouse?.nome ? spouse.nome.trim().split(' ')[0].toLowerCase() : '';
 
-          matchesVinculo = Boolean(matchesTexto);
+            const matchesTexto = combinedText && (
+              targetNames.some(fullName => fullName && fullName.length >= 3 && combinedText.includes(fullName)) ||
+              (firstName && firstName.length >= 3 && spouseFirstName && spouseFirstName.length >= 3 &&
+                combinedText.includes(firstName) && combinedText.includes(spouseFirstName)) ||
+              (!spouseFirstName && firstName && firstName.length >= 3 && combinedText.includes(firstName))
+            );
+
+            matchesVinculo = Boolean(matchesTexto);
+          }
         }
       }
-    }
 
-    const matchesAno = filterAno === 'TODOS' || (a.apc_pessoa?.ano && a.apc_pessoa.ano.toString() === filterAno);
+      if (!matchesVinculo) return false;
 
-    return matchesSearch && matchesVinculo && matchesAno;
-  });
+      const matchesAno = filterAno === 'TODOS' || (a.apc_pessoa?.ano && a.apc_pessoa.ano.toString() === filterAno);
+      return matchesAno;
+    });
+  }, [acampamentos, searchTerm, filterVinculo, filterAno, pessoas]);
 
-  // 2. Filtragem pela aba ativa (filterTipo) e ordenação
-  const filteredAcampamentos = baseAcampamentos.filter(a => {
-    if (filterTipo === 'TODOS') return true;
-    const tipoTitular = (a.apc_pessoa?.tipo_pessoa || '').toUpperCase();
-    const tipoConjuge = (a.conjuge_inscricao?.apc_pessoa?.tipo_pessoa || a.apc_pessoa?.conjuge?.tipo_pessoa || '').toUpperCase();
+  // 2. Filtragem pela aba ativa (filterTipo) e ordenação memoizada
+  const filteredAcampamentos = useMemo(() => {
+    return baseAcampamentos.filter(a => {
+      if (filterTipo === 'TODOS') return true;
+      const tipoTitular = (a.apc_pessoa?.tipo_pessoa || '').toUpperCase();
+      const tipoConjuge = (a.conjuge_inscricao?.apc_pessoa?.tipo_pessoa || a.apc_pessoa?.conjuge?.tipo_pessoa || '').toUpperCase();
 
-    if (filterTipo === 'PADRINHOS') {
-      return tipoTitular === 'PADRINHO' || tipoTitular === 'MADRINHA' ||
-        tipoConjuge === 'PADRINHO' || tipoConjuge === 'MADRINHA';
-    } else if (filterTipo === 'AFILHADO') {
-      return tipoTitular === 'AFILHADO' || tipoConjuge === 'AFILHADO';
-    } else if (filterTipo === 'VOLUNTARIO') {
-      return tipoTitular === 'VOLUNTARIO' || tipoConjuge === 'VOLUNTARIO';
-    }
-    return true;
-  }).sort((a, b) => {
-    let comparison = 0;
-    if (sortField === 'tipo') {
-      const tipoA = getTipoLabel(a);
-      const tipoB = getTipoLabel(b);
-      comparison = tipoA.localeCompare(tipoB, 'pt-BR');
-    } else if (sortField === 'nome') {
-      const nomeA = a.apc_pessoa?.nome || '';
-      const nomeB = b.apc_pessoa?.nome || '';
-      comparison = nomeA.localeCompare(nomeB, 'pt-BR');
-    } else if (sortField === 'ano') {
-      const anoA = parseInt(a.apc_pessoa?.ano || 0, 10);
-      const anoB = parseInt(b.apc_pessoa?.ano || 0, 10);
-      comparison = anoA - anoB;
-    } else if (sortField === 'filhos') {
-      const countA = (a.apc_pessoa?.dependentes_agrupados || []).filter(d => Boolean(d.acampamento !== undefined ? d.acampamento : d.mascote)).length;
-      const countB = (b.apc_pessoa?.dependentes_agrupados || []).filter(d => Boolean(d.acampamento !== undefined ? d.acampamento : d.mascote)).length;
-      comparison = countA - countB;
-    }
+      if (filterTipo === 'PADRINHOS') {
+        return tipoTitular === 'PADRINHO' || tipoTitular === 'MADRINHA' ||
+          tipoConjuge === 'PADRINHO' || tipoConjuge === 'MADRINHA';
+      } else if (filterTipo === 'AFILHADO') {
+        return tipoTitular === 'AFILHADO' || tipoConjuge === 'AFILHADO';
+      } else if (filterTipo === 'VOLUNTARIO') {
+        return tipoTitular === 'VOLUNTARIO' || tipoConjuge === 'VOLUNTARIO';
+      }
+      return true;
+    }).sort((a, b) => {
+      let comparison = 0;
+      if (sortField === 'tipo') {
+        const tipoA = getTipoLabel(a);
+        const tipoB = getTipoLabel(b);
+        comparison = tipoA.localeCompare(tipoB, 'pt-BR');
+      } else if (sortField === 'nome') {
+        const nomeA = a.apc_pessoa?.nome || '';
+        const nomeB = b.apc_pessoa?.nome || '';
+        comparison = nomeA.localeCompare(nomeB, 'pt-BR');
+      } else if (sortField === 'ano') {
+        const anoA = parseInt(a.apc_pessoa?.ano || 0, 10);
+        const anoB = parseInt(b.apc_pessoa?.ano || 0, 10);
+        comparison = anoA - anoB;
+      } else if (sortField === 'filhos') {
+        const countA = (a.apc_pessoa?.dependentes_agrupados || []).filter(d => Boolean(d.acampamento !== undefined ? d.acampamento : d.mascote)).length;
+        const countB = (b.apc_pessoa?.dependentes_agrupados || []).filter(d => Boolean(d.acampamento !== undefined ? d.acampamento : d.mascote)).length;
+        comparison = countA - countB;
+      }
 
-    if (comparison !== 0) {
-      return sortDirection === 'asc' ? comparison : -comparison;
-    }
+      if (comparison !== 0) {
+        return sortDirection === 'asc' ? comparison : -comparison;
+      }
 
-    return (a.apc_pessoa?.nome || '').localeCompare(b.apc_pessoa?.nome || '', 'pt-BR');
-  });
+      return (a.apc_pessoa?.nome || '').localeCompare(b.apc_pessoa?.nome || '', 'pt-BR');
+    });
+  }, [baseAcampamentos, filterTipo, sortField, sortDirection]);
 
   const handleSort = (field) => {
     if (sortField === field) {
@@ -742,52 +767,75 @@ export const AdminAcampamentos = () => {
       : <ArrowDown size={12} color="var(--accent-primary)" />;
   };
 
-  const todasEquipes = Array.from(new Set(eventos.flatMap(e => e.equipes || []))).sort();
-  const anosDisponiveis = Array.from(new Set(acampamentos.map(a => a.apc_pessoa?.ano).filter(Boolean))).sort((a, b) => b - a);
+  const anosDisponiveis = useMemo(() => {
+    return Array.from(new Set(acampamentos.map(a => a.apc_pessoa?.ano).filter(Boolean))).sort((a, b) => b - a);
+  }, [acampamentos]);
 
-  // Métricas
-  const countPadrinhos = filteredAcampamentos.reduce((acc, a) => {
-    let count = 0;
-    if (a.apc_pessoa?.tipo_pessoa === 'PADRINHO' || a.apc_pessoa?.tipo_pessoa === 'MADRINHA') count++;
-    if (a.conjuge_inscricao && (a.conjuge_inscricao.apc_pessoa?.tipo_pessoa === 'PADRINHO' || a.conjuge_inscricao.apc_pessoa?.tipo_pessoa === 'MADRINHA')) count++;
-    return acc + count;
-  }, 0);
+  const currentEvento = useMemo(() => {
+    return eventos.find(e => e.id === evento_id);
+  }, [eventos, evento_id]);
 
-  const countAfilhados = filteredAcampamentos.reduce((acc, a) => {
-    let count = 0;
-    if (a.apc_pessoa?.tipo_pessoa === 'AFILHADO') count++;
-    if (a.conjuge_inscricao && a.conjuge_inscricao.apc_pessoa?.tipo_pessoa === 'AFILHADO') count++;
-    return acc + count;
-  }, 0);
+  // Métricas calculadas em uma única passagem memoizada
+  const {
+    countPadrinhos,
+    countAfilhados,
+    countVoluntarios,
+    countFilhos,
+    totalParticipantes,
+    totalPrevisto
+  } = useMemo(() => {
+    let padrinhos = 0;
+    let afilhados = 0;
+    let voluntarios = 0;
+    let filhos = 0;
+    const filhosContados = new Set();
+    let previsto = 0;
 
-  const countVoluntarios = filteredAcampamentos.reduce((acc, a) => {
-    let count = 0;
-    if (a.apc_pessoa?.tipo_pessoa === 'VOLUNTARIO') count++;
-    if (a.conjuge_inscricao && a.conjuge_inscricao.apc_pessoa?.tipo_pessoa === 'VOLUNTARIO') count++;
-    return acc + count;
-  }, 0);
+    filteredAcampamentos.forEach(a => {
+      // Padrinhos
+      if (a.apc_pessoa?.tipo_pessoa === 'PADRINHO' || a.apc_pessoa?.tipo_pessoa === 'MADRINHA') padrinhos++;
+      if (a.conjuge_inscricao && (a.conjuge_inscricao.apc_pessoa?.tipo_pessoa === 'PADRINHO' || a.conjuge_inscricao.apc_pessoa?.tipo_pessoa === 'MADRINHA')) padrinhos++;
 
-  let countFilhos = 0;
-  const filhosContados = new Set();
-  filteredAcampamentos.forEach(a => {
-    if (a.apc_pessoa?.dependentes_agrupados) {
-      a.apc_pessoa.dependentes_agrupados.forEach(d => {
-        if ((d.acampamento ?? d.mascote) && !filhosContados.has(d.id)) {
-          filhosContados.add(d.id);
-          countFilhos++;
-        }
-      });
-    }
-  });
+      // Afilhados
+      if (a.apc_pessoa?.tipo_pessoa === 'AFILHADO') afilhados++;
+      if (a.conjuge_inscricao && a.conjuge_inscricao.apc_pessoa?.tipo_pessoa === 'AFILHADO') afilhados++;
 
-  const totalParticipantes = countPadrinhos + countAfilhados + countVoluntarios + countFilhos;
+      // Voluntários
+      if (a.apc_pessoa?.tipo_pessoa === 'VOLUNTARIO') voluntarios++;
+      if (a.conjuge_inscricao && a.conjuge_inscricao.apc_pessoa?.tipo_pessoa === 'VOLUNTARIO') voluntarios++;
 
-  const currentEvento = eventos.find(e => e.id === evento_id);
+      // Filhos
+      if (a.apc_pessoa?.dependentes_agrupados) {
+        a.apc_pessoa.dependentes_agrupados.forEach(d => {
+          if ((d.acampamento ?? d.mascote) && !filhosContados.has(d.id)) {
+            filhosContados.add(d.id);
+            filhos++;
+          }
+        });
+      }
 
-  const totalPrevisto = filteredAcampamentos.reduce((acc, a) => {
-    const { total } = calcularValorTotal(a, currentEvento || a.apc_evento);
-    return acc + total;
-  }, 0);
+      // Previsto
+      const { total } = calcularValorTotal(a, currentEvento || a.apc_evento);
+      previsto += total;
+    });
+
+    return {
+      countPadrinhos: padrinhos,
+      countAfilhados: afilhados,
+      countVoluntarios: voluntarios,
+      countFilhos: filhos,
+      totalParticipantes: padrinhos + afilhados + voluntarios + filhos,
+      totalPrevisto: previsto
+    };
+  }, [filteredAcampamentos, currentEvento]);
+
+  if (userProfile?.perfil !== 'ADMIN' && userProfile?.perfil !== 'GESTOR') {
+    return (
+      <div className="main-content">
+        <div className="alert alert-error">Acesso negado. Você não tem permissão para acessar esta página.</div>
+      </div>
+    );
+  }
 
   return (
     <div className="main-content">
