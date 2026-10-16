@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { Tent, Plus, Trash2, Edit2, Search, Filter, ArrowLeft, DollarSign, CheckCircle2, Users, X, Check, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Tent, Plus, Trash2, Edit2, Search, Filter, ArrowLeft, DollarSign, CheckCircle2, Users, X, Check, ArrowUpDown, ArrowUp, ArrowDown, ArrowRight, FileSpreadsheet } from 'lucide-react';
 import { useParams, Link } from 'react-router-dom';
 import { registrarAuditoria } from '../services/auditoriaService';
+import { exportarRelatorioExcelEvento } from '../utils/relatorioExcel';
 
 const calcularIdade = (dataNascimento) => {
   if (!dataNascimento) return null;
@@ -123,6 +124,7 @@ export const AdminAcampamentos = () => {
   const [loadingData, setLoadingData] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [exportingExcel, setExportingExcel] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterVinculo, setFilterVinculo] = useState('TODOS');
@@ -207,7 +209,7 @@ export const AdminAcampamentos = () => {
   const handleOpenValor = (e, a, valorTotal, itensValor) => {
     e.stopPropagation();
     const rect = e.currentTarget.getBoundingClientRect();
-    const popoverWidth = 350;
+    const popoverWidth = 360;
 
     let left = rect.left;
     if (left + popoverWidth > window.innerWidth - 16) {
@@ -216,8 +218,8 @@ export const AdminAcampamentos = () => {
     if (left < 16) left = 16;
 
     let top = rect.bottom + 6;
-    if (top + 280 > window.innerHeight) {
-      top = Math.max(16, rect.top - 280);
+    if (top + 340 > window.innerHeight) {
+      top = Math.max(16, rect.top - 340);
     }
 
     setCaixaValor({
@@ -226,6 +228,9 @@ export const AdminAcampamentos = () => {
       conjugeNome: a.apc_pessoa?.conjuge?.nome,
       valorTotal,
       itensValor: itensValor || [],
+      totalPago: a.totalPago || 0,
+      itensPago: a.itensPago || [],
+      acampamentoId: a.id,
       pos: { top, left }
     });
   };
@@ -306,41 +311,62 @@ export const AdminAcampamentos = () => {
         pessoasMap[p.id] = p;
       });
 
-      // 4. Busca vínculos para todos os inscritos e mescla
+      // 4. Busca vínculos e pagamentos para todos os inscritos em paralelo
       const todosPessoaIds = (acampData || []).flatMap(a => [
         a.apc_pessoa?.id,
         a.apc_pessoa?.conjuge_id
       ]).filter(Boolean);
 
-      if (todosPessoaIds.length > 0) {
-        const { data: vinculosData } = await supabase
-          .from('apc_vinculo')
-          .select('afilhado_id, padrinho_id, madrinha_id, ano')
-          .in('afilhado_id', todosPessoaIds)
-          .order('ano', { ascending: false });
+      const todosAcampamentoIds = (acampData || []).map(a => a.id).filter(Boolean);
 
-        const vinculosMap = {};
-        if (vinculosData) {
-          vinculosData.forEach(v => {
-            if (!vinculosMap[v.afilhado_id]) {
-              const padrinho = pessoasMap[v.padrinho_id];
-              const madrinha = pessoasMap[v.madrinha_id];
-              vinculosMap[v.afilhado_id] = {
-                padrinho,
-                madrinha,
-                padrinho_id: v.padrinho_id,
-                madrinha_id: v.madrinha_id
-              };
-            }
-          });
+      const [vinculosRes, pagamentosRes] = await Promise.all([
+        todosPessoaIds.length > 0
+          ? supabase
+            .from('apc_vinculo')
+            .select('afilhado_id, padrinho_id, madrinha_id, ano')
+            .in('afilhado_id', todosPessoaIds)
+            .order('ano', { ascending: false })
+          : Promise.resolve({ data: [] }),
+        todosAcampamentoIds.length > 0
+          ? supabase
+            .from('apc_pagamento')
+            .select('id, acampamento_id, valor, data_recebimento, descricao')
+            .in('acampamento_id', todosAcampamentoIds)
+            .order('data_recebimento', { ascending: false })
+          : Promise.resolve({ data: [] })
+      ]);
+
+      const vinculosData = vinculosRes.data || [];
+      const pagamentosData = pagamentosRes.data || [];
+
+      const vinculosMap = {};
+      vinculosData.forEach(v => {
+        if (!vinculosMap[v.afilhado_id]) {
+          const padrinho = pessoasMap[v.padrinho_id];
+          const madrinha = pessoasMap[v.madrinha_id];
+          vinculosMap[v.afilhado_id] = {
+            padrinho,
+            madrinha,
+            padrinho_id: v.padrinho_id,
+            madrinha_id: v.madrinha_id
+          };
         }
+      });
 
-        acampData.forEach(a => {
-          if (a.apc_pessoa && vinculosMap[a.apc_pessoa.id]) {
-            a.apc_pessoa.vinculo = vinculosMap[a.apc_pessoa.id];
-          }
-        });
-      }
+      const pagamentosMap = {};
+      const pagamentosItensMap = {};
+      pagamentosData.forEach(pg => {
+        const val = parseFloat(pg.valor || 0);
+        pagamentosMap[pg.acampamento_id] = (pagamentosMap[pg.acampamento_id] || 0) + val;
+        if (!pagamentosItensMap[pg.acampamento_id]) pagamentosItensMap[pg.acampamento_id] = [];
+        pagamentosItensMap[pg.acampamento_id].push(pg);
+      });
+
+      acampData.forEach(a => {
+        if (a.apc_pessoa && vinculosMap[a.apc_pessoa.id]) {
+          a.apc_pessoa.vinculo = vinculosMap[a.apc_pessoa.id];
+        }
+      });
 
       // Mapeia o cônjuge, evento e agrupa os dependentes
       acampData.forEach(a => {
@@ -381,6 +407,16 @@ export const AdminAcampamentos = () => {
 
         const conjugeAcamp = acampData.find(c => c.apc_pessoa?.id === a.apc_pessoa.conjuge_id);
         a.conjuge_inscricao = conjugeAcamp || null;
+
+        // Pagamentos do titular e cônjuge
+        const pagoTitular = pagamentosMap[a.id] || 0;
+        const pagoConjuge = conjugeAcamp?.id ? (pagamentosMap[conjugeAcamp.id] || 0) : 0;
+        a.totalPago = pagoTitular + pagoConjuge;
+
+        const itensTitular = pagamentosItensMap[a.id] || [];
+        const itensConjuge = conjugeAcamp?.id ? (pagamentosItensMap[conjugeAcamp.id] || []) : [];
+        a.itensPago = [...itensTitular, ...itensConjuge];
+
         groupedAcampamentos.push(a);
       });
 
@@ -782,7 +818,9 @@ export const AdminAcampamentos = () => {
     countVoluntarios,
     countFilhos,
     totalParticipantes,
-    totalPrevisto
+    totalPrevisto,
+    totalRecebido,
+    saldoDevedor
   } = useMemo(() => {
     let padrinhos = 0;
     let afilhados = 0;
@@ -790,6 +828,7 @@ export const AdminAcampamentos = () => {
     let filhos = 0;
     const filhosContados = new Set();
     let previsto = 0;
+    let recebido = 0;
 
     filteredAcampamentos.forEach(a => {
       // Padrinhos
@@ -817,6 +856,9 @@ export const AdminAcampamentos = () => {
       // Previsto
       const { total } = calcularValorTotal(a, currentEvento || a.apc_evento);
       previsto += total;
+
+      // Recebido
+      recebido += (a.totalPago || 0);
     });
 
     return {
@@ -825,9 +867,31 @@ export const AdminAcampamentos = () => {
       countVoluntarios: voluntarios,
       countFilhos: filhos,
       totalParticipantes: padrinhos + afilhados + voluntarios + filhos,
-      totalPrevisto: previsto
+      totalPrevisto: previsto,
+      totalRecebido: recebido,
+      saldoDevedor: Math.max(0, previsto - recebido)
     };
   }, [filteredAcampamentos, currentEvento]);
+
+  const handleExportarExcel = async () => {
+    if (!currentEvento) return;
+    try {
+      setExportingExcel(true);
+      setError('');
+      setSuccess('');
+      const resultado = await exportarRelatorioExcelEvento(currentEvento);
+      if (resultado.count === 0) {
+        setError(resultado.message);
+      } else {
+        setSuccess(`Relatório Excel exportado com sucesso! (${resultado.fileName})`);
+        setTimeout(() => setSuccess(''), 5000);
+      }
+    } catch (err) {
+      setError('Erro ao exportar relatório Excel: ' + (err.message || err));
+    } finally {
+      setExportingExcel(false);
+    }
+  };
 
   if (userProfile?.perfil !== 'ADMIN' && userProfile?.perfil !== 'GESTOR') {
     return (
@@ -850,28 +914,49 @@ export const AdminAcampamentos = () => {
               {isCreating ? (formData.id ? 'Editar Inscrição' : 'Nova Inscrição') : `${currentEvento?.descricao || 'Carregando...'}`}
             </h1>
           </div>
-          <button
-            onClick={() => {
-              setIsCreating(!isCreating);
-              setSuccess('');
-              setError('');
-              setFormData({
-                evento_id: evento_id || '',
-                pessoa_id: '',
-                titular_id: null,
-                titular_equipe: [],
-                titular_inscrito: true,
-                conjuge_id: null,
-                conjuge_pessoa_id: '',
-                conjuge_equipe: [],
-                conjuge_inscrito: false
-              });
-            }}
-            className={isCreating ? "btn btn-secondary" : "btn btn-primary"}
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-          >
-            {isCreating ? 'Voltar para Lista' : <><Plus size={20} /> Nova Inscrição</>}
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
+            {!isCreating && currentEvento && (
+              <button
+                type="button"
+                onClick={handleExportarExcel}
+                disabled={exportingExcel}
+                className="btn btn-secondary"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.45rem',
+                  color: '#16a34a',
+                  fontWeight: '600'
+                }}
+                title="Gerar e Baixar Planilha Excel com Informações e Resumo Financeiro"
+              >
+                <FileSpreadsheet size={18} />
+                {exportingExcel ? 'Gerando...' : 'Exportar Excel'}
+              </button>
+            )}
+            <button
+              onClick={() => {
+                setIsCreating(!isCreating);
+                setSuccess('');
+                setError('');
+                setFormData({
+                  evento_id: evento_id || '',
+                  pessoa_id: '',
+                  titular_id: null,
+                  titular_equipe: [],
+                  titular_inscrito: true,
+                  conjuge_id: null,
+                  conjuge_pessoa_id: '',
+                  conjuge_equipe: [],
+                  conjuge_inscrito: false
+                });
+              }}
+              className={isCreating ? "btn btn-secondary" : "btn btn-primary"}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+            >
+              {isCreating ? 'Voltar para Lista' : <><Plus size={20} /> Nova Inscrição</>}
+            </button>
+          </div>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
@@ -1046,9 +1131,56 @@ export const AdminAcampamentos = () => {
                 <div style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>Total Pessoas</div>
                 <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: 'var(--accent-primary)' }}>{totalParticipantes}</div>
               </div>
-              <div style={{ background: 'var(--bg-secondary)', padding: '0.5rem', borderRadius: '8px', textAlign: 'center', border: '1px solid var(--border-color)' }}>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Total Previsto</div>
-                <div style={{ fontSize: '1.3rem', fontWeight: 'bold', color: 'var(--success)' }}>{formatCurrency(totalPrevisto)}</div>
+              {/* Card Único e Consolidado de Resumo Financeiro */}
+              <div style={{
+                background: 'var(--bg-secondary)',
+                padding: '0.55rem 0.85rem',
+                borderRadius: '8px',
+                border: '1px solid var(--border-color)',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                minWidth: '270px',
+                gridColumn: 'span 2'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                  <span style={{ fontSize: '0.7rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-secondary)' }}>
+                    Resumo Financeiro
+                  </span>
+                  {totalPrevisto > 0 && (
+                    <span style={{
+                      fontSize: '0.675rem',
+                      fontWeight: '700',
+                      padding: '0.1rem 0.45rem',
+                      borderRadius: '999px',
+                      background: totalRecebido >= totalPrevisto ? 'rgba(16, 185, 129, 0.15)' : 'rgba(59, 130, 246, 0.15)',
+                      color: totalRecebido >= totalPrevisto ? '#10b981' : 'var(--accent-primary)'
+                    }}>
+                      {Math.min(100, Math.round((totalRecebido / totalPrevisto) * 100))}% pago
+                    </span>
+                  )}
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.4rem', textAlign: 'center' }}>
+                  <div>
+                    <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>Previsto</div>
+                    <div style={{ fontSize: '1rem', fontWeight: '800', color: 'var(--text-primary)' }}>
+                      {formatCurrency(totalPrevisto)}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.65rem', color: '#10b981' }}>Recebido</div>
+                    <div style={{ fontSize: '1rem', fontWeight: '800', color: '#10b981' }}>
+                      {formatCurrency(totalRecebido)}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.65rem', color: saldoDevedor > 0 ? '#f59e0b' : 'var(--text-secondary)' }}>Saldo Devedor</div>
+                    <div style={{ fontSize: '1rem', fontWeight: '800', color: saldoDevedor > 0 ? '#f59e0b' : '#10b981' }}>
+                      {saldoDevedor > 0 ? formatCurrency(saldoDevedor) : 'Quitado ✓'}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -1423,28 +1555,69 @@ export const AdminAcampamentos = () => {
                           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}>
                             <div
                               onClick={(e) => handleOpenValor(e, a, valorTotal, itensValor)}
-                              title="Clique para detalhar valores"
+                              title="Clique para detalhar valores e pagamentos"
                               style={{
                                 cursor: 'pointer',
                                 display: 'inline-flex',
                                 flexDirection: 'column',
-                                gap: '0.15rem'
+                                gap: '0.2rem'
                               }}
                             >
-                              <span style={{
-                                fontWeight: '700',
-                                fontSize: '0.9rem',
-                                color: valorTotal > 0 ? 'var(--text-primary)' : 'var(--text-secondary)'
-                              }}>
-                                {formatCurrency(valorTotal)}
-                              </span>
-                              <span style={{ fontSize: '0.725rem', color: 'var(--text-secondary)' }}>
-                                {itensValor.length === 0
-                                  ? 'Isento'
-                                  : itensValor.length === 1
-                                    ? '1 pessoa'
-                                    : `${itensValor.length} pessoas`}
-                              </span>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                <span style={{
+                                  fontWeight: '700',
+                                  fontSize: '0.9rem',
+                                  color: valorTotal > 0 ? 'var(--text-primary)' : 'var(--text-secondary)'
+                                }}>
+                                  {formatCurrency(valorTotal)}
+                                </span>
+                                <span style={{ fontSize: '0.725rem', color: 'var(--text-secondary)' }}>
+                                  ({itensValor.length === 0 ? 'Isento' : itensValor.length === 1 ? '1 pessoa' : `${itensValor.length} pessoas`})
+                                </span>
+                              </div>
+
+                              {/* Badge de Pagamento Recebido */}
+                              {valorTotal > 0 && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                  {(a.totalPago || 0) >= valorTotal ? (
+                                    <span style={{
+                                      fontSize: '0.675rem',
+                                      fontWeight: '700',
+                                      padding: '0.1rem 0.45rem',
+                                      borderRadius: '4px',
+                                      background: 'rgba(16, 185, 129, 0.12)',
+                                      color: '#10b981',
+                                      border: '1px solid rgba(16, 185, 129, 0.3)'
+                                    }}>
+                                      Quitado ✓
+                                    </span>
+                                  ) : (a.totalPago || 0) > 0 ? (
+                                    <span style={{
+                                      fontSize: '0.675rem',
+                                      fontWeight: '600',
+                                      padding: '0.1rem 0.45rem',
+                                      borderRadius: '4px',
+                                      background: 'rgba(245, 158, 11, 0.12)',
+                                      color: '#d97706',
+                                      border: '1px solid rgba(245, 158, 11, 0.3)'
+                                    }}>
+                                      Pago: {formatCurrency(a.totalPago)} • Falta: {formatCurrency(Math.max(0, valorTotal - a.totalPago))}
+                                    </span>
+                                  ) : (
+                                    <span style={{
+                                      fontSize: '0.675rem',
+                                      fontWeight: '600',
+                                      padding: '0.1rem 0.45rem',
+                                      borderRadius: '4px',
+                                      background: 'var(--bg-secondary)',
+                                      color: 'var(--text-secondary)',
+                                      border: '1px solid var(--border-color)'
+                                    }}>
+                                      Pendente
+                                    </span>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           </div>
                         </td>
@@ -1776,7 +1949,7 @@ export const AdminAcampamentos = () => {
         </>
       )}
 
-      {/* Popover / Caixinha suspensa de Detalhamento do Valor */}
+      {/* Popover / Caixinha suspensa de Detalhamento do Valor e Pagamentos */}
       {caixaValor?.isOpen && (
         <>
           <div
@@ -1795,27 +1968,27 @@ export const AdminAcampamentos = () => {
               position: 'fixed',
               top: `${caixaValor.pos?.top || 100}px`,
               left: `${caixaValor.pos?.left || 100}px`,
-              width: '350px',
+              width: '370px',
               maxWidth: 'calc(100vw - 32px)',
               overflowY: 'auto',
-              maxHeight: '380px',
+              maxHeight: '480px',
               zIndex: 9999,
               background: 'var(--bg-primary, #0f172a)',
               border: '1px solid rgba(59, 130, 246, 0.35)',
               borderRadius: '14px',
               boxShadow: '0 20px 40px -8px rgba(0, 0, 0, 0.6), 0 0 15px rgba(59, 130, 246, 0.1)',
-              padding: '0.85rem 1rem',
+              padding: '1rem',
               display: 'flex',
               flexDirection: 'column',
-              gap: '0.75rem'
+              gap: '0.85rem'
             }}
           >
             {/* Cabeçalho */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <div style={{
-                  width: '26px',
-                  height: '26px',
+                  width: '28px',
+                  height: '28px',
                   borderRadius: '6px',
                   background: 'rgba(59, 130, 246, 0.15)',
                   color: 'var(--accent, #3b82f6)',
@@ -1823,13 +1996,13 @@ export const AdminAcampamentos = () => {
                   alignItems: 'center',
                   justifyContent: 'center'
                 }}>
-                  <DollarSign size={15} />
+                  <DollarSign size={16} />
                 </div>
                 <div>
-                  <h4 style={{ margin: 0, fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-primary)' }}>
-                    Detalhamento do Valor
+                  <h4 style={{ margin: 0, fontSize: '0.875rem', fontWeight: '700', color: 'var(--text-primary)' }}>
+                    Detalhamento Financeiro
                   </h4>
-                  <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                  <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
                     {caixaValor.titularNome}{caixaValor.conjugeNome ? ` e ${caixaValor.conjugeNome}` : ''}
                   </p>
                 </div>
@@ -1853,70 +2026,92 @@ export const AdminAcampamentos = () => {
               </button>
             </div>
 
-            {/* Lista dos Itens */}
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              {caixaValor.itensValor && caixaValor.itensValor.length > 0 ? (
-                caixaValor.itensValor.map((item, idx) => (
-                  <div
-                    key={idx}
-                    style={{
-                      background: 'var(--bg-secondary)',
-                      border: '1px solid var(--border-color)',
-                      borderRadius: '8px',
-                      padding: '0.2rem 0.1rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: '0.5rem'
-                    }}
-                  >
-                    <span style={{ fontSize: '0.775rem', color: 'var(--text-primary)', fontWeight: '500' }}>
-                      {item.descricao}
-                    </span>
-                    <span style={{
-                      fontSize: '0.8rem',
-                      fontWeight: '700',
-                      color: item.valor > 0 ? 'var(--text-primary)' : 'var(--text-secondary)',
-                      whiteSpace: 'nowrap'
-                    }}>
-                      {item.valor > 0 ? formatCurrency(item.valor) : 'Isento'}
-                    </span>
+            {/* Seção 1: Valores Previstos */}
+            <div>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {caixaValor.itensValor && caixaValor.itensValor.length > 0 ? (
+                  caixaValor.itensValor.map((item, idx) => (
+                    <div
+                      key={idx}
+                      style={{
+                        background: 'var(--bg-secondary)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '6px',
+                        padding: '0.3rem 0.5rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '0.5rem'
+                      }}
+                    >
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-primary)', fontWeight: '500' }}>
+                        {item.descricao}
+                      </span>
+                      <span style={{
+                        fontSize: '0.775rem',
+                        fontWeight: '700',
+                        color: item.valor > 0 ? 'var(--text-primary)' : 'var(--text-secondary)',
+                        whiteSpace: 'nowrap'
+                      }}>
+                        {item.valor > 0 ? formatCurrency(item.valor) : 'Isento'}
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <div style={{
+                    padding: '0.5rem',
+                    textAlign: 'center',
+                    fontSize: '0.75rem',
+                    color: 'var(--text-secondary)',
+                    fontStyle: 'italic',
+                    background: 'var(--bg-secondary)',
+                    borderRadius: '6px'
+                  }}>
+                    Sem cobrança cadastrada / isento.
                   </div>
-                ))
-              ) : (
-                <div style={{
-                  padding: '0.75rem',
-                  textAlign: 'center',
-                  fontSize: '0.8rem',
-                  color: 'var(--text-secondary)',
-                  fontStyle: 'italic',
-                  background: 'var(--bg-secondary)',
-                  borderRadius: '8px'
-                }}>
-                  Sem cobrança cadastrada / isento.
-                </div>
-              )}
+                )}
+              </div>
             </div>
 
-            {/* Totalizador */}
+            {/* Card Consolidado no Rodapé */}
             <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              paddingTop: '0.5rem',
-              borderTop: '1px solid var(--border-color)',
-              marginTop: '0.1rem'
+              background: 'var(--bg-secondary)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '8px',
+              padding: '0.25rem',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap: '0.2rem',
+              textAlign: 'center'
             }}>
-              <span style={{ fontSize: '0.8rem', fontWeight: '600', color: 'var(--text-secondary)' }}>
-                Total
-              </span>
-              <span style={{
-                fontSize: '1rem',
-                fontWeight: '800',
-                color: caixaValor.valorTotal > 0 ? 'var(--success, #10b981)' : 'var(--text-secondary)'
-              }}>
-                {formatCurrency(caixaValor.valorTotal)}
-              </span>
+              <div>
+                <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>Previsto</div>
+                <div style={{ fontSize: '0.85rem', fontWeight: '800', color: 'var(--text-primary)' }}>
+                  {formatCurrency(caixaValor.valorTotal)}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.65rem', color: '#10b981' }}>Pago</div>
+                <div style={{ fontSize: '0.85rem', fontWeight: '800', color: '#10b981' }}>
+                  {formatCurrency(caixaValor.totalPago)}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.65rem', color: (caixaValor.valorTotal - (caixaValor.totalPago || 0)) > 0 ? '#f59e0b' : '#10b981' }}>
+                  Saldo
+                </div>
+                <div style={{
+                  fontSize: '0.85rem',
+                  fontWeight: '800',
+                  color: (caixaValor.valorTotal - (caixaValor.totalPago || 0)) > 0 ? '#f59e0b' : '#10b981'
+                }}>
+                  {caixaValor.valorTotal > 0
+                    ? ((caixaValor.valorTotal - (caixaValor.totalPago || 0)) > 0
+                      ? formatCurrency(caixaValor.valorTotal - (caixaValor.totalPago || 0))
+                      : 'Quitado ✓')
+                    : 'R$ 0,00'}
+                </div>
+              </div>
             </div>
           </div>
         </>

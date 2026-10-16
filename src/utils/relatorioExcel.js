@@ -268,16 +268,24 @@ export const exportarRelatorioExcelEvento = async (evento) => {
 
   // 4. Busca pagamentos já realizados
   const pagamentosMap = {};
+  const pagamentosItens = [];
   if (acampamentoIds.length > 0) {
-    const { data: pagamentos } = await supabase
+    const { data: pagamentos, error: pagError } = await supabase
       .from('apc_pagamento')
-      .select('acampamento_id, valor, status')
-      .in('acampamento_id', acampamentoIds);
+      .select('id, acampamento_id, valor, data_recebimento, descricao')
+      .in('acampamento_id', acampamentoIds)
+      .order('data_recebimento', { ascending: false });
+
+    if (pagError) {
+      console.error('Erro ao buscar pagamentos para o relatório:', pagError);
+    }
 
     if (pagamentos) {
       pagamentos.forEach(pg => {
+        const val = Number(pg.valor || 0);
         if (!pagamentosMap[pg.acampamento_id]) pagamentosMap[pg.acampamento_id] = 0;
-        pagamentosMap[pg.acampamento_id] += Number(pg.valor || 0);
+        pagamentosMap[pg.acampamento_id] += val;
+        pagamentosItens.push(pg);
       });
     }
   }
@@ -288,8 +296,12 @@ export const exportarRelatorioExcelEvento = async (evento) => {
     const vinc = vinculosMap[p.id] || {};
     const deps = dependentesMap[p.id] || [];
     const depsTexto = deps.map(d => `${d.nome} (${(d.acampamento ?? d.mascote) ? 'Mascote' : 'Dependente'})`).join('; ');
-    const totalPago = pagamentosMap[acamp.id] || 0;
-    const saldo = valorEvento > 0 ? valorEvento - totalPago : 0;
+
+    const pagoProprio = pagamentosMap[acamp.id] || 0;
+    const conjugeAcamp = acampamentos.find(a => a.pessoa_id && a.pessoa_id === p.conjuge_id);
+    const pagoConjuge = conjugeAcamp ? (pagamentosMap[conjugeAcamp.id] || 0) : 0;
+    const totalPago = pagoProprio > 0 ? pagoProprio : (pagoConjuge > 0 ? pagoConjuge : 0);
+    const saldo = valorEvento > 0 ? Math.max(0, valorEvento - totalPago) : 0;
 
     let statusPagamento = 'Não se aplica';
     if (valorEvento > 0) {
@@ -429,19 +441,27 @@ export const exportarRelatorioExcelEvento = async (evento) => {
     XLSX.utils.book_append_sheet(workbook, wsDependentes, 'Dependentes');
   }
 
-  // Aba 5: Resumo do Evento
+  // Aba 5: Resumo do Evento (com Resumo Financeiro Consolidado)
   const totalInscritos = acampamentos.length;
   const totalPadrinhos = padrinhosRows.length;
   const totalAfilhados = afilhadosRows.length;
   const totalOutros = outrosRows.length;
-  const totalArrecadado = Object.values(pagamentosMap).reduce((a, b) => a + b, 0);
+  const totalArrecadado = pagamentosItens.reduce((acc, pg) => acc + Number(pg.valor || 0), 0);
 
   const totalPessoas = totalInscritos + totalCriancasQueVao;
   const totalValorAdultos = totalInscritos * valorEvento;
   const valorTotalPrevisto = totalValorAdultos + totalValorCriancas;
-  const saldoRestante = Math.max(0, valorTotalPrevisto - totalArrecadado);
+  const saldoDevedor = Math.max(0, valorTotalPrevisto - totalArrecadado);
+  const percentualArrecadado = valorTotalPrevisto > 0
+    ? Math.min(100, Math.round((totalArrecadado / valorTotalPrevisto) * 100))
+    : (totalArrecadado > 0 ? 100 : 0);
+
+  const statusGeralFinanceiro = valorTotalPrevisto > 0
+    ? (totalArrecadado >= valorTotalPrevisto ? 'Quitado Integralmente ✓' : `${percentualArrecadado}% Pago (Saldo Pendente)`)
+    : 'Sem cobrança cadastrada';
 
   const resumoRows = [
+    { 'Item': '=== DADOS GERAIS DO EVENTO ===', 'Informação': '========================================' },
     { 'Item': 'Nome do Evento', 'Informação': dadosEvento.descricao },
     { 'Item': 'Tema', 'Informação': dadosEvento.tema || 'Não informado' },
     { 'Item': 'Local', 'Informação': dadosEvento.local || 'Não informado' },
@@ -451,26 +471,53 @@ export const exportarRelatorioExcelEvento = async (evento) => {
       { 'Item': 'Valor da Inscrição (Diferenciado)', 'Informação': `${formatarMoeda(valorDif)} (${dadosEvento.descricao_valor_diferenciado || `${idadeMin || 0} a ${idadeMax || 0} anos`})` }
     ] : []),
     { 'Item': 'Inclui Camiseta no Valor', 'Informação': dadosEvento.inclui_camiseta ? 'Sim' : 'Não' },
-    { 'Item': '----------------------------------------', 'Informação': '----------------------------------------' },
-    { 'Item': 'Total de Pessoas no Acampamento', 'Informação': totalPessoas },
-    { 'Item': 'Total de Padrinhos', 'Informação': totalPadrinhos },
-    { 'Item': 'Total de Afilhados', 'Informação': totalAfilhados },
-    { 'Item': 'Total de Outros', 'Informação': totalOutros },
-    { 'Item': 'Total de Crianças no Acampamento', 'Informação': totalCriancasQueVao },
-    { 'Item': 'Total de Mascotes no Acampamento', 'Informação': totalMascotes },
-    { 'Item': 'Total de Crianças Pagantes', 'Informação': totalCriancasPagantes },
-    { 'Item': 'Total de Crianças Isentas', 'Informação': totalCriancasNaoPagantes },
-    { 'Item': '----------------------------------------', 'Informação': '----------------------------------------' },
-    { 'Item': 'Valor Total Previsto', 'Informação': formatarMoeda(valorTotalPrevisto) },
-    { 'Item': 'Total Arrecadado em Pagamentos', 'Informação': formatarMoeda(totalArrecadado) },
-    { 'Item': 'Saldo Restante a Receber', 'Informação': formatarMoeda(saldoRestante) },
-    { 'Item': '----------------------------------------', 'Informação': '----------------------------------------' },
-    { 'Item': 'Data de Emissão do Relatório', 'Informação': new Date().toLocaleString('pt-BR') }
+    { 'Item': '', 'Informação': '' },
+    { 'Item': '=== QUANTITATIVO DE PARTICIPANTES ===', 'Informação': '========================================' },
+    { 'Item': 'Total Geral de Participantes', 'Informação': totalPessoas },
+    { 'Item': 'Total de Adultos Inscritos', 'Informação': totalInscritos },
+    { 'Item': '• Padrinhos / Madrinhas', 'Informação': totalPadrinhos },
+    { 'Item': '• Afilhados', 'Informação': totalAfilhados },
+    { 'Item': '• Outros (Voluntários / Equipe)', 'Informação': totalOutros },
+    { 'Item': 'Total de Crianças / Mascotes no Evento', 'Informação': totalCriancasQueVao },
+    { 'Item': '• Crianças Pagantes', 'Informação': totalCriancasPagantes },
+    { 'Item': '• Crianças Isentas', 'Informação': totalCriancasNaoPagantes },
+    { 'Item': '• Mascotes Confirmados', 'Informação': totalMascotes },
+    { 'Item': '', 'Informação': '' },
+    { 'Item': '=== RESUMO FINANCEIRO DO EVENTO ===', 'Informação': '========================================' },
+    { 'Item': 'Total Previsto', 'Informação': formatarMoeda(valorTotalPrevisto) },
+    { 'Item': 'Total Pago (Recebido)', 'Informação': formatarMoeda(totalArrecadado) },
+    { 'Item': 'Saldo Devedor (A Receber)', 'Informação': formatarMoeda(saldoDevedor) },
+    { 'Item': 'Percentual Quitado (% Pago)', 'Informação': `${percentualArrecadado}%` },
+    { 'Item': 'Status Geral de Arrecadação', 'Informação': statusGeralFinanceiro },
+    { 'Item': 'Subtotal Previsto - Inscrições Adultos', 'Informação': formatarMoeda(totalValorAdultos) },
+    { 'Item': 'Subtotal Previsto - Dependentes / Mascotes', 'Informação': formatarMoeda(totalValorCriancas) },
+    { 'Item': 'Quantidade de Pagamentos Registrados', 'Informação': pagamentosItens.length },
+    { 'Item': '', 'Informação': '' },
+    { 'Item': 'Data e Hora da Emissão do Relatório', 'Informação': new Date().toLocaleString('pt-BR') }
   ];
 
   const wsResumo = XLSX.utils.json_to_sheet(resumoRows);
-  wsResumo['!cols'] = [{ wch: 35 }, { wch: 45 }];
+  wsResumo['!cols'] = [{ wch: 40 }, { wch: 45 }];
   XLSX.utils.book_append_sheet(workbook, wsResumo, 'Resumo do Evento');
+
+  // Aba 6: Extrato de Pagamentos (se houver lançamentos)
+  if (pagamentosItens.length > 0) {
+    const acampPessoaMap = {};
+    acampamentos.forEach(a => {
+      acampPessoaMap[a.id] = a.apc_pessoa?.nome || `Inscrição #${a.id}`;
+    });
+
+    const pagamentosRows = pagamentosItens.map((pg, idx) => ({
+      'Nº': idx + 1,
+      'Data do Recebimento': formatarData(pg.data_recebimento),
+      'Inscrito': acampPessoaMap[pg.acampamento_id] || 'Não identificado',
+      'Descrição': pg.descricao || 'Recebimento de inscrição',
+      'Valor (R$)': Number(pg.valor || 0)
+    }));
+
+    const wsPagamentos = criarPlanilhaComLarguras(pagamentosRows, 'Nenhum pagamento registrado.');
+    XLSX.utils.book_append_sheet(workbook, wsPagamentos, 'Extrato de Pagamentos');
+  }
 
   // Nome do arquivo limpo e padronizado
   const sanitizedNome = (evento.descricao || 'Evento')
