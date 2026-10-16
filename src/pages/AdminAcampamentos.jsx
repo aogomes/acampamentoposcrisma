@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { Tent, Plus, Trash2, Edit2, Search, Filter, ArrowLeft, DollarSign, CheckCircle2, XCircle, Users, X, Check, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Tent, Plus, Trash2, Edit2, Search, Filter, ArrowLeft, DollarSign, CheckCircle2, XCircle, Users, X, Check, ArrowUpDown, ArrowUp, ArrowDown, Info } from 'lucide-react';
 import { useParams, Link } from 'react-router-dom';
 import { registrarAuditoria } from '../services/auditoriaService';
 
@@ -62,7 +62,7 @@ const calcularValorTotal = (acampamento, evento) => {
   // 1. Titular
   if (acampamento.apc_pessoa) {
     itens.push({
-      descricao: `Titular (${acampamento.apc_pessoa.nome})`,
+      descricao: `${acampamento.apc_pessoa.nome}`,
       valor: valorPadrao
     });
   }
@@ -70,7 +70,7 @@ const calcularValorTotal = (acampamento, evento) => {
   // 2. Cônjuge (apenas se inscrito no acampamento via apc_acampamento)
   if (acampamento.conjuge_inscricao && acampamento.apc_pessoa?.conjuge) {
     itens.push({
-      descricao: `Cônjuge (${acampamento.apc_pessoa.conjuge.nome})`,
+      descricao: `${acampamento.apc_pessoa.conjuge.nome}`,
       valor: valorPadrao
     });
   }
@@ -82,32 +82,26 @@ const calcularValorTotal = (acampamento, evento) => {
 
     const idade = calcularIdade(dep.data_nascimento);
     let valorDep = 0;
-    let descFaixa = '';
 
     if (valorDif !== null && idadeMin !== null && idadeMax !== null) {
       if (idade !== null) {
         if (idade >= idadeMin && idade <= idadeMax) {
           valorDep = valorDif;
-          descFaixa = `${idadeMin} a ${idadeMax} anos`;
         } else if (idade < idadeMin) {
           valorDep = 0;
-          descFaixa = `Isento (< ${idadeMin} anos)`;
         } else {
           valorDep = valorPadrao;
-          descFaixa = `Adulto (> ${idadeMax} anos)`;
         }
       } else {
         // Sem data de nascimento informada
         valorDep = valorDif;
-        descFaixa = `Faixa diferenciada`;
       }
     } else {
       valorDep = valorPadrao;
-      descFaixa = `Integral`;
     }
 
     itens.push({
-      descricao: `Filho(a): ${dep.nome}${idade !== null ? ` (${idade} anos)` : ''} - ${descFaixa}`,
+      descricao: `${dep.nome}${idade !== null ? ` (${idade} anos)` : ''}`,
       valor: valorDep
     });
   });
@@ -157,6 +151,7 @@ export const AdminAcampamentos = () => {
     dependentes: []
   });
   const [caixaPadrinhos, setCaixaPadrinhos] = useState(null);
+  const [caixaValor, setCaixaValor] = useState(null);
 
   const handleOpenPadrinhos = (e, pessoa) => {
     e.stopPropagation();
@@ -205,6 +200,32 @@ export const AdminAcampamentos = () => {
       titularNome: a.apc_pessoa?.nome,
       conjugeNome: a.apc_pessoa?.conjuge?.nome,
       dependentes: a.apc_pessoa?.dependentes_agrupados || [],
+      pos: { top, left }
+    });
+  };
+
+  const handleOpenValor = (e, a, valorTotal, itensValor) => {
+    e.stopPropagation();
+    const rect = e.currentTarget.getBoundingClientRect();
+    const popoverWidth = 350;
+
+    let left = rect.left;
+    if (left + popoverWidth > window.innerWidth - 16) {
+      left = window.innerWidth - popoverWidth - 16;
+    }
+    if (left < 16) left = 16;
+
+    let top = rect.bottom + 6;
+    if (top + 280 > window.innerHeight) {
+      top = Math.max(16, rect.top - 280);
+    }
+
+    setCaixaValor({
+      isOpen: true,
+      titularNome: a.apc_pessoa?.nome,
+      conjugeNome: a.apc_pessoa?.conjuge?.nome,
+      valorTotal,
+      itensValor: itensValor || [],
       pos: { top, left }
     });
   };
@@ -271,51 +292,58 @@ export const AdminAcampamentos = () => {
           acampData = acampDataFk;
         }
 
-        // Busca vínculos para os afilhados e mescla
-        const afilhadoIds = (acampData || [])
-          .filter(a => a.apc_pessoa?.tipo_pessoa === 'AFILHADO')
-          .map(a => a.apc_pessoa?.id);
+        // Busca vínculos para todos os inscritos e mescla
+        const todosPessoaIds = (acampData || []).flatMap(a => [
+          a.apc_pessoa?.id,
+          a.apc_pessoa?.conjuge_id
+        ]).filter(Boolean);
 
-        if (afilhadoIds.length > 0) {
+        if (todosPessoaIds.length > 0) {
           const { data: vinculosData } = await supabase
             .from('apc_vinculo')
             .select('*')
-            .in('afilhado_id', afilhadoIds);
+            .in('afilhado_id', todosPessoaIds)
+            .order('ano', { ascending: false });
 
           const vinculosMap = {};
           if (vinculosData) {
             vinculosData.forEach(v => {
-              const padrinho = pessoasData?.find(p => p.id === v.padrinho_id);
-              const madrinha = pessoasData?.find(p => p.id === v.madrinha_id);
-              vinculosMap[v.afilhado_id] = { padrinho, madrinha };
+              if (!vinculosMap[v.afilhado_id]) {
+                const padrinho = pessoasData?.find(p => p.id === v.padrinho_id);
+                const madrinha = pessoasData?.find(p => p.id === v.madrinha_id);
+                vinculosMap[v.afilhado_id] = {
+                  padrinho,
+                  madrinha,
+                  padrinho_id: v.padrinho_id,
+                  madrinha_id: v.madrinha_id
+                };
+              }
             });
           }
 
           acampData.forEach(a => {
-            if (a.apc_pessoa?.tipo_pessoa === 'AFILHADO' && vinculosMap[a.apc_pessoa.id]) {
+            if (a.apc_pessoa && vinculosMap[a.apc_pessoa.id]) {
               a.apc_pessoa.vinculo = vinculosMap[a.apc_pessoa.id];
             }
           });
         }
 
-        // Mapeia o cônjuge para padrinhos/madrinhas e agrupa os dependentes
+        // Mapeia o cônjuge e agrupa os dependentes
         acampData.forEach(a => {
           if (a.apc_pessoa) {
             let todosDependentes = [...(a.apc_pessoa.apc_dependente || [])];
 
-            if (a.apc_pessoa.tipo_pessoa === 'PADRINHO' || a.apc_pessoa.tipo_pessoa === 'MADRINHA') {
-              if (a.apc_pessoa.conjuge_id) {
-                const conjuge = pessoasData?.find(p => p.id === a.apc_pessoa.conjuge_id);
-                if (conjuge) {
-                  a.apc_pessoa.conjuge = conjuge;
-                  // Adiciona os dependentes do cônjuge, evitando duplicação se houver (teoricamente são ids diferentes se salvos por um ou por outro)
-                  const conjugeDeps = conjuge.apc_dependente || [];
-                  conjugeDeps.forEach(cd => {
-                    if (!todosDependentes.find(d => d.id === cd.id)) {
-                      todosDependentes.push(cd);
-                    }
-                  });
-                }
+            if (a.apc_pessoa.conjuge_id) {
+              const conjuge = pessoasData?.find(p => p.id === a.apc_pessoa.conjuge_id);
+              if (conjuge) {
+                a.apc_pessoa.conjuge = conjuge;
+                // Adiciona os dependentes do cônjuge, evitando duplicação
+                const conjugeDeps = conjuge.apc_dependente || [];
+                conjugeDeps.forEach(cd => {
+                  if (!todosDependentes.find(d => d.id === cd.id)) {
+                    todosDependentes.push(cd);
+                  }
+                });
               }
             }
 
@@ -585,24 +613,67 @@ export const AdminAcampamentos = () => {
 
     let matchesVinculo = true;
     if (filterVinculo !== 'TODOS') {
-      const pId = a.apc_pessoa?.id;
-      const v = a.apc_pessoa?.vinculo;
+      const selectedPessoa = pessoas.find(p => p.id === filterVinculo);
+      const spouse = pessoas.find(p => p.id === selectedPessoa?.conjuge_id || (p.conjuge_id && p.conjuge_id === selectedPessoa?.id));
 
-      if (pId === filterVinculo) {
-        matchesVinculo = true;
-      } else if (v?.padrinho?.id === filterVinculo || v?.madrinha?.id === filterVinculo) {
+      const targetPadrinhoIds = new Set([
+        filterVinculo,
+        selectedPessoa?.conjuge_id,
+        spouse?.id
+      ].filter(Boolean));
+
+      const targetNames = [selectedPessoa?.nome, spouse?.nome]
+        .filter(Boolean)
+        .map(n => n.trim().toLowerCase());
+
+      // 1. É a própria inscrição do Padrinho/Madrinha ou seu cônjuge (titular ou cônjuge no acampamento)
+      const rowPersonIds = [
+        a.apc_pessoa?.id,
+        a.apc_pessoa?.conjuge_id,
+        a.apc_pessoa?.conjuge?.id,
+        a.conjuge_inscricao?.apc_pessoa?.id,
+        a.conjuge_inscricao?.pessoa_id
+      ].filter(Boolean);
+
+      const isSelfOrSpouse = rowPersonIds.some(id => targetPadrinhoIds.has(id));
+
+      if (isSelfOrSpouse) {
         matchesVinculo = true;
       } else {
-        const isPartner = acampamentos.some(other => {
-          const otherV = other.apc_pessoa?.vinculo;
-          if (otherV) {
-            const hasSelected = otherV.padrinho?.id === filterVinculo || otherV.madrinha?.id === filterVinculo;
-            const hasThis = otherV.padrinho?.id === pId || otherV.madrinha?.id === pId;
-            return hasSelected && hasThis;
-          }
-          return false;
-        });
-        matchesVinculo = isPartner;
+        // 2. É um afilhado com vínculo formal (apc_vinculo) no titular ou no cônjuge
+        const vTitular = a.apc_pessoa?.vinculo;
+        const vConjuge = a.conjuge_inscricao?.apc_pessoa?.vinculo;
+        const hasVinculoFormal = [
+          vTitular?.padrinho_id,
+          vTitular?.madrinha_id,
+          vTitular?.padrinho?.id,
+          vTitular?.madrinha?.id,
+          vConjuge?.padrinho_id,
+          vConjuge?.madrinha_id,
+          vConjuge?.padrinho?.id,
+          vConjuge?.madrinha?.id
+        ].some(id => id && targetPadrinhoIds.has(id));
+
+        if (hasVinculoFormal) {
+          matchesVinculo = true;
+        } else {
+          // 3. É um afilhado com nome dos padrinhos informado em texto (padrinhos_catequistas)
+          const textTitular = (a.apc_pessoa?.padrinhos_catequistas || '').toLowerCase();
+          const textConjuge = (a.conjuge_inscricao?.apc_pessoa?.padrinhos_catequistas || '').toLowerCase();
+          const combinedText = `${textTitular} ${textConjuge}`.trim();
+
+          const firstName = selectedPessoa?.nome ? selectedPessoa.nome.trim().split(' ')[0].toLowerCase() : '';
+          const spouseFirstName = spouse?.nome ? spouse.nome.trim().split(' ')[0].toLowerCase() : '';
+
+          const matchesTexto = combinedText && (
+            targetNames.some(fullName => fullName && fullName.length >= 3 && combinedText.includes(fullName)) ||
+            (firstName && firstName.length >= 3 && spouseFirstName && spouseFirstName.length >= 3 &&
+              combinedText.includes(firstName) && combinedText.includes(spouseFirstName)) ||
+            (!spouseFirstName && firstName && firstName.length >= 3 && combinedText.includes(firstName))
+          );
+
+          matchesVinculo = Boolean(matchesTexto);
+        }
       }
     }
 
@@ -611,29 +682,11 @@ export const AdminAcampamentos = () => {
     return matchesSearch && matchesVinculo && matchesAno;
   });
 
-  // Contagens para os badges de cada aba baseadas nos filtros globais ativos
-  // const countTabTodos = baseAcampamentos.length;
-  // const countTabPadrinhos = baseAcampamentos.filter(a => {
-  //   const t = a.apc_pessoa?.tipo_pessoa;
-  //   const tc = a.conjuge_inscricao?.apc_pessoa?.tipo_pessoa;
-  //   return t === 'PADRINHO' || t === 'MADRINHA' || tc === 'PADRINHO' || tc === 'MADRINHA';
-  // }).length;
-  // const countTabAfilhados = baseAcampamentos.filter(a => {
-  //   const t = a.apc_pessoa?.tipo_pessoa;
-  //   const tc = a.conjuge_inscricao?.apc_pessoa?.tipo_pessoa;
-  //   return t === 'AFILHADO' || tc === 'AFILHADO';
-  // }).length;
-  // const countTabVoluntarios = baseAcampamentos.filter(a => {
-  //   const t = a.apc_pessoa?.tipo_pessoa;
-  //   const tc = a.conjuge_inscricao?.apc_pessoa?.tipo_pessoa;
-  //   return t === 'VOLUNTARIO' || tc === 'VOLUNTARIO';
-  // }).length;
-
   // 2. Filtragem pela aba ativa (filterTipo) e ordenação
   const filteredAcampamentos = baseAcampamentos.filter(a => {
     if (filterTipo === 'TODOS') return true;
-    const tipoTitular = a.apc_pessoa?.tipo_pessoa;
-    const tipoConjuge = a.conjuge_inscricao?.apc_pessoa?.tipo_pessoa;
+    const tipoTitular = (a.apc_pessoa?.tipo_pessoa || '').toUpperCase();
+    const tipoConjuge = (a.conjuge_inscricao?.apc_pessoa?.tipo_pessoa || a.apc_pessoa?.conjuge?.tipo_pessoa || '').toUpperCase();
 
     if (filterTipo === 'PADRINHOS') {
       return tipoTitular === 'PADRINHO' || tipoTitular === 'MADRINHA' ||
@@ -991,7 +1044,10 @@ export const AdminAcampamentos = () => {
                 >
                   <option value="TODOS">Filtro por Padrinhos</option>
                   {pessoas
-                    .filter(p => p.tipo_pessoa === 'PADRINHO' || p.tipo_pessoa === 'MADRINHA')
+                    .filter(p => {
+                      const t = (p.tipo_pessoa || '').toUpperCase();
+                      return t === 'PADRINHO' || t === 'MADRINHA';
+                    })
                     .map(p => (
                       <option key={p.id} value={p.id}>{p.nome}</option>
                     ))}
@@ -1222,7 +1278,7 @@ export const AdminAcampamentos = () => {
                               <button
                                 type="button"
                                 onClick={(e) => handleOpenFilhos(e, a)}
-                                title={`Filhos no acampamento: ${vaiAcampamentoCount} de ${dependentes.length}. Clique para ver todos os dependentes.`}
+                                title={`Filhos no acampamento: ${vaiAcampamentoCount}. Clique para detalhar.`}
                                 style={{
                                   display: 'inline-flex',
                                   alignItems: 'center',
@@ -1316,29 +1372,32 @@ export const AdminAcampamentos = () => {
                         </td>
 
                         <td style={{ verticalAlign: 'middle' }}>
-                          <div
-                            title={tooltipTexto}
-                            style={{
-                              cursor: 'help',
-                              display: 'inline-flex',
-                              flexDirection: 'column',
-                              gap: '0.15rem'
-                            }}
-                          >
-                            <span style={{
-                              fontWeight: '700',
-                              fontSize: '0.9rem',
-                              color: valorTotal > 0 ? 'var(--text-primary)' : 'var(--text-secondary)'
-                            }}>
-                              {formatCurrency(valorTotal)}
-                            </span>
-                            <span style={{ fontSize: '0.725rem', color: 'var(--text-secondary)' }}>
-                              {itensValor.length === 0
-                                ? 'Isento'
-                                : itensValor.length === 1
-                                  ? '1 participante'
-                                  : `${itensValor.length} participantes`}
-                            </span>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}>
+                            <div
+                              onClick={(e) => handleOpenValor(e, a, valorTotal, itensValor)}
+                              title="Clique para detalhar valores"
+                              style={{
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                flexDirection: 'column',
+                                gap: '0.15rem'
+                              }}
+                            >
+                              <span style={{
+                                fontWeight: '700',
+                                fontSize: '0.9rem',
+                                color: valorTotal > 0 ? 'var(--text-primary)' : 'var(--text-secondary)'
+                              }}>
+                                {formatCurrency(valorTotal)}
+                              </span>
+                              <span style={{ fontSize: '0.725rem', color: 'var(--text-secondary)' }}>
+                                {itensValor.length === 0
+                                  ? 'Isento'
+                                  : itensValor.length === 1
+                                    ? '1 pessoa'
+                                    : `${itensValor.length} pessoas`}
+                              </span>
+                            </div>
                           </div>
                         </td>
 
@@ -1664,6 +1723,152 @@ export const AdminAcampamentos = () => {
                   </div>
                 );
               })}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Popover / Caixinha suspensa de Detalhamento do Valor */}
+      {caixaValor?.isOpen && (
+        <>
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 9998,
+              cursor: 'default'
+            }}
+            onClick={() => setCaixaValor(null)}
+          />
+
+          <div
+            className="glass-panel"
+            style={{
+              position: 'fixed',
+              top: `${caixaValor.pos?.top || 100}px`,
+              left: `${caixaValor.pos?.left || 100}px`,
+              width: '350px',
+              maxWidth: 'calc(100vw - 32px)',
+              overflowY: 'auto',
+              maxHeight: '380px',
+              zIndex: 9999,
+              background: 'var(--bg-primary, #0f172a)',
+              border: '1px solid rgba(59, 130, 246, 0.35)',
+              borderRadius: '14px',
+              boxShadow: '0 20px 40px -8px rgba(0, 0, 0, 0.6), 0 0 15px rgba(59, 130, 246, 0.1)',
+              padding: '0.85rem 1rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.75rem'
+            }}
+          >
+            {/* Cabeçalho */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                <div style={{
+                  width: '26px',
+                  height: '26px',
+                  borderRadius: '6px',
+                  background: 'rgba(59, 130, 246, 0.15)',
+                  color: 'var(--accent, #3b82f6)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <DollarSign size={15} />
+                </div>
+                <div>
+                  <h4 style={{ margin: 0, fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-primary)' }}>
+                    Detalhamento do Valor
+                  </h4>
+                  <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                    {caixaValor.titularNome}{caixaValor.conjugeNome ? ` e ${caixaValor.conjugeNome}` : ''}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCaixaValor(null)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  padding: '0.2rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+                title="Fechar"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Lista dos Itens */}
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {caixaValor.itensValor && caixaValor.itensValor.length > 0 ? (
+                caixaValor.itensValor.map((item, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      background: 'var(--bg-secondary)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '8px',
+                      padding: '0.2rem 0.1rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '0.5rem'
+                    }}
+                  >
+                    <span style={{ fontSize: '0.775rem', color: 'var(--text-primary)', fontWeight: '500' }}>
+                      {item.descricao}
+                    </span>
+                    <span style={{
+                      fontSize: '0.8rem',
+                      fontWeight: '700',
+                      color: item.valor > 0 ? 'var(--text-primary)' : 'var(--text-secondary)',
+                      whiteSpace: 'nowrap'
+                    }}>
+                      {item.valor > 0 ? formatCurrency(item.valor) : 'Isento'}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <div style={{
+                  padding: '0.75rem',
+                  textAlign: 'center',
+                  fontSize: '0.8rem',
+                  color: 'var(--text-secondary)',
+                  fontStyle: 'italic',
+                  background: 'var(--bg-secondary)',
+                  borderRadius: '8px'
+                }}>
+                  Sem cobrança cadastrada / isento.
+                </div>
+              )}
+            </div>
+
+            {/* Totalizador */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              paddingTop: '0.5rem',
+              borderTop: '1px solid var(--border-color)',
+              marginTop: '0.1rem'
+            }}>
+              <span style={{ fontSize: '0.8rem', fontWeight: '600', color: 'var(--text-secondary)' }}>
+                Total
+              </span>
+              <span style={{
+                fontSize: '1rem',
+                fontWeight: '800',
+                color: caixaValor.valorTotal > 0 ? 'var(--success, #10b981)' : 'var(--text-secondary)'
+              }}>
+                {formatCurrency(caixaValor.valorTotal)}
+              </span>
             </div>
           </div>
         </>
