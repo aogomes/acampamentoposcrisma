@@ -2073,6 +2073,63 @@ export const AdminAcampamentos = () => {
               </div>
             </div>
 
+            {/* Seção 2: Pagamentos Recebidos */}
+            <div>
+              <div style={{ fontSize: '0.6rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.02em', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
+                Pagamentos Recebidos
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                {caixaValor.itensPago && caixaValor.itensPago.length > 0 ? (
+                  caixaValor.itensPago.map((pg, idx) => (
+                    <div
+                      key={pg.id || idx}
+                      style={{
+                        background: 'rgba(16, 185, 129, 0.08)',
+                        border: '1px solid rgba(16, 185, 129, 0.25)',
+                        borderRadius: '6px',
+                        padding: '0.3rem 0.5rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '0.5rem'
+                      }}
+                    >
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-primary)', fontWeight: '500' }}>
+                          {pg.descricao || 'Recebimento de inscrição'}
+                        </span>
+                        {pg.data_recebimento && (
+                          <span style={{ fontSize: '0.675rem', color: 'var(--text-secondary)' }}>
+                            {new Date(pg.data_recebimento + 'T12:00:00').toLocaleDateString('pt-BR')}
+                          </span>
+                        )}
+                      </div>
+                      <span style={{
+                        fontSize: '0.8rem',
+                        fontWeight: '700',
+                        color: '#10b981',
+                        whiteSpace: 'nowrap'
+                      }}>
+                        {formatCurrency(pg.valor)}
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <div style={{
+                    padding: '0.5rem',
+                    textAlign: 'center',
+                    fontSize: '0.75rem',
+                    color: 'var(--text-secondary)',
+                    fontStyle: 'italic',
+                    background: 'var(--bg-secondary)',
+                    borderRadius: '6px'
+                  }}>
+                    Nenhum pagamento registrado até o momento.
+                  </div>
+                )}
+              </div>
+            </div>
+
             {/* Card Consolidado no Rodapé */}
             <div style={{
               background: 'var(--bg-secondary)',
