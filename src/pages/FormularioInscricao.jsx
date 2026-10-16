@@ -46,10 +46,6 @@ export const FormularioInscricao = () => {
 
   const [pessoaCarregadaId, setPessoaCarregadaId] = useState(paramId || null);
   const [modoEdicao, setModoEdicao] = useState(Boolean(paramId));
-  const [cpfVerificado, setCpfVerificado] = useState(Boolean(paramId));
-  const [cpfBusca, setCpfBusca] = useState('');
-  const [cpfBuscando, setCpfBuscando] = useState(false);
-  const [cpfErro, setCpfErro] = useState('');
 
   const targetId = pessoaCarregadaId || paramId || null;
 
@@ -109,8 +105,7 @@ export const FormularioInscricao = () => {
   const [formData, setFormData] = useState(getInitialFormData());
 
   const isPropriaPessoa = Boolean(
-    (pessoaProfile?.id && targetId === pessoaProfile.id) ||
-    (pessoaProfile?.cpf && formData.cpf && pessoaProfile.cpf.replace(/\D/g, '') === formData.cpf.replace(/\D/g, ''))
+    pessoaProfile?.id && targetId && targetId === pessoaProfile.id
   );
 
   const [padrinhos, setPadrinhos] = useState([]);
@@ -483,12 +478,10 @@ CREATE INDEX IF NOT EXISTS idx_apc_acampamento_criador_id ON public.apc_acampame
         if (p) {
           setPessoaCarregadaId(p.id);
           setModoEdicao(true);
-          setCpfVerificado(true);
           await carregarDadosPessoa(p, eventoAtual);
         }
       } else {
-        // Sem ID na rota: o usuário precisa informar o CPF primeiramente
-        setCpfVerificado(false);
+        // Nova Inscrição: formulário limpo aberto diretamente para novo cadastro
         setPessoaCarregadaId(null);
         setModoEdicao(false);
         setFormData(getInitialFormData(anoPadrao));
@@ -500,78 +493,6 @@ CREATE INDEX IF NOT EXISTS idx_apc_acampamento_criador_id ON public.apc_acampame
     } finally {
       setLoadingData(false);
     }
-  };
-
-  const handleConsultarCpf = async (cpfCustomizado) => {
-    const cpfAlvo = (cpfCustomizado !== undefined ? cpfCustomizado : cpfBusca).trim();
-    setCpfErro('');
-    setCpfAviso('');
-
-    if (!cpfAlvo) {
-      setCpfErro('Por favor, informe o CPF do participante para continuar.');
-      return;
-    }
-
-    if (!validarCPF(cpfAlvo)) {
-      setCpfErro('CPF inválido. Por favor, verifique os dígitos digitados.');
-      return;
-    }
-
-    try {
-      setCpfBuscando(true);
-      const cpfLimpo = cpfAlvo.replace(/\D/g, '');
-      const cpfFormatado = formatarCPF(cpfAlvo);
-
-      const { data: pessoasEncontradas, error: errCpf } = await supabase
-        .from('apc_pessoa')
-        .select('*')
-        .or(`cpf.eq.${cpfFormatado},cpf.eq.${cpfLimpo}`)
-        .limit(5);
-
-      if (errCpf) throw errCpf;
-
-      const pessoaExistente = pessoasEncontradas && pessoasEncontradas.length > 0
-        ? (pessoasEncontradas.find(p => p.user_id) || pessoasEncontradas[0])
-        : null;
-
-      const eventoAlvo = eventoSelecionado || (eventosAtivos.length > 0 ? eventosAtivos[0] : null);
-      const anoPadrao = eventoAlvo?.data_inicio
-        ? new Date(eventoAlvo.data_inicio).getFullYear().toString()
-        : new Date().getFullYear().toString();
-
-      if (pessoaExistente) {
-        // Participante cadastrado localizado -> Modo Edição com dados preenchidos
-        setPessoaCarregadaId(pessoaExistente.id);
-        setModoEdicao(true);
-        await carregarDadosPessoa(pessoaExistente, eventoAlvo);
-        setCpfVerificado(true);
-        setCpfAviso(`Participante encontrado: "${pessoaExistente.nome}". Modo edição ativado.`);
-      } else {
-        // CPF não cadastrado -> Formulário em branco com CPF preenchido
-        setPessoaCarregadaId(null);
-        setModoEdicao(false);
-        setFormData(getInitialFormData(anoPadrao, cpfFormatado));
-        setDependentes([]);
-        setJaInscritoEvento(false);
-        setCpfVerificado(true);
-        setCpfAviso(`CPF ${cpfFormatado} não cadastrado. Formulário aberto para novo cadastro.`);
-      }
-    } catch (err) {
-      console.error('Erro ao consultar CPF:', err);
-      setCpfErro('Erro ao consultar CPF: ' + (err.message || 'Tente novamente.'));
-    } finally {
-      setCpfBuscando(false);
-    }
-  };
-
-  const handleTrocarCpf = () => {
-    setCpfVerificado(false);
-    setCpfBusca('');
-    setCpfErro('');
-    setCpfAviso('');
-    setPessoaCarregadaId(null);
-    setModoEdicao(false);
-    setJaInscritoEvento(false);
   };
 
   const handleConjugeChange = async (novoConjugeId) => {
@@ -659,112 +580,7 @@ CREATE INDEX IF NOT EXISTS idx_apc_acampamento_criador_id ON public.apc_acampame
     });
   };
 
-  const handleCpfBlur = async () => {
-    if (!formData.cpf || !validarCPF(formData.cpf)) {
-      return;
-    }
 
-    // Se estiver editando um participante já existente carregado por targetId, não substitui
-    if (targetId) return;
-
-    try {
-      setBuscandoCpf(true);
-      setCpfAviso('');
-      const cpfLimpo = formData.cpf.replace(/\D/g, '');
-
-      const { data: pessoasEncontradas, error: errCpf } = await supabase
-        .from('apc_pessoa')
-        .select('*')
-        .or(`cpf.eq.${formData.cpf},cpf.eq.${cpfLimpo}`)
-        .limit(5);
-
-      if (errCpf) throw errCpf;
-
-      const pessoaExistente = pessoasEncontradas && pessoasEncontradas.length > 0
-        ? (pessoasEncontradas.find(p => p.user_id) || pessoasEncontradas[0])
-        : null;
-
-      if (pessoaExistente) {
-        const dataNasc = pessoaExistente.data_nascimento ? pessoaExistente.data_nascimento.split('T')[0] : '';
-        const idadeAuto = pessoaExistente.idade !== null && pessoaExistente.idade !== undefined
-          ? pessoaExistente.idade.toString()
-          : calcularIdade(dataNasc);
-
-        setFormData(prev => ({
-          ...prev,
-          nome: pessoaExistente.nome || prev.nome,
-          email: pessoaExistente.email || prev.email,
-          telefone: pessoaExistente.telefone || prev.telefone,
-          sexo: pessoaExistente.sexo || prev.sexo,
-          data_nascimento: dataNasc || prev.data_nascimento,
-          idade: idadeAuto || prev.idade,
-          tipo_pessoa: pessoaExistente.tipo_pessoa || prev.tipo_pessoa,
-          rg: pessoaExistente.rg || prev.rg,
-          contato_emergencia: pessoaExistente.contato_emergencia || prev.contato_emergencia,
-          nome_responsavel: pessoaExistente.nome_responsavel || (pessoaExistente.nome_pai || pessoaExistente.nome_mae || prev.nome_responsavel),
-          nome_pai: pessoaExistente.nome_pai || prev.nome_pai,
-          nome_mae: pessoaExistente.nome_mae || prev.nome_mae,
-          fone_responsavel: pessoaExistente.fone_responsavel || prev.fone_responsavel,
-          tipo_sanguineo: pessoaExistente.tipo_sanguineo || prev.tipo_sanguineo,
-          problema_saude: pessoaExistente.problema_saude ? 'SIM' : 'NAO',
-          problema_saude_qual: pessoaExistente.problema_saude_qual || '',
-          historico_convulsao: pessoaExistente.historico_convulsao ? 'SIM' : 'NAO',
-          historico_convulsao_tempo: pessoaExistente.historico_convulsao_tempo || '',
-          tratamento_medico: pessoaExistente.tratamento_medico ? 'SIM' : 'NAO',
-          tratamento_medico_qual: pessoaExistente.tratamento_medico_qual || '',
-          medicamento_continuo: pessoaExistente.medicamento_continuo ? 'SIM' : 'NAO',
-          medicamento_continuo_qual: pessoaExistente.medicamento_continuo_qual || '',
-          medicamento_continuo_dosagem: pessoaExistente.medicamento_continuo_dosagem || '',
-          lesao_contusao: pessoaExistente.lesao_contusao ? 'SIM' : 'NAO',
-          lesao_contusao_qual: pessoaExistente.lesao_contusao_qual || '',
-          restricao_alimentar: pessoaExistente.restricao_alimentar ? 'SIM' : 'NAO',
-          restricao_alimentar_qual: pessoaExistente.restricao_alimentar_qual || '',
-          doenca_respiratoria: pessoaExistente.doenca_respiratoria ? 'SIM' : 'NAO',
-          usa_bombinha: pessoaExistente.usa_bombinha ? 'SIM' : 'NAO',
-          alergia_medicamento: pessoaExistente.alergia_medicamento ? 'SIM' : 'NAO',
-          alergia_medicamento_qual: pessoaExistente.alergia_medicamento_qual || '',
-          alergia_alimento: pessoaExistente.alergia_alimento ? 'SIM' : 'NAO',
-          alergia_alimento_qual: pessoaExistente.alergia_alimento_qual || '',
-          medicacao_sintomas: pessoaExistente.medicacao_sintomas || '',
-          cuidado_especial: pessoaExistente.cuidado_especial ? 'SIM' : 'NAO',
-          cuidado_especial_qual: pessoaExistente.cuidado_especial_qual || '',
-          camiseta: pessoaExistente.camiseta || prev.camiseta,
-          camiseta_infantil: pessoaExistente.camiseta_infantil || prev.camiseta_infantil,
-          outras_informacoes: pessoaExistente.outras_informacoes || (pessoaExistente.necessidade_medica || prev.outras_informacoes),
-          aceite_termos_dados: !!pessoaExistente.aceite_termos_dados,
-          aceite_termo_imagem: !!pessoaExistente.aceite_termo_imagem,
-          user_id: pessoaExistente.user_id || ''
-        }));
-
-        // Verificar se essa pessoa já tem inscrição no evento selecionado
-        const eventoParaChecar = eventoSelecionado || (eventosAtivos.length > 0 ? eventosAtivos[0] : null);
-        if (eventoParaChecar) {
-          const { data: inscList } = await supabase
-            .from('apc_acampamento')
-            .select('id')
-            .eq('pessoa_id', pessoaExistente.id)
-            .eq('evento_id', eventoParaChecar.id)
-            .limit(1);
-
-          const temInscricao = Boolean(inscList && inscList.length > 0);
-          setJaInscritoEvento(temInscricao);
-          if (temInscricao) {
-            setCpfAviso(`Participante encontrado: "${pessoaExistente.nome}". Atenção: já possui inscrição neste evento!`);
-          } else {
-            setCpfAviso(`Participante encontrado no sistema: "${pessoaExistente.nome}". Os dados foram carregados automaticamente.`);
-          }
-        } else {
-          setCpfAviso(`Participante encontrado no sistema: "${pessoaExistente.nome}". Os dados foram carregados.`);
-        }
-      } else {
-        setCpfAviso('CPF novo: será criado um novo participante ao salvar.');
-      }
-    } catch (findErr) {
-      console.warn('Erro ao consultar CPF:', findErr.message);
-    } finally {
-      setBuscandoCpf(false);
-    }
-  };
 
   const handleCopySql = () => {
     navigator.clipboard.writeText(sqlMigrationCode);
@@ -883,12 +699,15 @@ CREATE INDEX IF NOT EXISTS idx_apc_acampamento_criador_id ON public.apc_acampame
       // Determinação segura do user_id:
       let finalUserId = null;
       if (isPropriaPessoa) {
-        // É a própria pessoa logada: se já tinha user_id mantém, ou associa o user.id dela se ainda não tinha
+        // É a própria pessoa logada em edição de seu perfil próprio
         finalUserId = formData.user_id || user?.id || null;
+      } else if (!targetId && !pessoaProfile?.id && !isAdminOrGestor) {
+        // Primeiro cadastro pessoal do usuário no sistema
+        finalUserId = user?.id || null;
       } else {
-        // É outra pessoa (ex: afilhado): NUNCA atribui o user.id do usuário logado!
-        // Só mantém o user_id se a pessoa já tiver o seu próprio user_id no banco
-        finalUserId = (formData.user_id && formData.user_id !== user?.id) ? formData.user_id : null;
+        // Nova inscrição para terceiro/dependente ou inscrição adicional feita pelo usuário:
+        // Mantém null para permitir múltiplas inscrições sem conflito de user_id
+        finalUserId = null;
       }
 
       const payloadCompleto = {
@@ -945,7 +764,7 @@ CREATE INDEX IF NOT EXISTS idx_apc_acampamento_criador_id ON public.apc_acampame
 
       let pessoaIdSalva = targetId;
 
-      // Se não temos targetId mas temos finalUserId, verifica se já existe registro com esse user_id para atualizar em vez de tentar insert duplicado
+      // Se não temos targetId mas temos finalUserId (apenas no caso do primeiro cadastro da conta sem profile)
       if (!pessoaIdSalva && finalUserId) {
         const { data: existingByUserList } = await supabase
           .from('apc_pessoa')
@@ -954,19 +773,6 @@ CREATE INDEX IF NOT EXISTS idx_apc_acampamento_criador_id ON public.apc_acampame
           .limit(1);
         if (existingByUserList && existingByUserList.length > 0) {
           pessoaIdSalva = existingByUserList[0].id;
-        }
-      }
-
-      // Se ainda não temos pessoaIdSalva (ex: cadastrando um dependente/terceiro), verifica se já existe pelo CPF
-      if (!pessoaIdSalva && formData.cpf) {
-        const cpfLimpo = formData.cpf.replace(/\D/g, '');
-        const { data: existingByCpfList } = await supabase
-          .from('apc_pessoa')
-          .select('id, cpf, user_id')
-          .or(`cpf.eq.${formData.cpf},cpf.eq.${cpfLimpo}`)
-          .limit(5);
-        if (existingByCpfList && existingByCpfList.length > 0) {
-          pessoaIdSalva = (existingByCpfList.find(p => p.user_id) || existingByCpfList[0]).id;
         }
       }
 
@@ -1314,6 +1120,42 @@ CREATE INDEX IF NOT EXISTS idx_apc_acampamento_criador_id ON public.apc_acampame
             Formulário de Inscrição
           </span>
         </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+          {paramId && (
+            <button
+              type="button"
+              onClick={() => navigate('/inscricao')}
+              className="btn btn-secondary"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                fontSize: '0.85rem',
+                padding: '0.45rem 0.85rem'
+              }}
+            >
+              <UserPlus size={16} />
+              <span>Nova Inscrição</span>
+            </button>
+          )}
+
+          <Link
+            to="/minhas-inscricoes"
+            className="btn btn-primary"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              fontSize: '0.85rem',
+              padding: '0.45rem 0.85rem',
+              textDecoration: 'none'
+            }}
+          >
+            <ClipboardCheck size={16} />
+            <span>Minhas Inscrições</span>
+          </Link>
+        </div>
       </div>
 
       {/* Banner Oficial do Evento */}
@@ -1459,1338 +1301,1210 @@ CREATE INDEX IF NOT EXISTS idx_apc_acampamento_criador_id ON public.apc_acampame
       )}
 
       {error && <div className="alert alert-error" style={{ marginBottom: '1.5rem' }}>{error}</div>}
-      {success && <div className="alert alert-success" style={{ marginBottom: '1.5rem' }}>{success}</div>}
+      {success && (
+        <div className="alert alert-success" style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+          <span>{success}</span>
+          <Link
+            to="/minhas-inscricoes"
+            className="btn btn-secondary"
+            style={{ fontSize: '0.85rem', padding: '0.35rem 0.75rem', textDecoration: 'none' }}
+          >
+            Ver Minhas Inscrições
+          </Link>
+        </div>
+      )}
 
-      {!cpfVerificado ? (
+      {modoEdicao && (
         <div
-          className="glass-panel form-section-card"
+          className="glass-panel"
           style={{
-            padding: '1.25rem 1.5rem',
-            margin: '0 auto 1.5rem',
-            borderRadius: '16px',
-            border: '1px solid rgba(37, 99, 235, 0.15)',
             display: 'flex',
-            flexDirection: 'column',
             alignItems: 'center',
-            justifyContent: 'center',
-            gap: '0.5rem'
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '1rem',
+            padding: '0.85rem 1.25rem',
+            marginBottom: '1rem',
+            borderRadius: '12px',
+            border: '1px solid #86efac',
+            background: 'linear-gradient(135deg, rgba(240, 253, 244, 0.95), rgba(220, 252, 231, 0.95))'
           }}
         >
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleConsultarCpf();
-            }}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexWrap: 'wrap',
-              gap: '0.85rem',
-              width: '100%'
-            }}
-          >
-            <label
-              htmlFor="cpfBusca"
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div
               style={{
-                margin: 0,
-                fontSize: '0.95rem',
-                fontWeight: '600',
-                color: 'var(--text-primary)',
-                whiteSpace: 'nowrap'
-              }}
-            >
-              Informe o CPF:
-            </label>
-
-            <input
-              id="cpfBusca"
-              type="text"
-              className="form-input"
-              placeholder="000.000.000-00"
-              value={cpfBusca}
-              onChange={(e) => {
-                setCpfBusca(formatarCPF(e.target.value));
-                if (cpfErro) setCpfErro('');
-              }}
-              maxLength={14}
-              autoFocus
-              style={{
-                maxWidth: '220px',
-                fontSize: '1.05rem',
-                letterSpacing: '0.04em',
-                fontWeight: '600',
-                padding: '0.55rem 0.85rem',
-                textAlign: 'center'
-              }}
-            />
-
-            <button
-              type="submit"
-              className="btn btn-primary"
-              disabled={cpfBuscando}
-              style={{
-                padding: '0.55rem 1.25rem',
-                fontSize: '0.95rem',
-                fontWeight: '600',
-                display: 'inline-flex',
+                width: '38px',
+                height: '38px',
+                borderRadius: '50%',
+                background: '#16a34a',
+                color: 'white',
+                display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: '0.5rem',
-                whiteSpace: 'nowrap'
+                flexShrink: 0
               }}
             >
-              {cpfBuscando ? (
-                <>
-                  <Loader2 size={16} className="spin" />
-                  <span>Consultando...</span>
-                </>
-              ) : (
-                <>
-                  <Search size={16} />
-                  <span>Consultar</span>
-                </>
-              )}
-            </button>
-          </form>
+              <Edit3 size={18} />
+            </div>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <span
+                  style={{
+                    fontSize: '0.75rem',
+                    fontWeight: '800',
+                    letterSpacing: '0.05em',
+                    textTransform: 'uppercase',
+                    padding: '0.15rem 0.5rem',
+                    borderRadius: '999px',
+                    background: '#15803d',
+                    color: 'white'
+                  }}
+                >
+                  Modo Edição
+                </span>
+                <strong style={{ fontSize: '0.95rem', color: '#14532d' }}>
+                  {formData.nome || 'Participante'}
+                </strong>
+              </div>
+              <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.825rem', color: '#166534' }}>
+                CPF: <strong>{formData.cpf || 'Não informado'}</strong> — Editando os dados da inscrição.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
-          {cpfErro && (
-            <div style={{ color: '#dc2626', fontSize: '0.85rem', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.25rem' }}>
-              <AlertCircle size={15} />
-              {cpfErro}
+      <form onSubmit={handleSubmit} noValidate>
+
+        {eventoSelecionado?.inclui_camiseta && (
+          <div className="glass-panel form-section-card">
+            <div className="section-header">
+              <Shirt size={22} color="var(--accent-primary)" />
+              <h3>Tamanho da Camiseta</h3>
+            </div>
+
+            <div className="form-grid">
+              <div className="form-group">
+                <label className="form-label" htmlFor="camiseta">
+                  Tamanho da Camiseta (Adulto)
+                </label>
+                <select
+                  id="camiseta"
+                  name="camiseta"
+                  className="form-input"
+                  value={formData.camiseta}
+                  onChange={handleChange}
+                  required={!formData.camiseta_infantil}
+                >
+                  <option value="">-- Selecione o tamanho --</option>
+                  <option value="PP">PP</option>
+                  <option value="P">P</option>
+                  <option value="M">M</option>
+                  <option value="G">G</option>
+                  <option value="GG">GG</option>
+                  <option value="XGG">XGG</option>
+                  <option value="XXGG">XXGG</option>
+                  <option value="G1">G1 - Tamanho Especial</option>
+                  <option value="G2">G2 - Tamanho Especial</option>
+                  <option value="G3">G3 - Tamanho Especial</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" htmlFor="camiseta_infantil">
+                  Tamanho da Camiseta Infantil (IDADE CRIANÇA - 0 a 15 anos)
+                </label>
+                <select
+                  id="camiseta_infantil"
+                  name="camiseta_infantil"
+                  className="form-input"
+                  value={formData.camiseta_infantil}
+                  onChange={handleChange}
+                >
+                  <option value="">-- Não se aplica (Adulto) --</option>
+                  <option value="0 a 1 ano">0 a 1 ano</option>
+                  <option value="2 anos">2 anos</option>
+                  <option value="4 anos">4 anos</option>
+                  <option value="6 anos">6 anos</option>
+                  <option value="8 anos">8 anos</option>
+                  <option value="10 anos">10 anos</option>
+                  <option value="12 anos">12 anos</option>
+                  <option value="14 anos">14 anos</option>
+                  <option value="16 anos">16 anos</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* SEÇÃO 1: DADOS DO PARTICIPANTE */}
+        {/* ========================================================================= */}
+        <div className="glass-panel form-section-card">
+          <div className="section-header">
+            <User size={22} color="var(--accent-primary)" />
+            <h3>1. Dados do Participante</h3>
+          </div>
+
+          <div className="form-grid">
+            <div className="form-group" style={{ gridColumn: 'span 2' }}>
+              <label className="form-label" htmlFor="nome">
+                Nome Completo do Participante *
+              </label>
+              <input
+                id="nome"
+                name="nome"
+                type="text"
+                className="form-input"
+                placeholder="Digite o nome completo do participante"
+                value={formData.nome}
+                onChange={handleChange}
+                required
+              />
+            </div>
+          </div>
+
+          <div className="form-grid">
+            <div className="form-group">
+              <label className="form-label" htmlFor="tipo_pessoa">
+                De que forma irá participar no acampamento (Como?) *
+              </label>
+              <select
+                id="tipo_pessoa"
+                name="tipo_pessoa"
+                className="form-input"
+                value={formData.tipo_pessoa}
+                onChange={handleChange}
+                required
+              >
+                <option value="AFILHADO">Afilhado(a)</option>
+                <option value="PADRINHO">Padrinho</option>
+                <option value="MADRINHA">Madrinha</option>
+                <option value="VOLUNTARIO">Voluntário(a)</option>
+              </select>
+            </div>
+
+            {(formData.tipo_pessoa === 'PADRINHO' || formData.tipo_pessoa === 'MADRINHA') ? (
+              <div className="form-group">
+                <label className="form-label" htmlFor="conjuge_id" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span>Cônjuge (opcional)</span>
+                  {buscandoDependentesConjuge && (
+                    <span style={{ fontSize: '0.75rem', color: 'var(--accent-primary)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <Loader2 size={12} className="spin" /> Buscando dependentes...
+                    </span>
+                  )}
+                </label>
+                <select
+                  id="conjuge_id"
+                  name="conjuge_id"
+                  className="form-input"
+                  value={formData.conjuge_id}
+                  onChange={handleChange}
+                >
+                  <option value="">-- Selecione o cônjuge (se houver) --</option>
+                  {potenciaisConjuges.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.nome} {c.ano ? `(Turma ${c.ano})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div className="form-group">
+                <label className="form-label" htmlFor="padrinhos_catequistas">
+                  Nome dos Padrinhos ou Catequistas
+                </label>
+                <input
+                  id="padrinhos_catequistas"
+                  name="padrinhos_catequistas"
+                  type="text"
+                  className="form-input"
+                  placeholder="Ex: João e Maria ou Catequista André"
+                  value={formData.padrinhos_catequistas}
+                  onChange={handleChange}
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="form-grid">
+            <div className="form-group">
+              <label className="form-label" htmlFor="data_nascimento">
+                Data de Nascimento *
+              </label>
+              <input
+                id="data_nascimento"
+                name="data_nascimento"
+                type="date"
+                className="form-input"
+                value={formData.data_nascimento}
+                onChange={handleChange}
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" htmlFor="idade">
+                Idade do Participante
+              </label>
+              <input
+                id="idade"
+                name="idade"
+                type="number"
+                min="0"
+                max="120"
+                className="form-input"
+                placeholder="Calculada automaticamente"
+                value={formData.idade}
+                onChange={handleChange}
+              />
+              {isMenorDeIdade && (
+                <span style={{ fontSize: '0.75rem', color: '#d97706', fontWeight: 'bold' }}>
+                  ⚠️ Menor de idade (necessário preencher dados e autorizações dos pais/responsáveis)
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="form-grid">
+            <div className="form-group">
+              <label className="form-label" htmlFor="rg">
+                RG do Participante
+              </label>
+              <input
+                id="rg"
+                name="rg"
+                type="text"
+                className="form-input"
+                placeholder="Número do RG / Órgão Emissor"
+                value={formData.rg}
+                onChange={handleChange}
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" htmlFor="cpf">
+                CPF do Participante *
+              </label>
+              <input
+                id="cpf"
+                name="cpf"
+                type="text"
+                className="form-input"
+                placeholder="000.000.000-00"
+                value={formData.cpf}
+                onChange={handleChange}
+                maxLength={14}
+                required
+              />
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem', display: 'block' }}>
+                Obrigatório. Digite um CPF válido (11 dígitos).
+              </span>
+            </div>
+          </div>
+
+          <div className="form-grid">
+            <div className="form-group">
+              <label className="form-label" htmlFor="telefone">
+                Telefone do Participante (WhatsApp) *
+              </label>
+              <input
+                id="telefone"
+                name="telefone"
+                type="text"
+                className="form-input"
+                placeholder="(61) 90000-0000"
+                value={formData.telefone}
+                onChange={handleChange}
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" htmlFor="email">
+                E-mail
+              </label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                className="form-input"
+                placeholder="seuemail@exemplo.com"
+                value={formData.email}
+                onChange={handleChange}
+              />
+            </div>
+          </div>
+
+          <div className="form-grid">
+            <div className="form-group">
+              <label className="form-label" htmlFor="sexo">
+                Sexo
+              </label>
+              <select
+                id="sexo"
+                name="sexo"
+                className="form-input"
+                value={formData.sexo}
+                onChange={handleChange}
+              >
+                <option value="">-- Selecione --</option>
+                <option value="M">Masculino</option>
+                <option value="F">Feminino</option>
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" htmlFor="ano">
+                Ano (Turma)
+              </label>
+              <input
+                id="ano"
+                name="ano"
+                type="number"
+                className="form-input"
+                placeholder="Ex: 2026"
+                value={formData.ano}
+                onChange={handleChange}
+              />
+            </div>
+          </div>
+
+          {formData.tipo_pessoa === 'AFILHADO' && padrinhos.length > 0 && (
+            <div className="form-group" style={{ marginTop: '0.5rem' }}>
+              <label className="form-label">Vincular o Padrinho</label>
+              <select
+                className="form-input"
+                value={formData.vinculo_padrinho_id}
+                onChange={(e) => {
+                  const pid = e.target.value;
+                  const p = padrinhos.find(item => item.id === pid);
+                  setFormData(prev => ({
+                    ...prev,
+                    vinculo_padrinho_id: pid,
+                    vinculo_madrinha_id: p?.conjuge_id || prev.vinculo_madrinha_id
+                  }));
+                }}
+              >
+                <option value="">-- Selecione --</option>
+                {padrinhos.map(p => (
+                  <option key={p.id} value={p.id}>{p.nome}</option>
+                ))}
+              </select>
             </div>
           )}
         </div>
-      ) : (
-        <>
-          {/* Barra de Status do Participante */}
-          <div
-            className="glass-panel"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: '1rem',
-              padding: '0.85rem 1.25rem',
-              marginBottom: '1rem',
-              borderRadius: '12px',
-              border: modoEdicao ? '1px solid #86efac' : '1px solid #93c5fd',
-              background: modoEdicao
-                ? 'linear-gradient(135deg, rgba(240, 253, 244, 0.95), rgba(220, 252, 231, 0.95))'
-                : 'linear-gradient(135deg, rgba(239, 246, 255, 0.95), rgba(219, 234, 254, 0.95))'
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <div
-                style={{
-                  width: '38px',
-                  height: '38px',
-                  borderRadius: '50%',
-                  background: modoEdicao ? '#16a34a' : '#2563eb',
-                  color: 'white',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0
-                }}
-              >
-                {modoEdicao ? <Edit3 size={18} /> : <UserPlus size={18} />}
-              </div>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                  <span
-                    style={{
-                      fontSize: '0.75rem',
-                      fontWeight: '800',
-                      letterSpacing: '0.05em',
-                      textTransform: 'uppercase',
-                      padding: '0.15rem 0.5rem',
-                      borderRadius: '999px',
-                      background: modoEdicao ? '#15803d' : '#1d4ed8',
-                      color: 'white'
-                    }}
-                  >
-                    {modoEdicao ? 'Modo Edição' : 'Novo Cadastro'}
-                  </span>
-                  <strong style={{ fontSize: '0.95rem', color: modoEdicao ? '#14532d' : '#1e3a8a' }}>
-                    {modoEdicao ? (formData.nome || 'Participante Cadastrado') : 'Participante Não Cadastrado'}
-                  </strong>
+
+        {/* ========================================================================= */}
+        {/* DEPENDENTES (FILHOS) - Visível quando Padrinho ou Madrinha */}
+        {/* ========================================================================= */}
+        {(formData.tipo_pessoa === 'PADRINHO' || formData.tipo_pessoa === 'MADRINHA') && (
+          <div className="glass-panel form-section-card" style={{ padding: '1.25rem', marginBottom: '1.25rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+              <div className="section-header" style={{ marginBottom: 0 }}>
+                <Users size={20} color="var(--accent-primary)" />
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 'bold' }}>Dependentes (Filhos / Mascotes)</h3>
+                  <p style={{ margin: '0.2rem 0 0', fontSize: '0.825rem', color: 'var(--text-secondary)' }}>
+                    Cadastre os filhos com os respectivos dados cadastrais e ficha médica completa.
+                  </p>
                 </div>
-                <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.825rem', color: modoEdicao ? '#166534' : '#1e40af' }}>
-                  CPF: <strong>{formData.cpf}</strong>
-                  {modoEdicao
-                    ? ' — Dados do participante carregados do sistema para edição.'
-                    : ' — Formulário com todos os dados vazios pronto para novo preenchimento.'}
-                </p>
               </div>
+              <button
+                type="button"
+                onClick={handleAbrirModalNovoDependente}
+                className="btn btn-primary"
+                style={{ padding: '0.45rem 1rem', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.875rem', fontWeight: 600 }}
+              >
+                <Plus size={16} /> Adicionar Dependente
+              </button>
             </div>
 
-            <button
-              type="button"
-              onClick={handleTrocarCpf}
-              className="btn btn-secondary"
-              style={{
-                fontSize: '0.825rem',
-                padding: '0.45rem 0.85rem',
-                display: 'inline-flex',
+            {avisoDependentesConjuge && (
+              <div style={{
+                background: 'rgba(59, 130, 246, 0.08)',
+                border: '1px solid rgba(59, 130, 246, 0.25)',
+                borderRadius: '8px',
+                padding: '0.65rem 0.85rem',
+                marginBottom: '0.85rem',
+                color: '#1d4ed8',
+                fontSize: '0.85rem',
+                display: 'flex',
                 alignItems: 'center',
-                gap: '0.4rem'
-              }}
-              title="Trocar CPF e pesquisar outro participante"
-            >
-              <RotateCcw size={14} />
-              <span>Trocar CPF</span>
-            </button>
-          </div>
-
-          <form onSubmit={handleSubmit} noValidate>
-
-            {eventoSelecionado?.inclui_camiseta && (
-              <div className="glass-panel form-section-card">
-                <div className="section-header">
-                  <Shirt size={22} color="var(--accent-primary)" />
-                  <h3>Tamanho da Camiseta</h3>
-                </div>
-
-                <div className="form-grid">
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="camiseta">
-                      Tamanho da Camiseta (Adulto)
-                    </label>
-                    <select
-                      id="camiseta"
-                      name="camiseta"
-                      className="form-input"
-                      value={formData.camiseta}
-                      onChange={handleChange}
-                      required={!formData.camiseta_infantil}
-                    >
-                      <option value="">-- Selecione o tamanho --</option>
-                      <option value="PP">PP</option>
-                      <option value="P">P</option>
-                      <option value="M">M</option>
-                      <option value="G">G</option>
-                      <option value="GG">GG</option>
-                      <option value="XGG">XGG</option>
-                      <option value="XXGG">XXGG</option>
-                      <option value="G1">G1 - Tamanho Especial</option>
-                      <option value="G2">G2 - Tamanho Especial</option>
-                      <option value="G3">G3 - Tamanho Especial</option>
-                    </select>
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="camiseta_infantil">
-                      Tamanho da Camiseta Infantil (IDADE CRIANÇA - 0 a 15 anos)
-                    </label>
-                    <select
-                      id="camiseta_infantil"
-                      name="camiseta_infantil"
-                      className="form-input"
-                      value={formData.camiseta_infantil}
-                      onChange={handleChange}
-                    >
-                      <option value="">-- Não se aplica (Adulto) --</option>
-                      <option value="0 a 1 ano">0 a 1 ano</option>
-                      <option value="2 anos">2 anos</option>
-                      <option value="4 anos">4 anos</option>
-                      <option value="6 anos">6 anos</option>
-                      <option value="8 anos">8 anos</option>
-                      <option value="10 anos">10 anos</option>
-                      <option value="12 anos">12 anos</option>
-                      <option value="14 anos">14 anos</option>
-                      <option value="16 anos">16 anos</option>
-                    </select>
-                  </div>
-                </div>
+                gap: '0.5rem'
+              }}>
+                <CheckCircle2 size={18} color="#2563eb" />
+                <span>{avisoDependentesConjuge}</span>
               </div>
             )}
 
-            {/* ========================================================================= */}
-            {/* SEÇÃO 1: DADOS DO PARTICIPANTE */}
-            {/* ========================================================================= */}
-            <div className="glass-panel form-section-card">
-              <div className="section-header">
-                <User size={22} color="var(--accent-primary)" />
-                <h3>1. Dados do Participante</h3>
+            {dependentes.length === 0 ? (
+              <div style={{
+                textAlign: 'center',
+                padding: '1.5rem 1rem',
+                background: 'var(--bg-secondary)',
+                borderRadius: '8px',
+                border: '1px dashed var(--border-color)'
+              }}>
+                <Users size={32} color="var(--text-secondary)" style={{ opacity: 0.5, marginBottom: '0.5rem' }} />
+                <p style={{ color: 'var(--text-primary)', margin: '0 0 0.35rem', fontWeight: 500, fontSize: '0.9rem' }}>
+                  Nenhum dependente cadastrado até o momento.
+                </p>
+                <p style={{ color: 'var(--text-secondary)', margin: '0 0 0.75rem', fontSize: '0.85rem' }}>
+                  Clique no botão acima para adicionar um dependente com seus dados e ficha médica.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleAbrirModalNovoDependente}
+                  className="btn btn-secondary"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', padding: '0.4rem 0.85rem' }}
+                >
+                  <Plus size={15} /> Adicionar Primeiro Dependente
+                </button>
               </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {dependentes.map((dep, index) => {
+                  const idadeDep = calcularIdade(dep.data_nascimento);
+                  const temRestricoes = dep.restricao_alimentar === 'SIM';
+                  const temAlergias = dep.alergia_medicamento === 'SIM' || dep.alergia_alimento === 'SIM';
+                  const temMedicamento = dep.medicamento_continuo === 'SIM';
+                  const temProblema = dep.problema_saude === 'SIM';
+                  const temRespiratoria = dep.doenca_respiratoria === 'SIM';
 
-              <div className="form-grid">
-                <div className="form-group" style={{ gridColumn: 'span 2' }}>
-                  <label className="form-label" htmlFor="nome">
-                    Nome Completo do Participante *
-                  </label>
-                  <input
-                    id="nome"
-                    name="nome"
-                    type="text"
-                    className="form-input"
-                    placeholder="Digite o nome completo do participante"
-                    value={formData.nome}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="form-grid">
-                <div className="form-group">
-                  <label className="form-label" htmlFor="tipo_pessoa">
-                    De que forma irá participar no acampamento (Como?) *
-                  </label>
-                  <select
-                    id="tipo_pessoa"
-                    name="tipo_pessoa"
-                    className="form-input"
-                    value={formData.tipo_pessoa}
-                    onChange={handleChange}
-                    required
-                  >
-                    <option value="AFILHADO">Afilhado(a)</option>
-                    <option value="PADRINHO">Padrinho</option>
-                    <option value="MADRINHA">Madrinha</option>
-                    <option value="VOLUNTARIO">Voluntário(a)</option>
-                  </select>
-                </div>
-
-                {(formData.tipo_pessoa === 'PADRINHO' || formData.tipo_pessoa === 'MADRINHA') ? (
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="conjuge_id" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span>Cônjuge (opcional)</span>
-                      {buscandoDependentesConjuge && (
-                        <span style={{ fontSize: '0.75rem', color: 'var(--accent-primary)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
-                          <Loader2 size={12} className="spin" /> Buscando dependentes...
-                        </span>
-                      )}
-                    </label>
-                    <select
-                      id="conjuge_id"
-                      name="conjuge_id"
-                      className="form-input"
-                      value={formData.conjuge_id}
-                      onChange={handleChange}
-                    >
-                      <option value="">-- Selecione o cônjuge (se houver) --</option>
-                      {potenciaisConjuges.map(c => (
-                        <option key={c.id} value={c.id}>
-                          {c.nome} {c.ano ? `(Turma ${c.ano})` : ''}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                ) : (
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="padrinhos_catequistas">
-                      Nome dos Padrinhos ou Catequistas
-                    </label>
-                    <input
-                      id="padrinhos_catequistas"
-                      name="padrinhos_catequistas"
-                      type="text"
-                      className="form-input"
-                      placeholder="Ex: João e Maria ou Catequista André"
-                      value={formData.padrinhos_catequistas}
-                      onChange={handleChange}
-                    />
-                  </div>
-                )}
-              </div>
-
-              <div className="form-grid">
-                <div className="form-group">
-                  <label className="form-label" htmlFor="data_nascimento">
-                    Data de Nascimento *
-                  </label>
-                  <input
-                    id="data_nascimento"
-                    name="data_nascimento"
-                    type="date"
-                    className="form-input"
-                    value={formData.data_nascimento}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label" htmlFor="idade">
-                    Idade do Participante
-                  </label>
-                  <input
-                    id="idade"
-                    name="idade"
-                    type="number"
-                    min="0"
-                    max="120"
-                    className="form-input"
-                    placeholder="Calculada automaticamente"
-                    value={formData.idade}
-                    onChange={handleChange}
-                  />
-                  {isMenorDeIdade && (
-                    <span style={{ fontSize: '0.75rem', color: '#d97706', fontWeight: 'bold' }}>
-                      ⚠️ Menor de idade (necessário preencher dados e autorizações dos pais/responsáveis)
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              <div className="form-grid">
-                <div className="form-group">
-                  <label className="form-label" htmlFor="rg">
-                    RG do Participante
-                  </label>
-                  <input
-                    id="rg"
-                    name="rg"
-                    type="text"
-                    className="form-input"
-                    placeholder="Número do RG / Órgão Emissor"
-                    value={formData.rg}
-                    onChange={handleChange}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label" htmlFor="cpf" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span>CPF do Participante *</span>
-                    <button
-                      type="button"
-                      onClick={handleTrocarCpf}
+                  return (
+                    <div
+                      key={index}
                       style={{
-                        background: 'none',
-                        border: 'none',
-                        color: 'var(--accent-primary)',
-                        fontSize: '0.75rem',
-                        cursor: 'pointer',
-                        textDecoration: 'underline',
-                        padding: 0,
-                        fontWeight: '600'
+                        background: 'var(--bg-secondary)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '10px',
+                        padding: '0.85rem 1rem',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.5rem',
+                        transition: 'border-color 0.2s ease, box-shadow 0.2s ease'
                       }}
                     >
-                      Trocar CPF
-                    </button>
-                  </label>
-                  <input
-                    id="cpf"
-                    name="cpf"
-                    type="text"
-                    className="form-input"
-                    placeholder="000.000.000-00"
-                    value={formData.cpf}
-                    readOnly
-                    style={{ backgroundColor: 'rgba(0, 0, 0, 0.03)', cursor: 'not-allowed', fontWeight: '600' }}
-                    required
-                  />
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem', display: 'block' }}>
-                    CPF validado na identificação inicial. Para alterar, clique em &ldquo;Trocar CPF&rdquo;.
-                  </span>
-                </div>
-              </div>
-
-              <div className="form-grid">
-                <div className="form-group">
-                  <label className="form-label" htmlFor="telefone">
-                    Telefone do Participante (WhatsApp) *
-                  </label>
-                  <input
-                    id="telefone"
-                    name="telefone"
-                    type="text"
-                    className="form-input"
-                    placeholder="(61) 90000-0000"
-                    value={formData.telefone}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label" htmlFor="email">
-                    E-mail
-                  </label>
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    className="form-input"
-                    placeholder="seuemail@exemplo.com"
-                    value={formData.email}
-                    onChange={handleChange}
-                  />
-                </div>
-              </div>
-
-              <div className="form-grid">
-                <div className="form-group">
-                  <label className="form-label" htmlFor="sexo">
-                    Sexo
-                  </label>
-                  <select
-                    id="sexo"
-                    name="sexo"
-                    className="form-input"
-                    value={formData.sexo}
-                    onChange={handleChange}
-                  >
-                    <option value="">-- Selecione --</option>
-                    <option value="M">Masculino</option>
-                    <option value="F">Feminino</option>
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label" htmlFor="ano">
-                    Ano (Turma)
-                  </label>
-                  <input
-                    id="ano"
-                    name="ano"
-                    type="number"
-                    className="form-input"
-                    placeholder="Ex: 2026"
-                    value={formData.ano}
-                    onChange={handleChange}
-                  />
-                </div>
-              </div>
-
-              {formData.tipo_pessoa === 'AFILHADO' && padrinhos.length > 0 && (
-                <div className="form-group" style={{ marginTop: '0.5rem' }}>
-                  <label className="form-label">Vincular o Padrinho</label>
-                  <select
-                    className="form-input"
-                    value={formData.vinculo_padrinho_id}
-                    onChange={(e) => {
-                      const pid = e.target.value;
-                      const p = padrinhos.find(item => item.id === pid);
-                      setFormData(prev => ({
-                        ...prev,
-                        vinculo_padrinho_id: pid,
-                        vinculo_madrinha_id: p?.conjuge_id || prev.vinculo_madrinha_id
-                      }));
-                    }}
-                  >
-                    <option value="">-- Selecione --</option>
-                    {padrinhos.map(p => (
-                      <option key={p.id} value={p.id}>{p.nome}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-            </div>
-
-            {/* ========================================================================= */}
-            {/* DEPENDENTES (FILHOS) - Visível quando Padrinho ou Madrinha */}
-            {/* ========================================================================= */}
-            {(formData.tipo_pessoa === 'PADRINHO' || formData.tipo_pessoa === 'MADRINHA') && (
-              <div className="glass-panel form-section-card" style={{ padding: '1.25rem', marginBottom: '1.25rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
-                  <div className="section-header" style={{ marginBottom: 0 }}>
-                    <Users size={20} color="var(--accent-primary)" />
-                    <div>
-                      <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 'bold' }}>Dependentes (Filhos / Mascotes)</h3>
-                      <p style={{ margin: '0.2rem 0 0', fontSize: '0.825rem', color: 'var(--text-secondary)' }}>
-                        Cadastre os filhos com os respectivos dados cadastrais e ficha médica completa.
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleAbrirModalNovoDependente}
-                    className="btn btn-primary"
-                    style={{ padding: '0.45rem 1rem', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.875rem', fontWeight: 600 }}
-                  >
-                    <Plus size={16} /> Adicionar Dependente
-                  </button>
-                </div>
-
-                {avisoDependentesConjuge && (
-                  <div style={{
-                    background: 'rgba(59, 130, 246, 0.08)',
-                    border: '1px solid rgba(59, 130, 246, 0.25)',
-                    borderRadius: '8px',
-                    padding: '0.65rem 0.85rem',
-                    marginBottom: '0.85rem',
-                    color: '#1d4ed8',
-                    fontSize: '0.85rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem'
-                  }}>
-                    <CheckCircle2 size={18} color="#2563eb" />
-                    <span>{avisoDependentesConjuge}</span>
-                  </div>
-                )}
-
-                {dependentes.length === 0 ? (
-                  <div style={{
-                    textAlign: 'center',
-                    padding: '1.5rem 1rem',
-                    background: 'var(--bg-secondary)',
-                    borderRadius: '8px',
-                    border: '1px dashed var(--border-color)'
-                  }}>
-                    <Users size={32} color="var(--text-secondary)" style={{ opacity: 0.5, marginBottom: '0.5rem' }} />
-                    <p style={{ color: 'var(--text-primary)', margin: '0 0 0.35rem', fontWeight: 500, fontSize: '0.9rem' }}>
-                      Nenhum dependente cadastrado até o momento.
-                    </p>
-                    <p style={{ color: 'var(--text-secondary)', margin: '0 0 0.75rem', fontSize: '0.85rem' }}>
-                      Clique no botão acima para adicionar um dependente com seus dados e ficha médica.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={handleAbrirModalNovoDependente}
-                      className="btn btn-secondary"
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', padding: '0.4rem 0.85rem' }}
-                    >
-                      <Plus size={15} /> Adicionar Primeiro Dependente
-                    </button>
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                    {dependentes.map((dep, index) => {
-                      const idadeDep = calcularIdade(dep.data_nascimento);
-                      const temRestricoes = dep.restricao_alimentar === 'SIM';
-                      const temAlergias = dep.alergia_medicamento === 'SIM' || dep.alergia_alimento === 'SIM';
-                      const temMedicamento = dep.medicamento_continuo === 'SIM';
-                      const temProblema = dep.problema_saude === 'SIM';
-                      const temRespiratoria = dep.doenca_respiratoria === 'SIM';
-
-                      return (
-                        <div
-                          key={index}
-                          style={{
-                            background: 'var(--bg-secondary)',
-                            border: '1px solid var(--border-color)',
-                            borderRadius: '10px',
-                            padding: '0.85rem 1rem',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '0.5rem',
-                            transition: 'border-color 0.2s ease, box-shadow 0.2s ease'
-                          }}
-                        >
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.65rem' }}>
-                            <div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
-                                <h4 style={{ margin: 0, fontSize: '1.05rem', color: 'var(--text-primary)', fontWeight: 'bold' }}>
-                                  {dep.nome || 'Dependente sem nome'}
-                                </h4>
-                                <span
-                                  style={{
-                                    fontSize: '0.75rem',
-                                    padding: '0.15rem 0.5rem',
-                                    borderRadius: '999px',
-                                    fontWeight: 600,
-                                    background: dep.acampamento
-                                      ? (dep.mascote ? 'rgba(245, 158, 11, 0.15)' : 'rgba(16, 185, 129, 0.15)')
-                                      : 'rgba(148, 163, 184, 0.15)',
-                                    color: dep.acampamento
-                                      ? (dep.mascote ? '#d97706' : '#10b981')
-                                      : 'var(--text-secondary)',
-                                    border: dep.acampamento
-                                      ? (dep.mascote ? '1px solid rgba(245, 158, 11, 0.3)' : '1px solid rgba(16, 185, 129, 0.3)')
-                                      : '1px solid rgba(148, 163, 184, 0.3)'
-                                  }}
-                                >
-                                  {dep.acampamento
-                                    ? (dep.mascote ? '✓ Vai para o Acampamento (Mascote)' : '✓ Vai para o Acampamento')
-                                    : 'Não vai para o Acampamento'}
-                                </span>
-                                {dep.pessoa_id && formData.conjuge_id && dep.pessoa_id === formData.conjuge_id && (
-                                  <span
-                                    style={{
-                                      fontSize: '0.725rem',
-                                      padding: '0.15rem 0.5rem',
-                                      borderRadius: '999px',
-                                      fontWeight: 600,
-                                      background: 'rgba(59, 130, 246, 0.12)',
-                                      color: '#2563eb',
-                                      border: '1px solid rgba(59, 130, 246, 0.25)'
-                                    }}
-                                  >
-                                    Vindo do cônjuge
-                                  </span>
-                                )}
-                              </div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', marginTop: '0.3rem', color: 'var(--text-secondary)', fontSize: '0.825rem', flexWrap: 'wrap' }}>
-                                <span>
-                                  <strong>Nascimento:</strong> {dep.data_nascimento ? formatarDataBR(dep.data_nascimento) : 'Não informado'}
-                                  {idadeDep && ` (${idadeDep} anos)`}
-                                </span>
-                                {dep.tipo_sanguineo && (
-                                  <span>
-                                    <strong>Tipo Sanguíneo:</strong> {dep.tipo_sanguineo}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-
-                            <div style={{ display: 'flex', gap: '0.4rem' }}>
-                              <button
-                                type="button"
-                                onClick={() => handleAbrirModalEditarDependente(index)}
-                                className="btn btn-secondary"
-                                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.35rem 0.75rem', fontSize: '0.825rem' }}
-                                title="Editar Dados e Ficha Médica"
-                              >
-                                <Edit3 size={15} /> Editar
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveDependente(index)}
-                                className="btn btn-secondary"
-                                style={{ color: 'var(--danger)', padding: '0.35rem 0.65rem' }}
-                                title="Remover Dependente"
-                              >
-                                <Trash2 size={15} />
-                              </button>
-                            </div>
-                          </div>
-
-                          {/* Resumo da Ficha Médica */}
-                          <div style={{
-                            paddingTop: '0.45rem',
-                            borderTop: '1px solid var(--border-color)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            flexWrap: 'wrap',
-                            gap: '0.4rem',
-                            fontSize: '0.775rem'
-                          }}>
-                            <span style={{ color: 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontWeight: 600 }}>
-                              <HeartPulse size={14} color="var(--accent-primary)" /> Ficha Médica:
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.65rem' }}>
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
+                            <h4 style={{ margin: 0, fontSize: '1.05rem', color: 'var(--text-primary)', fontWeight: 'bold' }}>
+                              {dep.nome || 'Dependente sem nome'}
+                            </h4>
+                            <span
+                              style={{
+                                fontSize: '0.75rem',
+                                padding: '0.15rem 0.5rem',
+                                borderRadius: '999px',
+                                fontWeight: 600,
+                                background: dep.acampamento
+                                  ? (dep.mascote ? 'rgba(245, 158, 11, 0.15)' : 'rgba(16, 185, 129, 0.15)')
+                                  : 'rgba(148, 163, 184, 0.15)',
+                                color: dep.acampamento
+                                  ? (dep.mascote ? '#d97706' : '#10b981')
+                                  : 'var(--text-secondary)',
+                                border: dep.acampamento
+                                  ? (dep.mascote ? '1px solid rgba(245, 158, 11, 0.3)' : '1px solid rgba(16, 185, 129, 0.3)')
+                                  : '1px solid rgba(148, 163, 184, 0.3)'
+                              }}
+                            >
+                              {dep.acampamento
+                                ? (dep.mascote ? '✓ Vai para o Acampamento (Mascote)' : '✓ Vai para o Acampamento')
+                                : 'Não vai para o Acampamento'}
                             </span>
-
-                            {temProblema && (
-                              <span style={{ padding: '0.15rem 0.5rem', borderRadius: '4px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.25)' }}>
-                                Problema crônico: {dep.problema_saude_qual || 'Sim'}
+                            {dep.pessoa_id && formData.conjuge_id && dep.pessoa_id === formData.conjuge_id && (
+                              <span
+                                style={{
+                                  fontSize: '0.725rem',
+                                  padding: '0.15rem 0.5rem',
+                                  borderRadius: '999px',
+                                  fontWeight: 600,
+                                  background: 'rgba(59, 130, 246, 0.12)',
+                                  color: '#2563eb',
+                                  border: '1px solid rgba(59, 130, 246, 0.25)'
+                                }}
+                              >
+                                Vindo do cônjuge
                               </span>
                             )}
-                            {temMedicamento && (
-                              <span style={{ padding: '0.15rem 0.5rem', borderRadius: '4px', background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.25)' }}>
-                                Medicamento: {dep.medicamento_continuo_qual || 'Sim'}
-                              </span>
-                            )}
-                            {temRestricoes && (
-                              <span style={{ padding: '0.15rem 0.5rem', borderRadius: '4px', background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.25)' }}>
-                                Restrição alimentar: {dep.restricao_alimentar_qual || 'Sim'}
-                              </span>
-                            )}
-                            {temAlergias && (
-                              <span style={{ padding: '0.15rem 0.5rem', borderRadius: '4px', background: 'rgba(236, 72, 153, 0.1)', color: '#ec4899', border: '1px solid rgba(236, 72, 153, 0.25)' }}>
-                                Alergia: {[dep.alergia_medicamento === 'SIM' ? dep.alergia_medicamento_qual : null, dep.alergia_alimento === 'SIM' ? dep.alergia_alimento_qual : null].filter(Boolean).join(', ') || 'Sim'}
-                              </span>
-                            )}
-                            {temRespiratoria && (
-                              <span style={{ padding: '0.15rem 0.5rem', borderRadius: '4px', background: 'rgba(139, 92, 246, 0.1)', color: '#8b5cf6', border: '1px solid rgba(139, 92, 246, 0.25)' }}>
-                                Doença respiratória {dep.usa_bombinha === 'SIM' ? '(Usa bombinha)' : ''}
-                              </span>
-                            )}
-                            {!temProblema && !temMedicamento && !temRestricoes && !temAlergias && !temRespiratoria && (
-                              <span style={{ color: 'var(--text-secondary)' }}>
-                                Sem restrições relatadas
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', marginTop: '0.3rem', color: 'var(--text-secondary)', fontSize: '0.825rem', flexWrap: 'wrap' }}>
+                            <span>
+                              <strong>Nascimento:</strong> {dep.data_nascimento ? formatarDataBR(dep.data_nascimento) : 'Não informado'}
+                              {idadeDep && ` (${idadeDep} anos)`}
+                            </span>
+                            {dep.tipo_sanguineo && (
+                              <span>
+                                <strong>Tipo Sanguíneo:</strong> {dep.tipo_sanguineo}
                               </span>
                             )}
                           </div>
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
+
+                        <div style={{ display: 'flex', gap: '0.4rem' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleAbrirModalEditarDependente(index)}
+                            className="btn btn-secondary"
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.35rem 0.75rem', fontSize: '0.825rem' }}
+                            title="Editar Dados e Ficha Médica"
+                          >
+                            <Edit3 size={15} /> Editar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveDependente(index)}
+                            className="btn btn-secondary"
+                            style={{ color: 'var(--danger)', padding: '0.35rem 0.65rem' }}
+                            title="Remover Dependente"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Resumo da Ficha Médica */}
+                      <div style={{
+                        paddingTop: '0.45rem',
+                        borderTop: '1px solid var(--border-color)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        flexWrap: 'wrap',
+                        gap: '0.4rem',
+                        fontSize: '0.775rem'
+                      }}>
+                        <span style={{ color: 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontWeight: 600 }}>
+                          <HeartPulse size={14} color="var(--accent-primary)" /> Ficha Médica:
+                        </span>
+
+                        {temProblema && (
+                          <span style={{ padding: '0.15rem 0.5rem', borderRadius: '4px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.25)' }}>
+                            Problema crônico: {dep.problema_saude_qual || 'Sim'}
+                          </span>
+                        )}
+                        {temMedicamento && (
+                          <span style={{ padding: '0.15rem 0.5rem', borderRadius: '4px', background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.25)' }}>
+                            Medicamento: {dep.medicamento_continuo_qual || 'Sim'}
+                          </span>
+                        )}
+                        {temRestricoes && (
+                          <span style={{ padding: '0.15rem 0.5rem', borderRadius: '4px', background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.25)' }}>
+                            Restrição alimentar: {dep.restricao_alimentar_qual || 'Sim'}
+                          </span>
+                        )}
+                        {temAlergias && (
+                          <span style={{ padding: '0.15rem 0.5rem', borderRadius: '4px', background: 'rgba(236, 72, 153, 0.1)', color: '#ec4899', border: '1px solid rgba(236, 72, 153, 0.25)' }}>
+                            Alergia: {[dep.alergia_medicamento === 'SIM' ? dep.alergia_medicamento_qual : null, dep.alergia_alimento === 'SIM' ? dep.alergia_alimento_qual : null].filter(Boolean).join(', ') || 'Sim'}
+                          </span>
+                        )}
+                        {temRespiratoria && (
+                          <span style={{ padding: '0.15rem 0.5rem', borderRadius: '4px', background: 'rgba(139, 92, 246, 0.1)', color: '#8b5cf6', border: '1px solid rgba(139, 92, 246, 0.25)' }}>
+                            Doença respiratória {dep.usa_bombinha === 'SIM' ? '(Usa bombinha)' : ''}
+                          </span>
+                        )}
+                        {!temProblema && !temMedicamento && !temRestricoes && !temAlergias && !temRespiratoria && (
+                          <span style={{ color: 'var(--text-secondary)' }}>
+                            Sem restrições relatadas
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
+          </div>
+        )}
 
-            {/* ========================================================================= */}
-            {/* SEÇÃO 2: CONTATOS DE EMERGÊNCIA E RESPONSÁVEIS */}
-            {/* ========================================================================= */}
-            <div className="glass-panel form-section-card">
-              <div className="section-header">
-                <Phone size={22} color="var(--accent-primary)" />
-                <h3>2. Contatos de Emergência e Responsáveis</h3>
+        {/* ========================================================================= */}
+        {/* SEÇÃO 2: CONTATOS DE EMERGÊNCIA E RESPONSÁVEIS */}
+        {/* ========================================================================= */}
+        <div className="glass-panel form-section-card">
+          <div className="section-header">
+            <Phone size={22} color="var(--accent-primary)" />
+            <h3>2. Contatos de Emergência e Responsáveis</h3>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="contato_emergencia">
+              Em caso de Emergência ligar para quem? Nome e Telefone *
+            </label>
+            <input
+              id="contato_emergencia"
+              name="contato_emergencia"
+              type="text"
+              className="form-input"
+              placeholder="Ex: Maria (Mãe) - (61) 98888-7777 ou Carlos (Irmão) - (61) 99999-0000"
+              value={formData.contato_emergencia}
+              onChange={handleChange}
+              required
+            />
+          </div>
+
+          <div
+            style={{
+              background: isMenorDeIdade ? 'rgba(245, 158, 11, 0.08)' : 'var(--bg-secondary)',
+              border: isMenorDeIdade ? '1px solid rgba(245, 158, 11, 0.3)' : '1px solid var(--border-color)',
+              padding: '0.85rem 1rem',
+              borderRadius: '8px',
+              marginTop: '0.75rem'
+            }}
+          >
+            <h4 style={{ margin: '0 0 0.65rem 0', fontSize: '0.95rem', fontWeight: 'bold', color: isMenorDeIdade ? '#b45309' : 'var(--text-primary)' }}>
+              Dados dos Pais ou Responsáveis (Obrigatório para menores de 18 anos)
+            </h4>
+
+            <div className="form-grid">
+              <div className="form-group">
+                <label className="form-label" htmlFor="nome_responsavel">
+                  Nome Completo dos pais ou responsáveis {isMenorDeIdade ? '*' : ''}
+                </label>
+                <input
+                  id="nome_responsavel"
+                  name="nome_responsavel"
+                  type="text"
+                  className="form-input"
+                  placeholder="Nome do Pai, Mãe ou Responsável Legal"
+                  value={formData.nome_responsavel}
+                  onChange={handleChange}
+                  required={isMenorDeIdade}
+                />
               </div>
 
               <div className="form-group">
-                <label className="form-label" htmlFor="contato_emergencia">
-                  Em caso de Emergência ligar para quem? Nome e Telefone *
+                <label className="form-label" htmlFor="fone_responsavel">
+                  Telefone pais ou responsáveis {isMenorDeIdade ? '*' : ''}
                 </label>
                 <input
-                  id="contato_emergencia"
-                  name="contato_emergencia"
+                  id="fone_responsavel"
+                  name="fone_responsavel"
                   type="text"
                   className="form-input"
-                  placeholder="Ex: Maria (Mãe) - (61) 98888-7777 ou Carlos (Irmão) - (61) 99999-0000"
-                  value={formData.contato_emergencia}
+                  placeholder="(61) 90000-0000"
+                  value={formData.fone_responsavel}
                   onChange={handleChange}
-                  required
-                />
-              </div>
-
-              <div
-                style={{
-                  background: isMenorDeIdade ? 'rgba(245, 158, 11, 0.08)' : 'var(--bg-secondary)',
-                  border: isMenorDeIdade ? '1px solid rgba(245, 158, 11, 0.3)' : '1px solid var(--border-color)',
-                  padding: '0.85rem 1rem',
-                  borderRadius: '8px',
-                  marginTop: '0.75rem'
-                }}
-              >
-                <h4 style={{ margin: '0 0 0.65rem 0', fontSize: '0.95rem', fontWeight: 'bold', color: isMenorDeIdade ? '#b45309' : 'var(--text-primary)' }}>
-                  Dados dos Pais ou Responsáveis (Obrigatório para menores de 18 anos)
-                </h4>
-
-                <div className="form-grid">
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="nome_responsavel">
-                      Nome Completo dos pais ou responsáveis {isMenorDeIdade ? '*' : ''}
-                    </label>
-                    <input
-                      id="nome_responsavel"
-                      name="nome_responsavel"
-                      type="text"
-                      className="form-input"
-                      placeholder="Nome do Pai, Mãe ou Responsável Legal"
-                      value={formData.nome_responsavel}
-                      onChange={handleChange}
-                      required={isMenorDeIdade}
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="fone_responsavel">
-                      Telefone pais ou responsáveis {isMenorDeIdade ? '*' : ''}
-                    </label>
-                    <input
-                      id="fone_responsavel"
-                      name="fone_responsavel"
-                      type="text"
-                      className="form-input"
-                      placeholder="(61) 90000-0000"
-                      value={formData.fone_responsavel}
-                      onChange={handleChange}
-                      required={isMenorDeIdade}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* ========================================================================= */}
-            {/* SEÇÃO 3: FICHA MÉDICA E DE SAÚDE */}
-            {/* ========================================================================= */}
-            <div className="glass-panel form-section-card">
-              <div className="section-header">
-                <HeartPulse size={22} color="#e11d48" />
-                <h3>3. Ficha Médica e Cuidados de Saúde</h3>
-              </div>
-
-              {/* Tipo Sanguíneo */}
-              <div className="form-group" style={{ maxWidth: '300px' }}>
-                <label className="form-label" htmlFor="tipo_sanguineo">
-                  Tipo Sanguíneo / Fator RH
-                </label>
-                <select
-                  id="tipo_sanguineo"
-                  name="tipo_sanguineo"
-                  className="form-input"
-                  value={formData.tipo_sanguineo}
-                  onChange={handleChange}
-                >
-                  <option value="">-- Não Informado / Não sei --</option>
-                  <option value="A+">A+</option>
-                  <option value="A-">A-</option>
-                  <option value="B+">B+</option>
-                  <option value="B-">B-</option>
-                  <option value="AB+">AB+</option>
-                  <option value="AB-">AB-</option>
-                  <option value="O+">O+</option>
-                  <option value="O-">O-</option>
-                </select>
-              </div>
-
-              <hr style={{ border: 'none', borderTop: '1px solid var(--border-color)', margin: '0.75rem 0' }} />
-
-              {/* 1. Problema Crônico */}
-              <div style={{ marginBottom: '0.75rem' }}>
-                <label className="form-label" style={{ marginBottom: '0.25rem' }}>
-                  Tem algum problema crônico de saúde?
-                </label>
-                <div style={{ display: 'flex', gap: '1.25rem', marginBottom: '0.35rem' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
-                    <input
-                      type="radio"
-                      name="problema_saude"
-                      value="NAO"
-                      checked={formData.problema_saude === 'NAO'}
-                      onChange={handleChange}
-                    />
-                    Não
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
-                    <input
-                      type="radio"
-                      name="problema_saude"
-                      value="SIM"
-                      checked={formData.problema_saude === 'SIM'}
-                      onChange={handleChange}
-                    />
-                    Sim
-                  </label>
-                </div>
-                {formData.problema_saude === 'SIM' && (
-                  <input
-                    type="text"
-                    name="problema_saude_qual"
-                    className="form-input"
-                    placeholder="Qual o problema crônico de saúde?"
-                    value={formData.problema_saude_qual}
-                    onChange={handleChange}
-                    required
-                  />
-                )}
-              </div>
-
-              {/* 2. Convulsão / Epilepsia */}
-              <div style={{ marginBottom: '0.75rem' }}>
-                <label className="form-label" style={{ marginBottom: '0.25rem' }}>
-                  Tem ou já teve: convulsão, epilepsia, sangramentos constantes?
-                </label>
-                <div style={{ display: 'flex', gap: '1.25rem', marginBottom: '0.35rem' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
-                    <input
-                      type="radio"
-                      name="historico_convulsao"
-                      value="NAO"
-                      checked={formData.historico_convulsao === 'NAO'}
-                      onChange={handleChange}
-                    />
-                    Não
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
-                    <input
-                      type="radio"
-                      name="historico_convulsao"
-                      value="SIM"
-                      checked={formData.historico_convulsao === 'SIM'}
-                      onChange={handleChange}
-                    />
-                    Sim
-                  </label>
-                </div>
-                {formData.historico_convulsao === 'SIM' && (
-                  <input
-                    type="text"
-                    name="historico_convulsao_tempo"
-                    className="form-input"
-                    placeholder="Há quanto tempo? Como foi tratado?"
-                    value={formData.historico_convulsao_tempo}
-                    onChange={handleChange}
-                    required
-                  />
-                )}
-              </div>
-
-              {/* 3. Tratamento Médico */}
-              <div style={{ marginBottom: '0.75rem' }}>
-                <label className="form-label" style={{ marginBottom: '0.25rem' }}>
-                  Está fazendo algum tratamento médico? (Ex: Psicológico, Cardíaco, outros)
-                </label>
-                <div style={{ display: 'flex', gap: '1.25rem', marginBottom: '0.35rem' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
-                    <input
-                      type="radio"
-                      name="tratamento_medico"
-                      value="NAO"
-                      checked={formData.tratamento_medico === 'NAO'}
-                      onChange={handleChange}
-                    />
-                    Não
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
-                    <input
-                      type="radio"
-                      name="tratamento_medico"
-                      value="SIM"
-                      checked={formData.tratamento_medico === 'SIM'}
-                      onChange={handleChange}
-                    />
-                    Sim
-                  </label>
-                </div>
-                {formData.tratamento_medico === 'SIM' && (
-                  <input
-                    type="text"
-                    name="tratamento_medico_qual"
-                    className="form-input"
-                    placeholder="Qual tratamento médico?"
-                    value={formData.tratamento_medico_qual}
-                    onChange={handleChange}
-                    required
-                  />
-                )}
-              </div>
-
-              {/* 4. Medicamento Contínuo */}
-              <div style={{ marginBottom: '0.75rem' }}>
-                <label className="form-label" style={{ marginBottom: '0.25rem' }}>
-                  Faz uso de medicamento contínuo?
-                </label>
-                <div style={{ display: 'flex', gap: '1.25rem', marginBottom: '0.35rem' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
-                    <input
-                      type="radio"
-                      name="medicamento_continuo"
-                      value="NAO"
-                      checked={formData.medicamento_continuo === 'NAO'}
-                      onChange={handleChange}
-                    />
-                    Não
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
-                    <input
-                      type="radio"
-                      name="medicamento_continuo"
-                      value="SIM"
-                      checked={formData.medicamento_continuo === 'SIM'}
-                      onChange={handleChange}
-                    />
-                    Sim
-                  </label>
-                </div>
-                {formData.medicamento_continuo === 'SIM' && (
-                  <div className="form-grid" style={{ gap: '0.75rem' }}>
-                    <div className="form-group">
-                      <input
-                        type="text"
-                        name="medicamento_continuo_qual"
-                        className="form-input"
-                        placeholder="Qual medicamento?"
-                        value={formData.medicamento_continuo_qual}
-                        onChange={handleChange}
-                        required
-                      />
-                    </div>
-                    <div className="form-group">
-                      <input
-                        type="text"
-                        name="medicamento_continuo_dosagem"
-                        className="form-input"
-                        placeholder="Qual a dosagem e horários?"
-                        value={formData.medicamento_continuo_dosagem}
-                        onChange={handleChange}
-                        required
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* 5. Lesão ou Contusão */}
-              <div style={{ marginBottom: '0.75rem' }}>
-                <label className="form-label" style={{ marginBottom: '0.25rem' }}>
-                  Possui atualmente alguma lesão ou contusão?
-                </label>
-                <div style={{ display: 'flex', gap: '1.25rem', marginBottom: '0.35rem' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
-                    <input
-                      type="radio"
-                      name="lesao_contusao"
-                      value="NAO"
-                      checked={formData.lesao_contusao === 'NAO'}
-                      onChange={handleChange}
-                    />
-                    Não
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
-                    <input
-                      type="radio"
-                      name="lesao_contusao"
-                      value="SIM"
-                      checked={formData.lesao_contusao === 'SIM'}
-                      onChange={handleChange}
-                    />
-                    Sim
-                  </label>
-                </div>
-                {formData.lesao_contusao === 'SIM' && (
-                  <input
-                    type="text"
-                    name="lesao_contusao_qual"
-                    className="form-input"
-                    placeholder="Qual lesão ou contusão?"
-                    value={formData.lesao_contusao_qual}
-                    onChange={handleChange}
-                    required
-                  />
-                )}
-              </div>
-
-              {/* 6. Restrição Alimentar */}
-              <div style={{ marginBottom: '0.75rem' }}>
-                <label className="form-label" style={{ marginBottom: '0.25rem' }}>
-                  Possui restrição alimentar? (Ex: Glúten, Lactose, outros)
-                </label>
-                <div style={{ display: 'flex', gap: '1.25rem', marginBottom: '0.35rem' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
-                    <input
-                      type="radio"
-                      name="restricao_alimentar"
-                      value="NAO"
-                      checked={formData.restricao_alimentar === 'NAO'}
-                      onChange={handleChange}
-                    />
-                    Não
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
-                    <input
-                      type="radio"
-                      name="restricao_alimentar"
-                      value="SIM"
-                      checked={formData.restricao_alimentar === 'SIM'}
-                      onChange={handleChange}
-                    />
-                    Sim
-                  </label>
-                </div>
-                {formData.restricao_alimentar === 'SIM' && (
-                  <input
-                    type="text"
-                    name="restricao_alimentar_qual"
-                    className="form-input"
-                    placeholder="Qual restrição alimentar?"
-                    value={formData.restricao_alimentar_qual}
-                    onChange={handleChange}
-                    required
-                  />
-                )}
-              </div>
-
-              {/* 7. Doença Respiratória e Bombinha */}
-              <div style={{ marginBottom: '0.75rem' }}>
-                <label className="form-label" style={{ marginBottom: '0.25rem' }}>
-                  Tem doença respiratória? (Ex: Asma, Bronquite)
-                </label>
-                <div style={{ display: 'flex', gap: '1.25rem', marginBottom: '0.35rem' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
-                    <input
-                      type="radio"
-                      name="doenca_respiratoria"
-                      value="NAO"
-                      checked={formData.doenca_respiratoria === 'NAO'}
-                      onChange={handleChange}
-                    />
-                    Não
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
-                    <input
-                      type="radio"
-                      name="doenca_respiratoria"
-                      value="SIM"
-                      checked={formData.doenca_respiratoria === 'SIM'}
-                      onChange={handleChange}
-                    />
-                    Sim
-                  </label>
-                </div>
-                {formData.doenca_respiratoria === 'SIM' && (
-                  <div style={{ background: 'var(--bg-secondary)', padding: '0.5rem 0.75rem', borderRadius: '8px', marginTop: '0.35rem', border: '1px solid var(--border-color)' }}>
-                    <label className="form-label" style={{ marginBottom: '0.25rem' }}>
-                      Faz uso de bombinha?
-                    </label>
-                    <div style={{ display: 'flex', gap: '1.25rem' }}>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
-                        <input
-                          type="radio"
-                          name="usa_bombinha"
-                          value="NAO"
-                          checked={formData.usa_bombinha === 'NAO'}
-                          onChange={handleChange}
-                        />
-                        Não
-                      </label>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
-                        <input
-                          type="radio"
-                          name="usa_bombinha"
-                          value="SIM"
-                          checked={formData.usa_bombinha === 'SIM'}
-                          onChange={handleChange}
-                        />
-                        Sim
-                      </label>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* 8. Alergia a Medicação */}
-              <div style={{ marginBottom: '0.75rem' }}>
-                <label className="form-label" style={{ marginBottom: '0.25rem' }}>
-                  Tem alergia à algum tipo de medicação?
-                </label>
-                <div style={{ display: 'flex', gap: '1.25rem', marginBottom: '0.35rem' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
-                    <input
-                      type="radio"
-                      name="alergia_medicamento"
-                      value="NAO"
-                      checked={formData.alergia_medicamento === 'NAO'}
-                      onChange={handleChange}
-                    />
-                    Não
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
-                    <input
-                      type="radio"
-                      name="alergia_medicamento"
-                      value="SIM"
-                      checked={formData.alergia_medicamento === 'SIM'}
-                      onChange={handleChange}
-                    />
-                    Sim
-                  </label>
-                </div>
-                {formData.alergia_medicamento === 'SIM' && (
-                  <input
-                    type="text"
-                    name="alergia_medicamento_qual"
-                    className="form-input"
-                    placeholder="Qual medicamento que causa alergia?"
-                    value={formData.alergia_medicamento_qual}
-                    onChange={handleChange}
-                    required
-                  />
-                )}
-              </div>
-
-              {/* 9. Alergia a Alimento */}
-              <div style={{ marginBottom: '0.75rem' }}>
-                <label className="form-label" style={{ marginBottom: '0.25rem' }}>
-                  Tem alergia à algum tipo de alimento?
-                </label>
-                <div style={{ display: 'flex', gap: '1.25rem', marginBottom: '0.35rem' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
-                    <input
-                      type="radio"
-                      name="alergia_alimento"
-                      value="NAO"
-                      checked={formData.alergia_alimento === 'NAO'}
-                      onChange={handleChange}
-                    />
-                    Não
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
-                    <input
-                      type="radio"
-                      name="alergia_alimento"
-                      value="SIM"
-                      checked={formData.alergia_alimento === 'SIM'}
-                      onChange={handleChange}
-                    />
-                    Sim
-                  </label>
-                </div>
-                {formData.alergia_alimento === 'SIM' && (
-                  <input
-                    type="text"
-                    name="alergia_alimento_qual"
-                    className="form-input"
-                    placeholder="Qual alimento que causa alergia?"
-                    value={formData.alergia_alimento_qual}
-                    onChange={handleChange}
-                    required
-                  />
-                )}
-              </div>
-
-              {/* 10. Cuidados Especiais */}
-              <div style={{ marginBottom: '0.5rem' }}>
-                <label className="form-label" style={{ marginBottom: '0.25rem' }}>
-                  Demanda algum tipo de cuidado especial?
-                </label>
-                <div style={{ display: 'flex', gap: '1.25rem', marginBottom: '0.35rem' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
-                    <input
-                      type="radio"
-                      name="cuidado_especial"
-                      value="NAO"
-                      checked={formData.cuidado_especial === 'NAO'}
-                      onChange={handleChange}
-                    />
-                    Não
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
-                    <input
-                      type="radio"
-                      name="cuidado_especial"
-                      value="SIM"
-                      checked={formData.cuidado_especial === 'SIM'}
-                      onChange={handleChange}
-                    />
-                    Sim
-                  </label>
-                </div>
-                {formData.cuidado_especial === 'SIM' && (
-                  <input
-                    type="text"
-                    name="cuidado_especial_qual"
-                    className="form-input"
-                    placeholder="Descreva o cuidado especial necessário"
-                    value={formData.cuidado_especial_qual}
-                    onChange={handleChange}
-                    required
-                  />
-                )}
-              </div>
-
-              {/* 11. Medicação para Febre / Sintomas Comuns */}
-              <div className="form-group" style={{ marginTop: '0.85rem' }}>
-                <label className="form-label" htmlFor="medicacao_sintomas" style={{ marginBottom: '0.25rem' }}>
-                  Em caso de Febre, Dor de Cabeça, Dor Muscular ou Desconforto Gastrointestinal, qual o tipo de medicação costuma tomar e qual a dosagem?
-                </label>
-                <textarea
-                  id="medicacao_sintomas"
-                  name="medicacao_sintomas"
-                  className="form-input"
-                  rows="2"
-                  placeholder="Ex: Paracetamol 750mg para dor de cabeça, Dipirona 500mg para febre, etc."
-                  value={formData.medicacao_sintomas}
-                  onChange={handleChange}
+                  required={isMenorDeIdade}
                 />
               </div>
             </div>
+          </div>
+        </div>
 
-            {/* ========================================================================= */}
-            {/* SEÇÃO 4: OUTRAS INFORMAÇÕES IMPORTANTES */}
-            {/* ========================================================================= */}
-            <div className="glass-panel form-section-card">
-              <div className="section-header">
-                <Info size={22} color="var(--accent-primary)" />
-                <h3>4. Outras Informações Importantes</h3>
-              </div>
+        {/* ========================================================================= */}
+        {/* SEÇÃO 3: FICHA MÉDICA E DE SAÚDE */}
+        {/* ========================================================================= */}
+        <div className="glass-panel form-section-card">
+          <div className="section-header">
+            <HeartPulse size={22} color="#e11d48" />
+            <h3>3. Ficha Médica e Cuidados de Saúde</h3>
+          </div>
 
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label" htmlFor="outras_informacoes" style={{ marginBottom: '0.25rem' }}>
-                  Outras observações, cuidados ou informações relevantes para a equipe:
-                </label>
-                <textarea
-                  id="outras_informacoes"
-                  name="outras_informacoes"
-                  className="form-input"
-                  rows="2"
-                  placeholder="Digite aqui quaisquer outras orientações importantes sobre o participante..."
-                  value={formData.outras_informacoes}
+          {/* Tipo Sanguíneo */}
+          <div className="form-group" style={{ maxWidth: '300px' }}>
+            <label className="form-label" htmlFor="tipo_sanguineo">
+              Tipo Sanguíneo / Fator RH
+            </label>
+            <select
+              id="tipo_sanguineo"
+              name="tipo_sanguineo"
+              className="form-input"
+              value={formData.tipo_sanguineo}
+              onChange={handleChange}
+            >
+              <option value="">-- Não Informado / Não sei --</option>
+              <option value="A+">A+</option>
+              <option value="A-">A-</option>
+              <option value="B+">B+</option>
+              <option value="B-">B-</option>
+              <option value="AB+">AB+</option>
+              <option value="AB-">AB-</option>
+              <option value="O+">O+</option>
+              <option value="O-">O-</option>
+            </select>
+          </div>
+
+          <hr style={{ border: 'none', borderTop: '1px solid var(--border-color)', margin: '0.75rem 0' }} />
+
+          {/* 1. Problema Crônico */}
+          <div style={{ marginBottom: '0.75rem' }}>
+            <label className="form-label" style={{ marginBottom: '0.25rem' }}>
+              Tem algum problema crônico de saúde?
+            </label>
+            <div style={{ display: 'flex', gap: '1.25rem', marginBottom: '0.35rem' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
+                <input
+                  type="radio"
+                  name="problema_saude"
+                  value="NAO"
+                  checked={formData.problema_saude === 'NAO'}
                   onChange={handleChange}
                 />
-              </div>
+                Não
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
+                <input
+                  type="radio"
+                  name="problema_saude"
+                  value="SIM"
+                  checked={formData.problema_saude === 'SIM'}
+                  onChange={handleChange}
+                />
+                Sim
+              </label>
             </div>
+            {formData.problema_saude === 'SIM' && (
+              <input
+                type="text"
+                name="problema_saude_qual"
+                className="form-input"
+                placeholder="Qual o problema crônico de saúde?"
+                value={formData.problema_saude_qual}
+                onChange={handleChange}
+                required
+              />
+            )}
+          </div>
 
-            {/* ========================================================================= */}
-            {/* SEÇÃO 5: TAMANHO DE CAMISETA */}
-            {/* ========================================================================= */}
-            {/* <div className="glass-panel form-section-card">
+          {/* 2. Convulsão / Epilepsia */}
+          <div style={{ marginBottom: '0.75rem' }}>
+            <label className="form-label" style={{ marginBottom: '0.25rem' }}>
+              Tem ou já teve: convulsão, epilepsia, sangramentos constantes?
+            </label>
+            <div style={{ display: 'flex', gap: '1.25rem', marginBottom: '0.35rem' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
+                <input
+                  type="radio"
+                  name="historico_convulsao"
+                  value="NAO"
+                  checked={formData.historico_convulsao === 'NAO'}
+                  onChange={handleChange}
+                />
+                Não
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
+                <input
+                  type="radio"
+                  name="historico_convulsao"
+                  value="SIM"
+                  checked={formData.historico_convulsao === 'SIM'}
+                  onChange={handleChange}
+                />
+                Sim
+              </label>
+            </div>
+            {formData.historico_convulsao === 'SIM' && (
+              <input
+                type="text"
+                name="historico_convulsao_tempo"
+                className="form-input"
+                placeholder="Há quanto tempo? Como foi tratado?"
+                value={formData.historico_convulsao_tempo}
+                onChange={handleChange}
+                required
+              />
+            )}
+          </div>
+
+          {/* 3. Tratamento Médico */}
+          <div style={{ marginBottom: '0.75rem' }}>
+            <label className="form-label" style={{ marginBottom: '0.25rem' }}>
+              Está fazendo algum tratamento médico? (Ex: Psicológico, Cardíaco, outros)
+            </label>
+            <div style={{ display: 'flex', gap: '1.25rem', marginBottom: '0.35rem' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
+                <input
+                  type="radio"
+                  name="tratamento_medico"
+                  value="NAO"
+                  checked={formData.tratamento_medico === 'NAO'}
+                  onChange={handleChange}
+                />
+                Não
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
+                <input
+                  type="radio"
+                  name="tratamento_medico"
+                  value="SIM"
+                  checked={formData.tratamento_medico === 'SIM'}
+                  onChange={handleChange}
+                />
+                Sim
+              </label>
+            </div>
+            {formData.tratamento_medico === 'SIM' && (
+              <input
+                type="text"
+                name="tratamento_medico_qual"
+                className="form-input"
+                placeholder="Qual tratamento médico?"
+                value={formData.tratamento_medico_qual}
+                onChange={handleChange}
+                required
+              />
+            )}
+          </div>
+
+          {/* 4. Medicamento Contínuo */}
+          <div style={{ marginBottom: '0.75rem' }}>
+            <label className="form-label" style={{ marginBottom: '0.25rem' }}>
+              Faz uso de medicamento contínuo?
+            </label>
+            <div style={{ display: 'flex', gap: '1.25rem', marginBottom: '0.35rem' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
+                <input
+                  type="radio"
+                  name="medicamento_continuo"
+                  value="NAO"
+                  checked={formData.medicamento_continuo === 'NAO'}
+                  onChange={handleChange}
+                />
+                Não
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
+                <input
+                  type="radio"
+                  name="medicamento_continuo"
+                  value="SIM"
+                  checked={formData.medicamento_continuo === 'SIM'}
+                  onChange={handleChange}
+                />
+                Sim
+              </label>
+            </div>
+            {formData.medicamento_continuo === 'SIM' && (
+              <div className="form-grid" style={{ gap: '0.75rem' }}>
+                <div className="form-group">
+                  <input
+                    type="text"
+                    name="medicamento_continuo_qual"
+                    className="form-input"
+                    placeholder="Qual medicamento?"
+                    value={formData.medicamento_continuo_qual}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <input
+                    type="text"
+                    name="medicamento_continuo_dosagem"
+                    className="form-input"
+                    placeholder="Qual a dosagem e horários?"
+                    value={formData.medicamento_continuo_dosagem}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 5. Lesão ou Contusão */}
+          <div style={{ marginBottom: '0.75rem' }}>
+            <label className="form-label" style={{ marginBottom: '0.25rem' }}>
+              Possui atualmente alguma lesão ou contusão?
+            </label>
+            <div style={{ display: 'flex', gap: '1.25rem', marginBottom: '0.35rem' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
+                <input
+                  type="radio"
+                  name="lesao_contusao"
+                  value="NAO"
+                  checked={formData.lesao_contusao === 'NAO'}
+                  onChange={handleChange}
+                />
+                Não
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
+                <input
+                  type="radio"
+                  name="lesao_contusao"
+                  value="SIM"
+                  checked={formData.lesao_contusao === 'SIM'}
+                  onChange={handleChange}
+                />
+                Sim
+              </label>
+            </div>
+            {formData.lesao_contusao === 'SIM' && (
+              <input
+                type="text"
+                name="lesao_contusao_qual"
+                className="form-input"
+                placeholder="Qual lesão ou contusão?"
+                value={formData.lesao_contusao_qual}
+                onChange={handleChange}
+                required
+              />
+            )}
+          </div>
+
+          {/* 6. Restrição Alimentar */}
+          <div style={{ marginBottom: '0.75rem' }}>
+            <label className="form-label" style={{ marginBottom: '0.25rem' }}>
+              Possui restrição alimentar? (Ex: Glúten, Lactose, outros)
+            </label>
+            <div style={{ display: 'flex', gap: '1.25rem', marginBottom: '0.35rem' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
+                <input
+                  type="radio"
+                  name="restricao_alimentar"
+                  value="NAO"
+                  checked={formData.restricao_alimentar === 'NAO'}
+                  onChange={handleChange}
+                />
+                Não
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
+                <input
+                  type="radio"
+                  name="restricao_alimentar"
+                  value="SIM"
+                  checked={formData.restricao_alimentar === 'SIM'}
+                  onChange={handleChange}
+                />
+                Sim
+              </label>
+            </div>
+            {formData.restricao_alimentar === 'SIM' && (
+              <input
+                type="text"
+                name="restricao_alimentar_qual"
+                className="form-input"
+                placeholder="Qual restrição alimentar?"
+                value={formData.restricao_alimentar_qual}
+                onChange={handleChange}
+                required
+              />
+            )}
+          </div>
+
+          {/* 7. Doença Respiratória e Bombinha */}
+          <div style={{ marginBottom: '0.75rem' }}>
+            <label className="form-label" style={{ marginBottom: '0.25rem' }}>
+              Tem doença respiratória? (Ex: Asma, Bronquite)
+            </label>
+            <div style={{ display: 'flex', gap: '1.25rem', marginBottom: '0.35rem' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
+                <input
+                  type="radio"
+                  name="doenca_respiratoria"
+                  value="NAO"
+                  checked={formData.doenca_respiratoria === 'NAO'}
+                  onChange={handleChange}
+                />
+                Não
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
+                <input
+                  type="radio"
+                  name="doenca_respiratoria"
+                  value="SIM"
+                  checked={formData.doenca_respiratoria === 'SIM'}
+                  onChange={handleChange}
+                />
+                Sim
+              </label>
+            </div>
+            {formData.doenca_respiratoria === 'SIM' && (
+              <div style={{ background: 'var(--bg-secondary)', padding: '0.5rem 0.75rem', borderRadius: '8px', marginTop: '0.35rem', border: '1px solid var(--border-color)' }}>
+                <label className="form-label" style={{ marginBottom: '0.25rem' }}>
+                  Faz uso de bombinha?
+                </label>
+                <div style={{ display: 'flex', gap: '1.25rem' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
+                    <input
+                      type="radio"
+                      name="usa_bombinha"
+                      value="NAO"
+                      checked={formData.usa_bombinha === 'NAO'}
+                      onChange={handleChange}
+                    />
+                    Não
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
+                    <input
+                      type="radio"
+                      name="usa_bombinha"
+                      value="SIM"
+                      checked={formData.usa_bombinha === 'SIM'}
+                      onChange={handleChange}
+                    />
+                    Sim
+                  </label>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 8. Alergia a Medicação */}
+          <div style={{ marginBottom: '0.75rem' }}>
+            <label className="form-label" style={{ marginBottom: '0.25rem' }}>
+              Tem alergia à algum tipo de medicação?
+            </label>
+            <div style={{ display: 'flex', gap: '1.25rem', marginBottom: '0.35rem' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
+                <input
+                  type="radio"
+                  name="alergia_medicamento"
+                  value="NAO"
+                  checked={formData.alergia_medicamento === 'NAO'}
+                  onChange={handleChange}
+                />
+                Não
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
+                <input
+                  type="radio"
+                  name="alergia_medicamento"
+                  value="SIM"
+                  checked={formData.alergia_medicamento === 'SIM'}
+                  onChange={handleChange}
+                />
+                Sim
+              </label>
+            </div>
+            {formData.alergia_medicamento === 'SIM' && (
+              <input
+                type="text"
+                name="alergia_medicamento_qual"
+                className="form-input"
+                placeholder="Qual medicamento que causa alergia?"
+                value={formData.alergia_medicamento_qual}
+                onChange={handleChange}
+                required
+              />
+            )}
+          </div>
+
+          {/* 9. Alergia a Alimento */}
+          <div style={{ marginBottom: '0.75rem' }}>
+            <label className="form-label" style={{ marginBottom: '0.25rem' }}>
+              Tem alergia à algum tipo de alimento?
+            </label>
+            <div style={{ display: 'flex', gap: '1.25rem', marginBottom: '0.35rem' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
+                <input
+                  type="radio"
+                  name="alergia_alimento"
+                  value="NAO"
+                  checked={formData.alergia_alimento === 'NAO'}
+                  onChange={handleChange}
+                />
+                Não
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
+                <input
+                  type="radio"
+                  name="alergia_alimento"
+                  value="SIM"
+                  checked={formData.alergia_alimento === 'SIM'}
+                  onChange={handleChange}
+                />
+                Sim
+              </label>
+            </div>
+            {formData.alergia_alimento === 'SIM' && (
+              <input
+                type="text"
+                name="alergia_alimento_qual"
+                className="form-input"
+                placeholder="Qual alimento que causa alergia?"
+                value={formData.alergia_alimento_qual}
+                onChange={handleChange}
+                required
+              />
+            )}
+          </div>
+
+          {/* 10. Cuidados Especiais */}
+          <div style={{ marginBottom: '0.5rem' }}>
+            <label className="form-label" style={{ marginBottom: '0.25rem' }}>
+              Demanda algum tipo de cuidado especial?
+            </label>
+            <div style={{ display: 'flex', gap: '1.25rem', marginBottom: '0.35rem' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
+                <input
+                  type="radio"
+                  name="cuidado_especial"
+                  value="NAO"
+                  checked={formData.cuidado_especial === 'NAO'}
+                  onChange={handleChange}
+                />
+                Não
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
+                <input
+                  type="radio"
+                  name="cuidado_especial"
+                  value="SIM"
+                  checked={formData.cuidado_especial === 'SIM'}
+                  onChange={handleChange}
+                />
+                Sim
+              </label>
+            </div>
+            {formData.cuidado_especial === 'SIM' && (
+              <input
+                type="text"
+                name="cuidado_especial_qual"
+                className="form-input"
+                placeholder="Descreva o cuidado especial necessário"
+                value={formData.cuidado_especial_qual}
+                onChange={handleChange}
+                required
+              />
+            )}
+          </div>
+
+          {/* 11. Medicação para Febre / Sintomas Comuns */}
+          <div className="form-group" style={{ marginTop: '0.85rem' }}>
+            <label className="form-label" htmlFor="medicacao_sintomas" style={{ marginBottom: '0.25rem' }}>
+              Em caso de Febre, Dor de Cabeça, Dor Muscular ou Desconforto Gastrointestinal, qual o tipo de medicação costuma tomar e qual a dosagem?
+            </label>
+            <textarea
+              id="medicacao_sintomas"
+              name="medicacao_sintomas"
+              className="form-input"
+              rows="2"
+              placeholder="Ex: Paracetamol 750mg para dor de cabeça, Dipirona 500mg para febre, etc."
+              value={formData.medicacao_sintomas}
+              onChange={handleChange}
+            />
+          </div>
+        </div>
+
+        {/* ========================================================================= */}
+        {/* SEÇÃO 4: OUTRAS INFORMAÇÕES IMPORTANTES */}
+        {/* ========================================================================= */}
+        <div className="glass-panel form-section-card">
+          <div className="section-header">
+            <Info size={22} color="var(--accent-primary)" />
+            <h3>4. Outras Informações Importantes</h3>
+          </div>
+
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label" htmlFor="outras_informacoes" style={{ marginBottom: '0.25rem' }}>
+              Outras observações, cuidados ou informações relevantes para a equipe:
+            </label>
+            <textarea
+              id="outras_informacoes"
+              name="outras_informacoes"
+              className="form-input"
+              rows="2"
+              placeholder="Digite aqui quaisquer outras orientações importantes sobre o participante..."
+              value={formData.outras_informacoes}
+              onChange={handleChange}
+            />
+          </div>
+        </div>
+
+        {/* ========================================================================= */}
+        {/* SEÇÃO 5: TAMANHO DE CAMISETA */}
+        {/* ========================================================================= */}
+        {/* <div className="glass-panel form-section-card">
           <div className="section-header">
             <Shirt size={22} color="var(--accent-primary)" />
             <h3>5. Tamanho da Camiseta</h3>
@@ -2849,161 +2563,159 @@ CREATE INDEX IF NOT EXISTS idx_apc_acampamento_criador_id ON public.apc_acampame
           </div>
         </div> */}
 
-            {/* ========================================================================= */}
-            {/* SEÇÃO 5: TERMOS DE ACEITE E AUTORIZAÇÕES (LGPD E IMAGEM) */}
-            {/* ========================================================================= */}
-            <div
-              className="glass-panel form-section-card"
-              style={{
-                background: 'rgba(59, 130, 246, 0.03)',
-                border: '1px solid rgba(59, 130, 246, 0.2)'
-              }}
-            >
-              <div className="section-header">
-                <ShieldCheck size={22} color="var(--accent-primary)" />
-                <h3>5. Termos e Autorizações</h3>
-              </div>
+        {/* ========================================================================= */}
+        {/* SEÇÃO 5: TERMOS DE ACEITE E AUTORIZAÇÕES (LGPD E IMAGEM) */}
+        {/* ========================================================================= */}
+        <div
+          className="glass-panel form-section-card"
+          style={{
+            background: 'rgba(59, 130, 246, 0.03)',
+            border: '1px solid rgba(59, 130, 246, 0.2)'
+          }}
+        >
+          <div className="section-header">
+            <ShieldCheck size={22} color="var(--accent-primary)" />
+            <h3>5. Termos e Autorizações</h3>
+          </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
-                <span style={{ color: 'var(--text-primary)', marginTop: '0', marginBottom: '0.5rem', fontSize: '0.8rem', fontWeight: '700' }}>5.1. Tratamento de Dados Pessoais – LGPD</span>
-                <div className="form-group">
-                  {/* Termo 1: Tratamento de dados */}
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
-                    <input
-                      type="checkbox"
-                      id="aceite_termos_dados"
-                      name="aceite_termos_dados"
-                      checked={formData.aceite_termos_dados}
-                      onChange={handleChange}
-                      required
-                      style={{ width: '1.3rem', height: '1.3rem', marginTop: '0.2rem', cursor: 'pointer' }}
-                    />
-                    <label htmlFor="aceite_termos_dados" style={{ cursor: 'pointer', fontSize: '0.9rem', lineHeight: 1.5, textAlign: 'justify' }}>
-                      <strong>PAIS OU RESPONSÁVEIS: </strong> Declaro estar ciente de que meus dados pessoais e os dados do menor sob minha responsabilidade serão tratados para fins de inscrição, organização e segurança do <strong>{eventoSelecionado?.descricao || 'Acampamento do Pós-Crisma'}</strong>, podendo ser compartilhados, quando necessário, com o <strong>{eventoSelecionado?.local || ''} </strong>  e a empresa de transporte contratada, exclusivamente para viabilizar a realização do evento.
-                      As informações da Ficha de Saúde serão utilizadas para atender às necessidades de cuidado e segurança dos participantes, com acesso restrito às pessoas autorizadas.
-                    </label>
-                  </div>
-                </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
+            <span style={{ color: 'var(--text-primary)', marginTop: '0', marginBottom: '0.5rem', fontSize: '0.8rem', fontWeight: '700' }}>5.1. Tratamento de Dados Pessoais – LGPD</span>
+            <div className="form-group">
+              {/* Termo 1: Tratamento de dados */}
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                <input
+                  type="checkbox"
+                  id="aceite_termos_dados"
+                  name="aceite_termos_dados"
+                  checked={formData.aceite_termos_dados}
+                  onChange={handleChange}
+                  required
+                  style={{ width: '1.3rem', height: '1.3rem', marginTop: '0.2rem', cursor: 'pointer' }}
+                />
+                <label htmlFor="aceite_termos_dados" style={{ cursor: 'pointer', fontSize: '0.9rem', lineHeight: 1.5, textAlign: 'justify' }}>
+                  <strong>PAIS OU RESPONSÁVEIS: </strong> Declaro estar ciente de que meus dados pessoais e os dados do menor sob minha responsabilidade serão tratados para fins de inscrição, organização e segurança do <strong>{eventoSelecionado?.descricao || 'Acampamento do Pós-Crisma'}</strong>, podendo ser compartilhados, quando necessário, com o <strong>{eventoSelecionado?.local || ''} </strong>  e a empresa de transporte contratada, exclusivamente para viabilizar a realização do evento.
+                  As informações da Ficha de Saúde serão utilizadas para atender às necessidades de cuidado e segurança dos participantes, com acesso restrito às pessoas autorizadas.
+                </label>
               </div>
+            </div>
+          </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
-                <span style={{ color: 'var(--text-primary)', marginTop: '0', marginBottom: '0.5rem', fontSize: '0.8rem', fontWeight: '700' }}>5.2. Autorização de Uso de Imagem</span>
-                <div className="form-group">
-                  {/* Termo 2: Autorização de uso de imagem */}
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
-                    <input
-                      type="checkbox"
-                      id="aceite_termo_imagem"
-                      name="aceite_termo_imagem"
-                      checked={formData.aceite_termo_imagem}
-                      onChange={handleChange}
-                      required
-                      style={{ width: '1.3rem', height: '1.3rem', marginTop: '0.2rem', cursor: 'pointer' }}
-                    />
-                    <label htmlFor="aceite_termo_imagem" style={{ cursor: 'pointer', fontSize: '0.9rem', lineHeight: 1.5, textAlign: 'justify' }}>
-                      <strong>PAIS OU RESPONSÁVEIS: </strong> Autorizo, de forma livre e específica, o uso da minha imagem e/ou da imagem do menor sob minha responsabilidade em fotografias e filmagens realizadas durante o <strong>{eventoSelecionado?.descricao || 'Acampamento do Pós-Crisma'}</strong>, para divulgação das atividades da Paróquia Santa Maria dos Pobres em seus sites e redes sociais.
-                      Estou ciente de que esta autorização é independente da inscrição e da participação no evento.
-                    </label>
-                  </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
+            <span style={{ color: 'var(--text-primary)', marginTop: '0', marginBottom: '0.5rem', fontSize: '0.8rem', fontWeight: '700' }}>5.2. Autorização de Uso de Imagem</span>
+            <div className="form-group">
+              {/* Termo 2: Autorização de uso de imagem */}
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                <input
+                  type="checkbox"
+                  id="aceite_termo_imagem"
+                  name="aceite_termo_imagem"
+                  checked={formData.aceite_termo_imagem}
+                  onChange={handleChange}
+                  required
+                  style={{ width: '1.3rem', height: '1.3rem', marginTop: '0.2rem', cursor: 'pointer' }}
+                />
+                <label htmlFor="aceite_termo_imagem" style={{ cursor: 'pointer', fontSize: '0.9rem', lineHeight: 1.5, textAlign: 'justify' }}>
+                  <strong>PAIS OU RESPONSÁVEIS: </strong> Autorizo, de forma livre e específica, o uso da minha imagem e/ou da imagem do menor sob minha responsabilidade em fotografias e filmagens realizadas durante o <strong>{eventoSelecionado?.descricao || 'Acampamento do Pós-Crisma'}</strong>, para divulgação das atividades da Paróquia Santa Maria dos Pobres em seus sites e redes sociais.
+                  Estou ciente de que esta autorização é independente da inscrição e da participação no evento.
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ========================================================================= */}
+        {/* SEÇÃO 6: CONFIRMAÇÃO DE INSCRIÇÃO NO EVENTO ATIVO */}
+        {/* ========================================================================= */}
+        {eventoSelecionado && (
+          <div
+            className="glass-panel form-section-card"
+            style={{
+              background: jaInscritoEvento ? 'rgba(16, 185, 129, 0.08)' : 'rgba(59, 130, 246, 0.05)',
+              border: jaInscritoEvento ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(59, 130, 246, 0.2)'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                {jaInscritoEvento ? (
+                  <CheckCircle2 size={24} color="#16a34a" />
+                ) : (
+                  <Calendar size={24} color="var(--accent-primary)" />
+                )}
+                <div>
+                  <strong style={{ display: 'block', fontSize: '1rem' }}>
+                    {jaInscritoEvento ? 'Participante já está inscrito ' : 'Inscrição para'}
+                  </strong>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                    {eventoSelecionado.descricao}
+                  </span>
                 </div>
               </div>
             </div>
+          </div>
+        )}
 
-            {/* ========================================================================= */}
-            {/* SEÇÃO 6: CONFIRMAÇÃO DE INSCRIÇÃO NO EVENTO ATIVO */}
-            {/* ========================================================================= */}
-            {eventoSelecionado && (
-              <div
-                className="glass-panel form-section-card"
-                style={{
-                  background: jaInscritoEvento ? 'rgba(16, 185, 129, 0.08)' : 'rgba(59, 130, 246, 0.05)',
-                  border: jaInscritoEvento ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(59, 130, 246, 0.2)'
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    {jaInscritoEvento ? (
-                      <CheckCircle2 size={24} color="#16a34a" />
-                    ) : (
-                      <Calendar size={24} color="var(--accent-primary)" />
-                    )}
-                    <div>
-                      <strong style={{ display: 'block', fontSize: '1rem' }}>
-                        {jaInscritoEvento ? 'Participante já está inscrito ' : 'Inscrição para'}
-                      </strong>
-                      <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                        {eventoSelecionado.descricao}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Alerta de Erro ou Sucesso no rodapé (para visualização imediata) */}
-            {error && (
-              <div
-                className="alert alert-error"
-                style={{
-                  marginBottom: '1rem',
-                  whiteSpace: 'pre-line',
-                  background: 'rgba(239, 68, 68, 0.1)',
-                  border: '1px solid var(--error)',
-                  padding: '1rem',
-                  borderRadius: '8px',
-                  color: '#b91c1c'
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 'bold', marginBottom: '0.25rem' }}>
-                  <AlertCircle size={20} />
-                  <span>Atenção: Não foi possível salvar</span>
-                </div>
-                {error}
-              </div>
-            )}
-
-            {success && (
-              <div
-                className="alert alert-success"
-                style={{
-                  marginBottom: '1rem',
-                  background: 'rgba(16, 185, 129, 0.1)',
-                  border: '1px solid var(--success)',
-                  padding: '1rem',
-                  borderRadius: '8px',
-                  color: '#047857'
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 'bold' }}>
-                  <CheckCircle2 size={20} />
-                  <span>{success}</span>
-                </div>
-              </div>
-            )}
-
-            {/* Botão de Envio */}
-            <div className="form-actions-footer">
-              <button
-                type="button"
-                onClick={() => navigate(-1)}
-                className="btn btn-secondary"
-                disabled={loading}
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                className="btn btn-primary"
-                style={{ padding: '0.85rem 2rem', fontSize: '1.05rem', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
-                disabled={loading}
-              >
-                <Save size={20} />
-                {loading ? 'Salvando Inscrição...' : targetId ? 'Salvar Inscrição' : `Confirmar Inscrição`}
-              </button>
+        {/* Alerta de Erro ou Sucesso no rodapé (para visualização imediata) */}
+        {error && (
+          <div
+            className="alert alert-error"
+            style={{
+              marginBottom: '1rem',
+              whiteSpace: 'pre-line',
+              background: 'rgba(239, 68, 68, 0.1)',
+              border: '1px solid var(--error)',
+              padding: '1rem',
+              borderRadius: '8px',
+              color: '#b91c1c'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 'bold', marginBottom: '0.25rem' }}>
+              <AlertCircle size={20} />
+              <span>Atenção: Não foi possível salvar</span>
             </div>
-          </form>
-        </>
-      )}
+            {error}
+          </div>
+        )}
+
+        {success && (
+          <div
+            className="alert alert-success"
+            style={{
+              marginBottom: '1rem',
+              background: 'rgba(16, 185, 129, 0.1)',
+              border: '1px solid var(--success)',
+              padding: '1rem',
+              borderRadius: '8px',
+              color: '#047857'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 'bold' }}>
+              <CheckCircle2 size={20} />
+              <span>{success}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Botão de Envio */}
+        <div className="form-actions-footer">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="btn btn-secondary"
+            disabled={loading}
+          >
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            className="btn btn-primary"
+            style={{ padding: '0.85rem 2rem', fontSize: '1.05rem', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+            disabled={loading}
+          >
+            <Save size={20} />
+            {loading ? 'Salvando Inscrição...' : targetId ? 'Salvar Inscrição' : `Confirmar Inscrição`}
+          </button>
+        </div>
+      </form>
 
       {/* ========================================================================= */}
       {/* MODAL / POPUP: ADICIONAR / EDITAR DEPENDENTE */}

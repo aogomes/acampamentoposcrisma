@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { Tent, Plus, Trash2, Edit2, Search, Filter, ArrowLeft, DollarSign, CheckCircle2, XCircle, Users, X, Check } from 'lucide-react';
+import { Tent, Plus, Trash2, Edit2, Search, Filter, ArrowLeft, DollarSign, CheckCircle2, XCircle, Users, X, Check, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { useParams, Link } from 'react-router-dom';
 import { registrarAuditoria } from '../services/auditoriaService';
 
@@ -19,6 +19,14 @@ const calcularIdade = (dataNascimento) => {
 
 const formatCurrency = (val) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
+};
+
+const getTipoLabel = (a) => {
+  const tipo = a?.apc_pessoa?.tipo_pessoa;
+  if (tipo === 'PADRINHO' || tipo === 'MADRINHA') return 'Padrinhos';
+  if (tipo === 'AFILHADO') return 'Afilhado(a)';
+  if (tipo === 'VOLUNTARIO') return 'Voluntário(a)';
+  return tipo || '';
 };
 
 const calcularValorTotal = (acampamento, evento) => {
@@ -126,6 +134,8 @@ export const AdminAcampamentos = () => {
   const [filterVinculo, setFilterVinculo] = useState('TODOS');
   const [filterTipo, setFilterTipo] = useState('TODOS');
   const [filterAno, setFilterAno] = useState('TODOS');
+  const [sortField, setSortField] = useState('tipo');
+  const [sortDirection, setSortDirection] = useState('asc');
 
   const [formData, setFormData] = useState({
     evento_id: evento_id || '',
@@ -567,7 +577,8 @@ export const AdminAcampamentos = () => {
     );
   }
 
-  const filteredAcampamentos = acampamentos.filter(a => {
+  // 1. Filtragem global (Busca, Vínculo Padrinho, Ano) que se aplica a todas as abas
+  const baseAcampamentos = acampamentos.filter(a => {
     const nomePessoa = a.apc_pessoa?.nome?.toLowerCase() || '';
     const nomeConjuge = a.conjuge_inscricao?.apc_pessoa?.nome?.toLowerCase() || '';
     const matchesSearch = nomePessoa.includes(searchTerm.toLowerCase()) || nomeConjuge.includes(searchTerm.toLowerCase());
@@ -577,16 +588,11 @@ export const AdminAcampamentos = () => {
       const pId = a.apc_pessoa?.id;
       const v = a.apc_pessoa?.vinculo;
 
-      // Is this person the selected padrinho/madrinha?
       if (pId === filterVinculo) {
         matchesVinculo = true;
-      }
-      // Is this person an afilhado of the selected padrinho/madrinha?
-      else if (v?.padrinho?.id === filterVinculo || v?.madrinha?.id === filterVinculo) {
+      } else if (v?.padrinho?.id === filterVinculo || v?.madrinha?.id === filterVinculo) {
         matchesVinculo = true;
-      }
-      // Is this person the partner (madrinha/padrinho) of the selected person for some afilhado in the list?
-      else {
+      } else {
         const isPartner = acampamentos.some(other => {
           const otherV = other.apc_pessoa?.vinculo;
           if (otherV) {
@@ -600,25 +606,88 @@ export const AdminAcampamentos = () => {
       }
     }
 
-    let matchesTipo = true;
-    if (filterTipo !== 'TODOS') {
-      const tipoTitular = a.apc_pessoa?.tipo_pessoa;
-      const tipoConjuge = a.conjuge_inscricao?.apc_pessoa?.tipo_pessoa;
-
-      if (filterTipo === 'PADRINHOS') {
-        matchesTipo = tipoTitular === 'PADRINHO' || tipoTitular === 'MADRINHA' ||
-          tipoConjuge === 'PADRINHO' || tipoConjuge === 'MADRINHA';
-      } else if (filterTipo === 'AFILHADO') {
-        matchesTipo = tipoTitular === 'AFILHADO' || tipoConjuge === 'AFILHADO';
-      } else if (filterTipo === 'VOLUNTARIO') {
-        matchesTipo = tipoTitular === 'VOLUNTARIO' || tipoConjuge === 'VOLUNTARIO';
-      }
-    }
-
     const matchesAno = filterAno === 'TODOS' || (a.apc_pessoa?.ano && a.apc_pessoa.ano.toString() === filterAno);
 
-    return matchesSearch && matchesVinculo && matchesTipo && matchesAno;
-  }).sort((a, b) => (a.apc_pessoa?.nome || '').localeCompare(b.apc_pessoa?.nome || ''));
+    return matchesSearch && matchesVinculo && matchesAno;
+  });
+
+  // Contagens para os badges de cada aba baseadas nos filtros globais ativos
+  // const countTabTodos = baseAcampamentos.length;
+  // const countTabPadrinhos = baseAcampamentos.filter(a => {
+  //   const t = a.apc_pessoa?.tipo_pessoa;
+  //   const tc = a.conjuge_inscricao?.apc_pessoa?.tipo_pessoa;
+  //   return t === 'PADRINHO' || t === 'MADRINHA' || tc === 'PADRINHO' || tc === 'MADRINHA';
+  // }).length;
+  // const countTabAfilhados = baseAcampamentos.filter(a => {
+  //   const t = a.apc_pessoa?.tipo_pessoa;
+  //   const tc = a.conjuge_inscricao?.apc_pessoa?.tipo_pessoa;
+  //   return t === 'AFILHADO' || tc === 'AFILHADO';
+  // }).length;
+  // const countTabVoluntarios = baseAcampamentos.filter(a => {
+  //   const t = a.apc_pessoa?.tipo_pessoa;
+  //   const tc = a.conjuge_inscricao?.apc_pessoa?.tipo_pessoa;
+  //   return t === 'VOLUNTARIO' || tc === 'VOLUNTARIO';
+  // }).length;
+
+  // 2. Filtragem pela aba ativa (filterTipo) e ordenação
+  const filteredAcampamentos = baseAcampamentos.filter(a => {
+    if (filterTipo === 'TODOS') return true;
+    const tipoTitular = a.apc_pessoa?.tipo_pessoa;
+    const tipoConjuge = a.conjuge_inscricao?.apc_pessoa?.tipo_pessoa;
+
+    if (filterTipo === 'PADRINHOS') {
+      return tipoTitular === 'PADRINHO' || tipoTitular === 'MADRINHA' ||
+        tipoConjuge === 'PADRINHO' || tipoConjuge === 'MADRINHA';
+    } else if (filterTipo === 'AFILHADO') {
+      return tipoTitular === 'AFILHADO' || tipoConjuge === 'AFILHADO';
+    } else if (filterTipo === 'VOLUNTARIO') {
+      return tipoTitular === 'VOLUNTARIO' || tipoConjuge === 'VOLUNTARIO';
+    }
+    return true;
+  }).sort((a, b) => {
+    let comparison = 0;
+    if (sortField === 'tipo') {
+      const tipoA = getTipoLabel(a);
+      const tipoB = getTipoLabel(b);
+      comparison = tipoA.localeCompare(tipoB, 'pt-BR');
+    } else if (sortField === 'nome') {
+      const nomeA = a.apc_pessoa?.nome || '';
+      const nomeB = b.apc_pessoa?.nome || '';
+      comparison = nomeA.localeCompare(nomeB, 'pt-BR');
+    } else if (sortField === 'ano') {
+      const anoA = parseInt(a.apc_pessoa?.ano || 0, 10);
+      const anoB = parseInt(b.apc_pessoa?.ano || 0, 10);
+      comparison = anoA - anoB;
+    } else if (sortField === 'filhos') {
+      const countA = (a.apc_pessoa?.dependentes_agrupados || []).filter(d => Boolean(d.acampamento !== undefined ? d.acampamento : d.mascote)).length;
+      const countB = (b.apc_pessoa?.dependentes_agrupados || []).filter(d => Boolean(d.acampamento !== undefined ? d.acampamento : d.mascote)).length;
+      comparison = countA - countB;
+    }
+
+    if (comparison !== 0) {
+      return sortDirection === 'asc' ? comparison : -comparison;
+    }
+
+    return (a.apc_pessoa?.nome || '').localeCompare(b.apc_pessoa?.nome || '', 'pt-BR');
+  });
+
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const renderSortIcon = (field) => {
+    if (sortField !== field) {
+      return <ArrowUpDown size={12} style={{ opacity: 0.35 }} />;
+    }
+    return sortDirection === 'asc'
+      ? <ArrowUp size={12} color="var(--accent-primary)" />
+      : <ArrowDown size={12} color="var(--accent-primary)" />;
+  };
 
   const todasEquipes = Array.from(new Set(eventos.flatMap(e => e.equipes || []))).sort();
   const anosDisponiveis = Array.from(new Set(acampamentos.map(a => a.apc_pessoa?.ano).filter(Boolean))).sort((a, b) => b - a);
@@ -928,22 +997,150 @@ export const AdminAcampamentos = () => {
                     ))}
                 </select>
               </div>
-
-              <div style={{ position: 'relative', minWidth: '180px' }}>
-                <Filter size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
-                <select
-                  className="form-input"
-                  style={{ paddingLeft: '2.5rem', margin: 0 }}
-                  value={filterTipo}
-                  onChange={(e) => setFilterTipo(e.target.value)}
-                >
-                  <option value="TODOS">Filtro por Tipo</option>
-                  <option value="PADRINHOS">Padrinhos</option>
-                  <option value="AFILHADO">Afilhado(a)</option>
-                  <option value="VOLUNTARIO">Voluntário(a)</option>
-                </select>
-              </div>
             </div>
+          </div>
+
+          {/* Navegação por Abas (Tabs) */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            marginBottom: '1.25rem',
+            borderBottom: '2px solid var(--border-color)',
+            paddingBottom: '0.65rem',
+            overflowX: 'auto'
+          }}>
+            <button
+              type="button"
+              onClick={() => setFilterTipo('TODOS')}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.45rem',
+                padding: '0.55rem 1rem',
+                borderRadius: '8px',
+                border: filterTipo === 'TODOS' ? '1px solid var(--accent-primary)' : '1px solid transparent',
+                background: filterTipo === 'TODOS' ? 'rgba(37, 99, 235, 0.12)' : 'transparent',
+                color: filterTipo === 'TODOS' ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                fontWeight: filterTipo === 'TODOS' ? '700' : '500',
+                fontSize: '0.875rem',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              <Users size={16} />
+              <span>Todos</span>
+              <span style={{
+                fontSize: '0.725rem',
+                padding: '0.1rem 0.45rem',
+                borderRadius: '999px',
+                background: filterTipo === 'TODOS' ? 'var(--accent-primary)' : 'var(--bg-secondary)',
+                color: filterTipo === 'TODOS' ? '#ffffff' : 'var(--text-secondary)',
+                fontWeight: '700'
+              }}>
+                {totalParticipantes}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setFilterTipo('PADRINHOS')}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.45rem',
+                padding: '0.55rem 1rem',
+                borderRadius: '8px',
+                border: filterTipo === 'PADRINHOS' ? '1px solid #10b981' : '1px solid transparent',
+                background: filterTipo === 'PADRINHOS' ? 'rgba(16, 185, 129, 0.12)' : 'transparent',
+                color: filterTipo === 'PADRINHOS' ? '#059669' : 'var(--text-secondary)',
+                fontWeight: filterTipo === 'PADRINHOS' ? '700' : '500',
+                fontSize: '0.875rem',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              <Users size={16} />
+              <span>Padrinhos</span>
+              <span style={{
+                fontSize: '0.725rem',
+                padding: '0.1rem 0.45rem',
+                borderRadius: '999px',
+                background: filterTipo === 'PADRINHOS' ? '#10b981' : 'var(--bg-secondary)',
+                color: filterTipo === 'PADRINHOS' ? '#ffffff' : 'var(--text-secondary)',
+                fontWeight: '700'
+              }}>
+                {countPadrinhos}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setFilterTipo('AFILHADO')}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.45rem',
+                padding: '0.55rem 1rem',
+                borderRadius: '8px',
+                border: filterTipo === 'AFILHADO' ? '1px solid #f59e0b' : '1px solid transparent',
+                background: filterTipo === 'AFILHADO' ? 'rgba(245, 158, 11, 0.12)' : 'transparent',
+                color: filterTipo === 'AFILHADO' ? '#d97706' : 'var(--text-secondary)',
+                fontWeight: filterTipo === 'AFILHADO' ? '700' : '500',
+                fontSize: '0.875rem',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              <Users size={16} />
+              <span>Afilhados</span>
+              <span style={{
+                fontSize: '0.725rem',
+                padding: '0.1rem 0.45rem',
+                borderRadius: '999px',
+                background: filterTipo === 'AFILHADO' ? '#f59e0b' : 'var(--bg-secondary)',
+                color: filterTipo === 'AFILHADO' ? '#ffffff' : 'var(--text-secondary)',
+                fontWeight: '700'
+              }}>
+                {countAfilhados}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setFilterTipo('VOLUNTARIO')}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.45rem',
+                padding: '0.55rem 1rem',
+                borderRadius: '8px',
+                border: filterTipo === 'VOLUNTARIO' ? '1px solid #3b82f6' : '1px solid transparent',
+                background: filterTipo === 'VOLUNTARIO' ? 'rgba(59, 130, 246, 0.12)' : 'transparent',
+                color: filterTipo === 'VOLUNTARIO' ? '#2563eb' : 'var(--text-secondary)',
+                fontWeight: filterTipo === 'VOLUNTARIO' ? '700' : '500',
+                fontSize: '0.875rem',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              <Users size={16} />
+              <span>Voluntários</span>
+              <span style={{
+                fontSize: '0.725rem',
+                padding: '0.1rem 0.45rem',
+                borderRadius: '999px',
+                background: filterTipo === 'VOLUNTARIO' ? '#3b82f6' : 'var(--bg-secondary)',
+                color: filterTipo === 'VOLUNTARIO' ? '#ffffff' : 'var(--text-secondary)',
+                fontWeight: '700'
+              }}>
+                {countVoluntarios}
+              </span>
+            </button>
           </div>
 
           {loadingData ? (
@@ -957,10 +1154,30 @@ export const AdminAcampamentos = () => {
               <table className="table-compact">
                 <thead>
                   <tr>
-                    <th>Ano</th>
-                    <th>Nome</th>
-                    <th style={{ textAlign: 'center' }}>Filhos</th>
-                    <th>Tipo</th>
+                    <th onClick={() => handleSort('ano')} style={{ cursor: 'pointer', userSelect: 'none' }} title="Clique para alternar ordenação por Ano">
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                        <span>Ano</span>
+                        {renderSortIcon('ano')}
+                      </div>
+                    </th>
+                    <th onClick={() => handleSort('nome')} style={{ cursor: 'pointer', userSelect: 'none' }} title="Clique para alternar ordenação por Nome">
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                        <span>Nome</span>
+                        {renderSortIcon('nome')}
+                      </div>
+                    </th>
+                    <th onClick={() => handleSort('filhos')} style={{ textAlign: 'center', cursor: 'pointer', userSelect: 'none' }} title="Clique para alternar ordenação por Filhos">
+                      <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}>
+                        <span>Filhos</span>
+                        {renderSortIcon('filhos')}
+                      </div>
+                    </th>
+                    <th onClick={() => handleSort('tipo')} style={{ cursor: 'pointer', userSelect: 'none' }} title="Clique para alternar ordenação por Tipo">
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                        <span>Tipo</span>
+                        {renderSortIcon('tipo')}
+                      </div>
+                    </th>
                     <th>Valor</th>
                     <th style={{ textAlign: 'right' }}>Ações</th>
                   </tr>
