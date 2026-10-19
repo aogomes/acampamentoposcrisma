@@ -1238,7 +1238,7 @@ CREATE INDEX IF NOT EXISTS idx_apc_acampamento_criador_id ON public.apc_acampame
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: '#1e40af' }}>
             <DollarSign size={16} />
-            <span>O valor será usado exclusivamente para custear as despesas de <strong>hospedagem, transporte e alimentação{eventoSelecionado?.inclui_camiseta ? ' (inclui camiseta)' : ''}</strong> do participante.</span>
+            <span>O valor será destinado ao custeio das despesas de <strong>hospedagem, transporte e alimentação{eventoSelecionado?.inclui_camiseta ? ' (inclui camiseta)' : ''}</strong> do participante, bem como dos custos relacionados às atividades do acampamento.</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: '#b91c1c' }}>
             <AlertCircle size={16} />

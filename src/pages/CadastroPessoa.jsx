@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { UserPlus, ArrowLeft, Users, Edit2, Trash2, Plus } from 'lucide-react';
+import { UserPlus, ArrowLeft, Users, Edit2, Trash2, Plus, ArrowUpDown, Phone, Mail, Heart } from 'lucide-react';
 import { ModalDependente, ListaDependentes, prepararPayloadDependente } from '../components/ModalDependente';
 import { validarCPF, formatarCPF } from '../utils/cpf';
 
@@ -15,6 +15,7 @@ export const CadastroPessoa = () => {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterTipo, setFilterTipo] = useState('TODOS');
+  const [sortOrder, setSortOrder] = useState('nome-asc');
 
   const [isCreating, setIsCreating] = useState(false);
 
@@ -647,13 +648,67 @@ export const CadastroPessoa = () => {
     );
   }
 
+  const getTipoBadgeInfo = (tipo) => {
+    if (tipo === 'PADRINHO' || tipo === 'MADRINHA') {
+      return {
+        label: tipo === 'PADRINHO' ? 'Padrinho' : 'Madrinha',
+        bg: 'rgba(16, 185, 129, 0.12)',
+        color: '#059669',
+        border: '1px solid rgba(16, 185, 129, 0.25)',
+        accent: '#10b981'
+      };
+    }
+    if (tipo === 'AFILHADO') {
+      return {
+        label: 'Afilhado(a)',
+        bg: 'rgba(245, 158, 11, 0.12)',
+        color: '#d97706',
+        border: '1px solid rgba(245, 158, 11, 0.25)',
+        accent: '#f59e0b'
+      };
+    }
+    if (tipo === 'VOLUNTARIO') {
+      return {
+        label: 'Voluntário(a)',
+        bg: 'rgba(59, 130, 246, 0.12)',
+        color: '#2563eb',
+        border: '1px solid rgba(59, 130, 246, 0.25)',
+        accent: '#3b82f6'
+      };
+    }
+    return {
+      label: tipo || '-',
+      bg: 'var(--bg-secondary)',
+      color: 'var(--text-secondary)',
+      border: '1px solid var(--border-color)',
+      accent: 'var(--accent-primary)'
+    };
+  };
+
   const filteredPessoas = pessoas.filter(p => {
     const matchesSearch = p.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (p.email && p.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (p.cpf && p.cpf.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesTipo = filterTipo === 'TODOS' || p.tipo_pessoa === filterTipo;
     return matchesSearch && matchesTipo;
-  }).sort((a, b) => a.nome.localeCompare(b.nome));
+  }).sort((a, b) => {
+    if (sortOrder === 'nome-desc') {
+      return (b.nome || '').localeCompare(a.nome || '', 'pt-BR');
+    }
+    if (sortOrder === 'ano-desc') {
+      const diff = (parseInt(b.ano, 10) || 0) - (parseInt(a.ano, 10) || 0);
+      return diff !== 0 ? diff : (a.nome || '').localeCompare(b.nome || '', 'pt-BR');
+    }
+    if (sortOrder === 'ano-asc') {
+      const diff = (parseInt(a.ano, 10) || 0) - (parseInt(b.ano, 10) || 0);
+      return diff !== 0 ? diff : (a.nome || '').localeCompare(b.nome || '', 'pt-BR');
+    }
+    if (sortOrder === 'tipo-asc') {
+      const diff = (a.tipo_pessoa || '').localeCompare(b.tipo_pessoa || '', 'pt-BR');
+      return diff !== 0 ? diff : (a.nome || '').localeCompare(b.nome || '', 'pt-BR');
+    }
+    return (a.nome || '').localeCompare(b.nome || '', 'pt-BR');
+  });
 
   return (
     <div className="main-content">
@@ -701,6 +756,7 @@ export const CadastroPessoa = () => {
               <option value="AFILHADO">Afilhados</option>
               <option value="PADRINHO">Padrinhos</option>
               <option value="MADRINHA">Madrinhas</option>
+              <option value="VOLUNTARIO">Voluntários</option>
             </select>
           </div>
         </div>
@@ -712,70 +768,251 @@ export const CadastroPessoa = () => {
             <p>Nenhuma pessoa encontrada com esses filtros.</p>
           </div>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table className="table-compact">
-              <thead>
-                <tr>
-                  <th>Nome</th>
-                  <th>Cônjuge</th>
-                  <th>Tipo</th>
-                  <th>Padrinhos</th>
-                  <th>Ano</th>
-                  <th>E-mail</th>
-                  <th>Telefone</th>
-                  <th style={{ textAlign: 'right' }}>Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredPessoas.map((p) => (
-                  <tr key={p.id}>
-                    <td style={{ fontWeight: '500' }}>{p.nome}</td>
-                    <td style={{ color: 'var(--text-secondary)' }}>
-                      {p.nomeConjuge ? (
-                        <span style={{ fontSize: '0.9rem' }}>{p.nomeConjuge}</span>
-                      ) : (
-                        <span style={{ color: 'var(--text-secondary)' }}>-</span>
-                      )}
-                    </td>
-                    <td>
-                      <span style={{
-                        background: 'var(--bg-secondary)',
-                        padding: '0.1rem 0.25rem',
-                        borderRadius: '4px',
-                        fontSize: '0.7rem'
-                      }}>
-                        {p.tipo_pessoa}
-                      </span>
-                    </td>
-                    <td style={{ color: 'var(--text-secondary)' }}>{p.nomePadrinhos || '-'}</td>
-                    <td>{p.ano || '-'}</td>
-                    <td>{p.email || '-'}</td>
-                    <td>{p.telefone || '-'}</td>
-                    <td style={{ textAlign: 'right' }}>
-                      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                        <Link
-                          to={`/editar-pessoa/${p.id}`}
-                          className="btn btn-secondary"
-                          style={{ padding: '0.4rem 0.75rem', fontSize: '0.875rem' }}
-                          title="Editar Pessoa"
-                        >
-                          <Edit2 size={16} />
-                        </Link>
-                        <button
-                          onClick={() => handleDelete(p.id)}
-                          className="btn btn-secondary"
-                          style={{ padding: '0.4rem 0.75rem', fontSize: '0.875rem', color: 'var(--error)' }}
-                          title="Remover Pessoa"
-                        >
-                          <Trash2 size={16} />
-                        </button>
+          <>
+            {/* Controles para Mobile: Contador e Ordenação Rápida */}
+            <div className="pessoas-mobile-controls">
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                <strong style={{ color: 'var(--text-primary)' }}>{filteredPessoas.length}</strong> {filteredPessoas.length === 1 ? 'pessoa' : 'pessoas'}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <label htmlFor="mobile-sort-select" style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                  <ArrowUpDown size={13} />
+                  <span>Ordenar:</span>
+                </label>
+                <select
+                  id="mobile-sort-select"
+                  className="form-input"
+                  style={{ padding: '0.25rem 0.5rem', fontSize: '0.775rem', width: 'auto', minWidth: '135px', margin: 0, height: 'auto', borderRadius: '6px' }}
+                  value={sortOrder}
+                  onChange={(e) => setSortOrder(e.target.value)}
+                >
+                  <option value="nome-asc">Nome (A-Z)</option>
+                  <option value="nome-desc">Nome (Z-A)</option>
+                  <option value="ano-desc">Ano (Mais recente)</option>
+                  <option value="ano-asc">Ano (Mais antigo)</option>
+                  <option value="tipo-asc">Tipo</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Visualização Mobile: Cards Organizados */}
+            <div className="pessoas-mobile-list">
+              {filteredPessoas.map((p) => {
+                const badge = getTipoBadgeInfo(p.tipo_pessoa);
+
+                return (
+                  <div
+                    key={`mobile-${p.id}`}
+                    className="pessoa-card-mobile"
+                    style={{ borderLeft: `4px solid ${badge.accent}` }}
+                  >
+                    {/* Cabeçalho do Card */}
+                    <div className="pessoa-card-header">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                        <span style={{
+                          fontSize: '0.725rem',
+                          fontWeight: '700',
+                          padding: '0.2rem 0.55rem',
+                          borderRadius: '6px',
+                          background: badge.bg,
+                          color: badge.color,
+                          border: badge.border
+                        }}>
+                          {badge.label}
+                        </span>
+
+                        {p.ano && (
+                          <span style={{
+                            fontSize: '0.7rem',
+                            color: 'var(--text-secondary)',
+                            background: 'var(--bg-secondary)',
+                            padding: '0.15rem 0.45rem',
+                            borderRadius: '6px',
+                            border: '1px solid var(--border-color)',
+                            fontWeight: '600'
+                          }}>
+                            Ano {p.ano}
+                          </span>
+                        )}
                       </div>
-                    </td>
+
+                      {p.cpf && (
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                          {formatarCPF(p.cpf)}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Corpo do Card */}
+                    <div className="pessoa-card-body">
+                      <div style={{ fontWeight: '700', fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+                        {p.nome}
+                      </div>
+
+                      {p.nomeConjuge && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
+                          <span>Cônjuge:</span>
+                          <strong style={{ color: 'var(--text-primary)', fontWeight: '600' }}>
+                            {p.nomeConjuge}
+                          </strong>
+                        </div>
+                      )}
+
+                      {p.nomePadrinhos && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
+                          <Users size={13} color="#d97706" />
+                          <span>Padrinhos:</span>
+                          <strong style={{ color: 'var(--text-primary)', fontWeight: '600' }}>
+                            {p.nomePadrinhos}
+                          </strong>
+                        </div>
+                      )}
+
+                      {(p.telefone || p.email) && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '0.15rem' }}>
+                          {p.telefone && (
+                            <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.3rem',
+                              fontSize: '0.725rem',
+                              color: 'var(--text-secondary)',
+                              background: 'var(--bg-secondary)',
+                              padding: '0.15rem 0.45rem',
+                              borderRadius: '4px',
+                              border: '1px solid var(--border-color)'
+                            }}>
+                              <Phone size={11} />
+                              <span>{p.telefone}</span>
+                            </span>
+                          )}
+                          {p.email && (
+                            <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.3rem',
+                              fontSize: '0.725rem',
+                              color: 'var(--text-secondary)',
+                              background: 'var(--bg-secondary)',
+                              padding: '0.15rem 0.45rem',
+                              borderRadius: '4px',
+                              border: '1px solid var(--border-color)'
+                            }}>
+                              <Mail size={11} />
+                              <span>{p.email}</span>
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Rodapé / Ações */}
+                    <div className="pessoa-card-actions">
+                      <Link
+                        to={`/editar-pessoa/${p.id}`}
+                        className="btn btn-secondary"
+                        style={{
+                          flex: 1,
+                          justifyContent: 'center',
+                          padding: '0.45rem 0.5rem',
+                          fontSize: '0.775rem',
+                          gap: '0.35rem'
+                        }}
+                        title="Editar Pessoa"
+                      >
+                        <Edit2 size={13} />
+                        <span>Editar</span>
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(p.id)}
+                        className="btn btn-danger"
+                        style={{
+                          padding: '0.45rem 0.75rem',
+                          fontSize: '0.775rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}
+                        title="Remover Pessoa"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Visualização Desktop: Tabela Tradicional */}
+            <div className="pessoas-desktop-table">
+              <table className="table-compact">
+                <thead>
+                  <tr>
+                    <th>Nome</th>
+                    <th>Cônjuge</th>
+                    <th>Tipo</th>
+                    <th>Padrinhos</th>
+                    <th>Ano</th>
+                    <th style={{ textAlign: 'right' }}>Ações</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {filteredPessoas.map((p) => {
+                    const badge = getTipoBadgeInfo(p.tipo_pessoa);
+                    return (
+                      <tr key={p.id}>
+                        <td style={{ fontWeight: '500' }}>{p.nome}</td>
+                        <td style={{ color: 'var(--text-secondary)' }}>
+                          {p.nomeConjuge ? (
+                            <span style={{ fontSize: '0.9rem' }}>{p.nomeConjuge}</span>
+                          ) : (
+                            <span style={{ color: 'var(--text-secondary)' }}>-</span>
+                          )}
+                        </td>
+                        <td>
+                          <span style={{
+                            background: badge.bg,
+                            color: badge.color,
+                            border: badge.border,
+                            padding: '0.15rem 0.45rem',
+                            borderRadius: '4px',
+                            fontSize: '0.725rem',
+                            fontWeight: '600',
+                            whiteSpace: 'nowrap'
+                          }}>
+                            {badge.label}
+                          </span>
+                        </td>
+                        <td style={{ color: 'var(--text-secondary)' }}>{p.nomePadrinhos || '-'}</td>
+                        <td>{p.ano || '-'}</td>
+                        <td style={{ textAlign: 'right' }}>
+                          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                            <Link
+                              to={`/editar-pessoa/${p.id}`}
+                              className="btn btn-secondary"
+                              style={{ padding: '0.4rem 0.75rem', fontSize: '0.875rem' }}
+                              title="Editar Pessoa"
+                            >
+                              <Edit2 size={16} />
+                            </Link>
+                            <button
+                              onClick={() => handleDelete(p.id)}
+                              className="btn btn-secondary"
+                              style={{ padding: '0.4rem 0.75rem', fontSize: '0.875rem', color: 'var(--error)' }}
+                              title="Remover Pessoa"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
     </div>

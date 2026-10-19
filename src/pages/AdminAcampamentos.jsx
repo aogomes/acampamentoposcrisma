@@ -1386,261 +1386,642 @@ export const AdminAcampamentos = () => {
               <p>Nenhuma inscrição encontrada.</p>
             </div>
           ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <table className="table-compact">
-                <thead>
-                  <tr>
-                    <th onClick={() => handleSort('ano')} style={{ cursor: 'pointer', userSelect: 'none' }} title="Clique para alternar ordenação por Ano">
-                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
-                        <span>Ano</span>
-                        {renderSortIcon('ano')}
-                      </div>
-                    </th>
-                    <th onClick={() => handleSort('nome')} style={{ cursor: 'pointer', userSelect: 'none' }} title="Clique para alternar ordenação por Nome">
-                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
-                        <span>Nome</span>
-                        {renderSortIcon('nome')}
-                      </div>
-                    </th>
-                    <th onClick={() => handleSort('filhos')} style={{ textAlign: 'center', cursor: 'pointer', userSelect: 'none' }} title="Clique para alternar ordenação por Filhos">
-                      <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}>
-                        <span>Filhos</span>
-                        {renderSortIcon('filhos')}
-                      </div>
-                    </th>
-                    <th onClick={() => handleSort('tipo')} style={{ cursor: 'pointer', userSelect: 'none' }} title="Clique para alternar ordenação por Tipo">
-                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
-                        <span>Tipo</span>
-                        {renderSortIcon('tipo')}
-                      </div>
-                    </th>
-                    <th>Valor</th>
-                    <th style={{ textAlign: 'right' }}>Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredAcampamentos.map((a) => {
-                    const { total: valorTotal, itens: itensValor } = calcularValorTotal(a, currentEvento || a.apc_evento);
-                    const tooltipTexto = itensValor.length > 0
-                      ? itensValor.map(item => `${item.descricao}: ${formatCurrency(item.valor)}`).join('\n') + (itensValor.length > 1 ? `\n-------------------------\nTotal: ${formatCurrency(valorTotal)}` : '')
-                      : 'Sem cobrança';
+            <>
+              {/* Controles para Mobile: Contador e Ordenação Rápida */}
+              <div className="participantes-mobile-controls">
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                  <strong style={{ color: 'var(--text-primary)' }}>{filteredAcampamentos.length}</strong> {filteredAcampamentos.length === 1 ? 'inscrição' : 'inscrições'}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <label htmlFor="mobile-sort-select" style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                    <ArrowUpDown size={13} />
+                    <span>Ordenar:</span>
+                  </label>
+                  <select
+                    id="mobile-sort-select"
+                    className="form-input"
+                    style={{ padding: '0.25rem 0.5rem', fontSize: '0.775rem', width: 'auto', minWidth: '135px', margin: 0, height: 'auto', borderRadius: '6px' }}
+                    value={`${sortField}-${sortDirection}`}
+                    onChange={(e) => {
+                      const [field, direction] = e.target.value.split('-');
+                      setSortField(field);
+                      setSortDirection(direction);
+                    }}
+                  >
+                    <option value="nome-asc">Nome (A-Z)</option>
+                    <option value="nome-desc">Nome (Z-A)</option>
+                    <option value="ano-desc">Ano (Mais recente)</option>
+                    <option value="ano-asc">Ano (Mais antigo)</option>
+                    <option value="filhos-desc">Mais Filhos</option>
+                    <option value="filhos-asc">Menos Filhos</option>
+                    <option value="tipo-asc">Tipo</option>
+                  </select>
+                </div>
+              </div>
 
-                    return (
-                      <tr key={a.id}>
-                        <td>{a.apc_pessoa?.ano}</td>
-                        <td>
-                          <div style={{ alignItems: 'center', flexWrap: 'wrap', gap: '0.35rem' }}>
-                            <span style={{ fontWeight: '600', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'help' }} title="Sim, vai para o Acampamento">
-                              {a.apc_pessoa?.nome} <Check size={12} color="var(--success)" />
+              {/* Visualização Mobile: Cards Modernos e Organizados */}
+              <div className="participantes-mobile-list">
+                {filteredAcampamentos.map((a) => {
+                  const { total: valorTotal, itens: itensValor } = calcularValorTotal(a, currentEvento || a.apc_evento);
+                  const dependentes = a.apc_pessoa?.dependentes_agrupados || [];
+                  const vaiAcampamentoCount = dependentes.filter(d => Boolean(d.acampamento !== undefined ? d.acampamento : d.mascote)).length;
+
+                  const tipo = a.apc_pessoa?.tipo_pessoa;
+                  let tipoLabel = tipo || '-';
+                  let tipoBg = 'var(--bg-secondary)';
+                  let tipoColor = 'var(--text-secondary)';
+                  let tipoBorder = '1px solid var(--border-color)';
+                  let cardAccentColor = 'var(--accent-primary)';
+
+                  if (tipo === 'PADRINHO' || tipo === 'MADRINHA') {
+                    tipoLabel = 'Padrinhos';
+                    tipoBg = 'rgba(16, 185, 129, 0.12)';
+                    tipoColor = '#059669';
+                    tipoBorder = '1px solid rgba(16, 185, 129, 0.25)';
+                    cardAccentColor = '#10b981';
+                  } else if (tipo === 'AFILHADO') {
+                    tipoLabel = 'Afilhado(a)';
+                    tipoBg = 'rgba(245, 158, 11, 0.12)';
+                    tipoColor = '#d97706';
+                    tipoBorder = '1px solid rgba(245, 158, 11, 0.25)';
+                    cardAccentColor = '#f59e0b';
+                  } else if (tipo === 'VOLUNTARIO') {
+                    tipoLabel = 'Voluntário(a)';
+                    tipoBg = 'rgba(59, 130, 246, 0.12)';
+                    tipoColor = '#2563eb';
+                    tipoBorder = '1px solid rgba(59, 130, 246, 0.25)';
+                    cardAccentColor = '#3b82f6';
+                  }
+
+                  const isQuitado = valorTotal > 0 && (a.totalPago || 0) >= valorTotal;
+                  const isParcial = valorTotal > 0 && (a.totalPago || 0) > 0 && !isQuitado;
+                  const isPendente = valorTotal > 0 && (a.totalPago || 0) <= 0;
+                  const isIsento = valorTotal <= 0;
+
+                  return (
+                    <div
+                      key={`mobile-${a.id}`}
+                      className="participante-card-mobile"
+                      style={{ borderLeft: `4px solid ${cardAccentColor}` }}
+                    >
+                      {/* Topo do Card: Tipo, Ano e Status Financeiro */}
+                      <div className="participante-card-header">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                          <span style={{
+                            fontSize: '0.725rem',
+                            fontWeight: '700',
+                            padding: '0.2rem 0.55rem',
+                            borderRadius: '6px',
+                            background: tipoBg,
+                            color: tipoColor,
+                            border: tipoBorder,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.3rem'
+                          }}>
+                            {tipoLabel}
+                          </span>
+
+                          {tipo === 'AFILHADO' && (
+                            <button
+                              type="button"
+                              onClick={(e) => handleOpenPadrinhos(e, a.apc_pessoa)}
+                              title="Clique para ver os padrinhos"
+                              style={{
+                                background: 'rgba(245, 158, 11, 0.12)',
+                                border: '1px solid rgba(245, 158, 11, 0.3)',
+                                borderRadius: '6px',
+                                color: '#d97706',
+                                cursor: 'pointer',
+                                padding: '0.2rem 0.45rem',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.25rem',
+                                fontSize: '0.7rem',
+                                fontWeight: '600'
+                              }}
+                            >
+                              <Users size={12} />
+                              <span>Padrinhos</span>
+                            </button>
+                          )}
+
+                          {a.apc_pessoa?.ano && (
+                            <span style={{
+                              fontSize: '0.7rem',
+                              color: 'var(--text-secondary)',
+                              background: 'var(--bg-secondary)',
+                              padding: '0.15rem 0.45rem',
+                              borderRadius: '6px',
+                              border: '1px solid var(--border-color)',
+                              fontWeight: '600'
+                            }}>
+                              Ano {a.apc_pessoa.ano}
                             </span>
-                            {a.apc_pessoa?.conjuge && (
-                              <span style={{ fontWeight: '600', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'help' }} title={a.conjuge_inscricao ? "Sim, vai para o Acampamento" : "Não vai para o Acampamento"}>
-                                {a.apc_pessoa.conjuge.nome}
-                                {a.conjuge_inscricao ? (
-                                  <Check size={12} color="var(--success)" />
-                                ) : (
-                                  <X size={12} color="var(--error)" />
-                                )}
+                          )}
+                        </div>
+
+                        {/* Badge de Status de Pagamento */}
+                        <div>
+                          {isQuitado && (
+                            <span style={{
+                              fontSize: '0.7rem',
+                              fontWeight: '700',
+                              padding: '0.2rem 0.55rem',
+                              borderRadius: '999px',
+                              background: 'rgba(16, 185, 129, 0.15)',
+                              color: '#10b981',
+                              border: '1px solid rgba(16, 185, 129, 0.3)'
+                            }}>
+                              Quitado ✓
+                            </span>
+                          )}
+                          {isParcial && (
+                            <span style={{
+                              fontSize: '0.7rem',
+                              fontWeight: '600',
+                              padding: '0.2rem 0.55rem',
+                              borderRadius: '999px',
+                              background: 'rgba(245, 158, 11, 0.15)',
+                              color: '#d97706',
+                              border: '1px solid rgba(245, 158, 11, 0.3)'
+                            }}>
+                              Parcial
+                            </span>
+                          )}
+                          {isPendente && (
+                            <span style={{
+                              fontSize: '0.7rem',
+                              fontWeight: '600',
+                              padding: '0.2rem 0.55rem',
+                              borderRadius: '999px',
+                              background: 'rgba(239, 68, 68, 0.1)',
+                              color: '#ef4444',
+                              border: '1px solid rgba(239, 68, 68, 0.25)'
+                            }}>
+                              Pendente
+                            </span>
+                          )}
+                          {isIsento && (
+                            <span style={{
+                              fontSize: '0.7rem',
+                              fontWeight: '500',
+                              padding: '0.2rem 0.55rem',
+                              borderRadius: '999px',
+                              background: 'var(--bg-secondary)',
+                              color: 'var(--text-secondary)',
+                              border: '1px solid var(--border-color)'
+                            }}>
+                              Isento
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Corpo do Card: Nomes e Filhos */}
+                      <div className="participante-card-body">
+                        {/* Titular */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                          <span style={{ fontWeight: '700', fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+                            {a.apc_pessoa?.nome}
+                          </span>
+                          <span title="Inscrito(a) no acampamento" style={{ display: 'inline-flex', alignItems: 'center' }}>
+                            <Check size={14} color="var(--success)" strokeWidth={3} />
+                          </span>
+                        </div>
+
+                        {/* Cônjuge se cadastrado */}
+                        {a.apc_pessoa?.conjuge && (
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.4rem',
+                            fontSize: '0.825rem',
+                            color: 'var(--text-secondary)',
+                            paddingLeft: '0.25rem',
+                            flexWrap: 'wrap'
+                          }}>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Cônjuge:</span>
+                            <strong style={{ color: 'var(--text-primary)', fontWeight: '600' }}>
+                              {a.apc_pessoa.conjuge.nome}
+                            </strong>
+                            {a.conjuge_inscricao ? (
+                              <span style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.2rem',
+                                fontSize: '0.7rem',
+                                color: '#059669',
+                                fontWeight: '600',
+                                background: 'rgba(16, 185, 129, 0.1)',
+                                padding: '0.1rem 0.4rem',
+                                borderRadius: '4px'
+                              }}>
+                                <Check size={12} strokeWidth={3} /> Vai
+                              </span>
+                            ) : (
+                              <span style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.2rem',
+                                fontSize: '0.7rem',
+                                color: 'var(--text-secondary)',
+                                background: 'var(--bg-secondary)',
+                                padding: '0.1rem 0.4rem',
+                                borderRadius: '4px'
+                              }}>
+                                <X size={12} /> Não vai
                               </span>
                             )}
                           </div>
-                        </td>
+                        )}
 
-                        <td style={{ textAlign: 'center', verticalAlign: 'middle' }}>
-                          {(() => {
-                            const dependentes = a.apc_pessoa?.dependentes_agrupados || [];
-                            if (dependentes.length === 0) {
-                              return <span style={{ color: 'var(--text-secondary)' }}>-</span>;
-                            }
-                            const vaiAcampamentoCount = dependentes.filter(d => Boolean(d.acampamento !== undefined ? d.acampamento : d.mascote)).length;
+                        {/* Filhos / Dependentes */}
+                        {dependentes.length > 0 && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.1rem' }}>
+                            <button
+                              type="button"
+                              onClick={(e) => handleOpenFilhos(e, a)}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.4rem',
+                                padding: '0.25rem 0.6rem',
+                                borderRadius: '6px',
+                                fontSize: '0.75rem',
+                                fontWeight: '600',
+                                background: vaiAcampamentoCount > 0 ? 'rgba(16, 185, 129, 0.1)' : 'var(--bg-secondary)',
+                                color: vaiAcampamentoCount > 0 ? '#059669' : 'var(--text-secondary)',
+                                border: vaiAcampamentoCount > 0 ? '1px solid rgba(16, 185, 129, 0.25)' : '1px solid var(--border-color)',
+                                cursor: 'pointer'
+                              }}
+                              title="Clique para ver detalhes dos filhos/dependentes"
+                            >
+                              <Users size={13} />
+                              <span>
+                                {vaiAcampamentoCount} {vaiAcampamentoCount === 1 ? 'filho no acampamento' : 'filhos no acampamento'}
+                              </span>
+                              <span style={{ fontSize: '0.675rem', opacity: 0.8 }}>(ver)</span>
+                            </button>
+                          </div>
+                        )}
 
-                            return (
-                              <button
-                                type="button"
-                                onClick={(e) => handleOpenFilhos(e, a)}
-                                title={`Filhos no acampamento: ${vaiAcampamentoCount}. Clique para detalhar.`}
-                                style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '0.35rem',
-                                  padding: '0.2rem 0.55rem',
-                                  borderRadius: '6px',
-                                  fontSize: '0.75rem',
-                                  fontWeight: '600',
-                                  background: vaiAcampamentoCount > 0 ? 'rgba(16, 185, 129, 0.12)' : 'var(--bg-secondary)',
-                                  color: vaiAcampamentoCount > 0 ? '#059669' : 'var(--text-secondary)',
-                                  border: vaiAcampamentoCount > 0 ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid var(--border-color)',
-                                  cursor: 'pointer',
-                                  transition: 'all 0.15s ease'
-                                }}
-                              >
-                                <Users size={13} />
-                                <span>{vaiAcampamentoCount}</span>
-                              </button>
-                            );
-                          })()}
-                        </td>
-                        <td>
-                          {(() => {
-                            const tipo = a.apc_pessoa?.tipo_pessoa;
-                            let label = tipo || '-';
-                            let bg = 'var(--bg-secondary)';
-                            let color = 'var(--text-secondary)';
-                            let border = '1px solid var(--border-color)';
+                        {/* Bloco de Valor e Pagamento */}
+                        <div
+                          className="participante-card-financeiro"
+                          onClick={(e) => handleOpenValor(e, a, valorTotal, itensValor)}
+                          title="Toque para abrir detalhamento de valores e pagamentos"
+                        >
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Total:</span>
+                              <span style={{
+                                fontWeight: '700',
+                                fontSize: '0.9rem',
+                                color: valorTotal > 0 ? 'var(--text-primary)' : 'var(--text-secondary)'
+                              }}>
+                                {formatCurrency(valorTotal)}
+                              </span>
+                              <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                                ({itensValor.length === 0 ? 'Isento' : itensValor.length === 1 ? '1 pessoa' : `${itensValor.length} pessoas`})
+                              </span>
+                            </div>
 
-                            if (tipo === 'PADRINHO' || tipo === 'MADRINHA') {
-                              label = 'Padrinhos';
-                              bg = 'rgba(16, 185, 129, 0.1)';
-                              color = '#059669';
-                              border = '1px solid rgba(16, 185, 129, 0.25)';
-                            } else if (tipo === 'AFILHADO') {
-                              label = 'Afilhado(a)';
-                              bg = 'rgba(245, 158, 11, 0.1)';
-                              color = '#d97706';
-                              border = '1px solid rgba(245, 158, 11, 0.25)';
-                            } else if (tipo === 'VOLUNTARIO') {
-                              label = 'Voluntário(a)';
-                              bg = 'rgba(59, 130, 246, 0.1)';
-                              color = '#2563eb';
-                              border = '1px solid rgba(59, 130, 246, 0.25)';
-                            }
-
-                            return (
-                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
-                                <span style={{
-                                  fontSize: '0.75rem',
-                                  fontWeight: '600',
-                                  padding: '0.15rem 0.5rem',
-                                  borderRadius: '5px',
-                                  background: bg,
-                                  color: color,
-                                  border: border,
-                                  whiteSpace: 'nowrap'
-                                }}>
-                                  {label}
-                                </span>
-                                {tipo === 'AFILHADO' && (
-                                  <button
-                                    type="button"
-                                    onClick={(e) => handleOpenPadrinhos(e, a.apc_pessoa)}
-                                    title="Clique para ver os padrinhos"
-                                    style={{
-                                      background: 'rgba(245, 158, 11, 0.12)',
-                                      border: '1px solid rgba(245, 158, 11, 0.3)',
-                                      borderRadius: '5px',
-                                      color: '#d97706',
-                                      cursor: 'pointer',
-                                      padding: '0.15rem 0.35rem',
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                      transition: 'all 0.15s ease'
-                                    }}
-                                    onMouseEnter={(e) => {
-                                      e.currentTarget.style.background = 'rgba(245, 158, 11, 0.25)';
-                                    }}
-                                    onMouseLeave={(e) => {
-                                      e.currentTarget.style.background = 'rgba(245, 158, 11, 0.12)';
-                                    }}
-                                  >
-                                    <Users size={12} />
-                                  </button>
+                            {valorTotal > 0 && (
+                              <div style={{ fontSize: '0.72rem', color: isQuitado ? '#10b981' : isParcial ? '#d97706' : 'var(--text-secondary)' }}>
+                                {isQuitado ? (
+                                  <span>Total quitado integralmente</span>
+                                ) : isParcial ? (
+                                  <span>Pago: <strong>{formatCurrency(a.totalPago)}</strong> • Falta: <strong>{formatCurrency(Math.max(0, valorTotal - a.totalPago))}</strong></span>
+                                ) : (
+                                  <span>Pagamento ainda não realizado</span>
                                 )}
                               </div>
-                            );
-                          })()}
-                        </td>
+                            )}
+                          </div>
 
-                        <td style={{ verticalAlign: 'middle' }}>
-                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}>
-                            <div
-                              onClick={(e) => handleOpenValor(e, a, valorTotal, itensValor)}
-                              title="Clique para detalhar valores e pagamentos"
-                              style={{
-                                cursor: 'pointer',
-                                display: 'inline-flex',
-                                flexDirection: 'column',
-                                gap: '0.2rem'
-                              }}
-                            >
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                                <span style={{
-                                  fontWeight: '700',
-                                  fontSize: '0.9rem',
-                                  color: valorTotal > 0 ? 'var(--text-primary)' : 'var(--text-secondary)'
-                                }}>
-                                  {formatCurrency(valorTotal)}
-                                </span>
-                                <span style={{ fontSize: '0.725rem', color: 'var(--text-secondary)' }}>
-                                  ({itensValor.length === 0 ? 'Isento' : itensValor.length === 1 ? '1 pessoa' : `${itensValor.length} pessoas`})
-                                </span>
-                              </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', color: 'var(--accent-primary)', fontSize: '0.75rem', fontWeight: '600', flexShrink: 0 }}>
+                            <span>Detalhes</span>
+                            <ArrowRight size={13} />
+                          </div>
+                        </div>
+                      </div>
 
-                              {/* Badge de Pagamento Recebido */}
-                              {valorTotal > 0 && (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                                  {(a.totalPago || 0) >= valorTotal ? (
-                                    <span style={{
-                                      fontSize: '0.675rem',
-                                      fontWeight: '700',
-                                      padding: '0.1rem 0.45rem',
-                                      borderRadius: '4px',
-                                      background: 'rgba(16, 185, 129, 0.12)',
-                                      color: '#10b981',
-                                      border: '1px solid rgba(16, 185, 129, 0.3)'
-                                    }}>
-                                      Quitado ✓
-                                    </span>
-                                  ) : (a.totalPago || 0) > 0 ? (
-                                    <span style={{
-                                      fontSize: '0.675rem',
-                                      fontWeight: '600',
-                                      padding: '0.1rem 0.45rem',
-                                      borderRadius: '4px',
-                                      background: 'rgba(245, 158, 11, 0.12)',
-                                      color: '#d97706',
-                                      border: '1px solid rgba(245, 158, 11, 0.3)'
-                                    }}>
-                                      Pago: {formatCurrency(a.totalPago)} • Falta: {formatCurrency(Math.max(0, valorTotal - a.totalPago))}
-                                    </span>
+                      {/* Rodapé do Card: Ações */}
+                      <div className="participante-card-actions">
+                        <Link
+                          to={`/admin/pagamentos/${a.id}`}
+                          state={{ from: `/admin/acampamentos/${evento_id}` }}
+                          className="btn btn-secondary"
+                          style={{
+                            flex: 1,
+                            justifyContent: 'center',
+                            padding: '0.45rem 0.5rem',
+                            fontSize: '0.775rem',
+                            gap: '0.35rem',
+                            color: 'var(--success)'
+                          }}
+                          title="Pagamentos da Família"
+                        >
+                          <DollarSign size={14} />
+                          <span>Pagamentos</span>
+                        </Link>
+
+                        <button
+                          type="button"
+                          onClick={() => handleEdit(a)}
+                          className="btn btn-primary"
+                          style={{
+                            flex: 1,
+                            justifyContent: 'center',
+                            padding: '0.45rem 0.5rem',
+                            fontSize: '0.775rem',
+                            gap: '0.35rem'
+                          }}
+                          title="Editar Inscrição"
+                        >
+                          <Edit2 size={13} />
+                          <span>Editar</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(a)}
+                          className="btn btn-danger"
+                          style={{
+                            padding: '0.45rem 0.75rem',
+                            fontSize: '0.775rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                          title="Excluir Inscrição"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Visualização Desktop: Tabela Tradicional Completa */}
+              <div className="participantes-desktop-table">
+                <table className="table-compact">
+                  <thead>
+                    <tr>
+                      <th onClick={() => handleSort('ano')} style={{ cursor: 'pointer', userSelect: 'none' }} title="Clique para alternar ordenação por Ano">
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                          <span>Ano</span>
+                          {renderSortIcon('ano')}
+                        </div>
+                      </th>
+                      <th onClick={() => handleSort('nome')} style={{ cursor: 'pointer', userSelect: 'none' }} title="Clique para alternar ordenação por Nome">
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                          <span>Nome</span>
+                          {renderSortIcon('nome')}
+                        </div>
+                      </th>
+                      <th onClick={() => handleSort('filhos')} style={{ textAlign: 'center', cursor: 'pointer', userSelect: 'none' }} title="Clique para alternar ordenação por Filhos">
+                        <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}>
+                          <span>Filhos</span>
+                          {renderSortIcon('filhos')}
+                        </div>
+                      </th>
+                      <th onClick={() => handleSort('tipo')} style={{ cursor: 'pointer', userSelect: 'none' }} title="Clique para alternar ordenação por Tipo">
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                          <span>Tipo</span>
+                          {renderSortIcon('tipo')}
+                        </div>
+                      </th>
+                      <th>Valor</th>
+                      <th style={{ textAlign: 'right' }}>Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredAcampamentos.map((a) => {
+                      const { total: valorTotal, itens: itensValor } = calcularValorTotal(a, currentEvento || a.apc_evento);
+                      const tooltipTexto = itensValor.length > 0
+                        ? itensValor.map(item => `${item.descricao}: ${formatCurrency(item.valor)}`).join('\n') + (itensValor.length > 1 ? `\n-------------------------\nTotal: ${formatCurrency(valorTotal)}` : '')
+                        : 'Sem cobrança';
+
+                      return (
+                        <tr key={a.id}>
+                          <td>{a.apc_pessoa?.ano}</td>
+                          <td>
+                            <div style={{ alignItems: 'center', flexWrap: 'wrap', gap: '0.35rem' }}>
+                              <span style={{ fontWeight: '600', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'help' }} title="Sim, vai para o Acampamento">
+                                {a.apc_pessoa?.nome} <Check size={12} color="var(--success)" />
+                              </span>
+                              {a.apc_pessoa?.conjuge && (
+                                <span style={{ fontWeight: '600', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'help' }} title={a.conjuge_inscricao ? "Sim, vai para o Acampamento" : "Não vai para o Acampamento"}>
+                                  {a.apc_pessoa.conjuge.nome}
+                                  {a.conjuge_inscricao ? (
+                                    <Check size={12} color="var(--success)" />
                                   ) : (
-                                    <span style={{
-                                      fontSize: '0.675rem',
-                                      fontWeight: '600',
-                                      padding: '0.1rem 0.45rem',
-                                      borderRadius: '4px',
-                                      background: 'var(--bg-secondary)',
-                                      color: 'var(--text-secondary)',
-                                      border: '1px solid var(--border-color)'
-                                    }}>
-                                      Pendente
-                                    </span>
+                                    <X size={12} color="var(--error)" />
                                   )}
-                                </div>
+                                </span>
                               )}
                             </div>
-                          </div>
-                        </td>
+                          </td>
 
-                        <td style={{ textAlign: 'right', verticalAlign: 'middle' }}>
-                          <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'flex-end' }}>
-                            <Link to={`/admin/pagamentos/${a.id}`} state={{ from: `/admin/acampamentos/${evento_id}` }} className="btn btn-secondary" style={{ padding: '0.4rem 0.5rem', color: 'var(--success)', display: 'flex', alignItems: 'center', gap: '0.25rem' }} title="Pagamentos da Família">
-                              <DollarSign size={12} />
-                            </Link>
-                            <button onClick={() => handleEdit(a)} className="btn btn-primary" style={{ padding: '0.4rem 0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }} title="Editar Família">
-                              <Edit2 size={12} />
-                            </button>
-                            <button onClick={() => handleDelete(a)} className="btn btn-danger" style={{ padding: '0.4rem 0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }} title="Excluir Inscrição da Família">
-                              <Trash2 size={12} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                          <td style={{ textAlign: 'center', verticalAlign: 'middle' }}>
+                            {(() => {
+                              const dependentes = a.apc_pessoa?.dependentes_agrupados || [];
+                              if (dependentes.length === 0) {
+                                return <span style={{ color: 'var(--text-secondary)' }}>-</span>;
+                              }
+                              const vaiAcampamentoCount = dependentes.filter(d => Boolean(d.acampamento !== undefined ? d.acampamento : d.mascote)).length;
+
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleOpenFilhos(e, a)}
+                                  title={`Filhos no acampamento: ${vaiAcampamentoCount}. Clique para detalhar.`}
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.35rem',
+                                    padding: '0.2rem 0.55rem',
+                                    borderRadius: '6px',
+                                    fontSize: '0.75rem',
+                                    fontWeight: '600',
+                                    background: vaiAcampamentoCount > 0 ? 'rgba(16, 185, 129, 0.12)' : 'var(--bg-secondary)',
+                                    color: vaiAcampamentoCount > 0 ? '#059669' : 'var(--text-secondary)',
+                                    border: vaiAcampamentoCount > 0 ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid var(--border-color)',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.15s ease'
+                                  }}
+                                >
+                                  <Users size={13} />
+                                  <span>{vaiAcampamentoCount}</span>
+                                </button>
+                              );
+                            })()}
+                          </td>
+                          <td>
+                            {(() => {
+                              const tipo = a.apc_pessoa?.tipo_pessoa;
+                              let label = tipo || '-';
+                              let bg = 'var(--bg-secondary)';
+                              let color = 'var(--text-secondary)';
+                              let border = '1px solid var(--border-color)';
+
+                              if (tipo === 'PADRINHO' || tipo === 'MADRINHA') {
+                                label = 'Padrinhos';
+                                bg = 'rgba(16, 185, 129, 0.1)';
+                                color = '#059669';
+                                border = '1px solid rgba(16, 185, 129, 0.25)';
+                              } else if (tipo === 'AFILHADO') {
+                                label = 'Afilhado(a)';
+                                bg = 'rgba(245, 158, 11, 0.1)';
+                                color = '#d97706';
+                                border = '1px solid rgba(245, 158, 11, 0.25)';
+                              } else if (tipo === 'VOLUNTARIO') {
+                                label = 'Voluntário(a)';
+                                bg = 'rgba(59, 130, 246, 0.1)';
+                                color = '#2563eb';
+                                border = '1px solid rgba(59, 130, 246, 0.25)';
+                              }
+
+                              return (
+                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                                  <span style={{
+                                    fontSize: '0.75rem',
+                                    fontWeight: '600',
+                                    padding: '0.15rem 0.5rem',
+                                    borderRadius: '5px',
+                                    background: bg,
+                                    color: color,
+                                    border: border,
+                                    whiteSpace: 'nowrap'
+                                  }}>
+                                    {label}
+                                  </span>
+                                  {tipo === 'AFILHADO' && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => handleOpenPadrinhos(e, a.apc_pessoa)}
+                                      title="Clique para ver os padrinhos"
+                                      style={{
+                                        background: 'rgba(245, 158, 11, 0.12)',
+                                        border: '1px solid rgba(245, 158, 11, 0.3)',
+                                        borderRadius: '5px',
+                                        color: '#d97706',
+                                        cursor: 'pointer',
+                                        padding: '0.15rem 0.35rem',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        transition: 'all 0.15s ease'
+                                      }}
+                                      onMouseEnter={(e) => {
+                                        e.currentTarget.style.background = 'rgba(245, 158, 11, 0.25)';
+                                      }}
+                                      onMouseLeave={(e) => {
+                                        e.currentTarget.style.background = 'rgba(245, 158, 11, 0.12)';
+                                      }}
+                                    >
+                                      <Users size={12} />
+                                    </button>
+                                  )}
+                                </div>
+                              );
+                            })()}
+                          </td>
+
+                          <td style={{ verticalAlign: 'middle' }}>
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}>
+                              <div
+                                onClick={(e) => handleOpenValor(e, a, valorTotal, itensValor)}
+                                title="Clique para detalhar valores e pagamentos"
+                                style={{
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  flexDirection: 'column',
+                                  gap: '0.2rem'
+                                }}
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                  <span style={{
+                                    fontWeight: '700',
+                                    fontSize: '0.9rem',
+                                    color: valorTotal > 0 ? 'var(--text-primary)' : 'var(--text-secondary)'
+                                  }}>
+                                    {formatCurrency(valorTotal)}
+                                  </span>
+                                  <span style={{ fontSize: '0.725rem', color: 'var(--text-secondary)' }}>
+                                    ({itensValor.length === 0 ? 'Isento' : itensValor.length === 1 ? '1 pessoa' : `${itensValor.length} pessoas`})
+                                  </span>
+                                </div>
+
+                                {/* Badge de Pagamento Recebido */}
+                                {valorTotal > 0 && (
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                    {(a.totalPago || 0) >= valorTotal ? (
+                                      <span style={{
+                                        fontSize: '0.675rem',
+                                        fontWeight: '700',
+                                        padding: '0.1rem 0.45rem',
+                                        borderRadius: '4px',
+                                        background: 'rgba(16, 185, 129, 0.12)',
+                                        color: '#10b981',
+                                        border: '1px solid rgba(16, 185, 129, 0.3)'
+                                      }}>
+                                        Quitado ✓
+                                      </span>
+                                    ) : (a.totalPago || 0) > 0 ? (
+                                      <span style={{
+                                        fontSize: '0.675rem',
+                                        fontWeight: '600',
+                                        padding: '0.1rem 0.45rem',
+                                        borderRadius: '4px',
+                                        background: 'rgba(245, 158, 11, 0.12)',
+                                        color: '#d97706',
+                                        border: '1px solid rgba(245, 158, 11, 0.3)'
+                                      }}>
+                                        Pago: {formatCurrency(a.totalPago)} • Falta: {formatCurrency(Math.max(0, valorTotal - a.totalPago))}
+                                      </span>
+                                    ) : (
+                                      <span style={{
+                                        fontSize: '0.675rem',
+                                        fontWeight: '600',
+                                        padding: '0.1rem 0.45rem',
+                                        borderRadius: '4px',
+                                        background: 'var(--bg-secondary)',
+                                        color: 'var(--text-secondary)',
+                                        border: '1px solid var(--border-color)'
+                                      }}>
+                                        Pendente
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+
+                          <td style={{ textAlign: 'right', verticalAlign: 'middle' }}>
+                            <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'flex-end' }}>
+                              <Link to={`/admin/pagamentos/${a.id}`} state={{ from: `/admin/acampamentos/${evento_id}` }} className="btn btn-secondary" style={{ padding: '0.4rem 0.5rem', color: 'var(--success)', display: 'flex', alignItems: 'center', gap: '0.25rem' }} title="Pagamentos da Família">
+                                <DollarSign size={12} />
+                              </Link>
+                              <button onClick={() => handleEdit(a)} className="btn btn-primary" style={{ padding: '0.4rem 0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }} title="Editar Família">
+                                <Edit2 size={12} />
+                              </button>
+                              <button onClick={() => handleDelete(a)} className="btn btn-danger" style={{ padding: '0.4rem 0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }} title="Excluir Inscrição da Família">
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </div>
       )}
@@ -1653,7 +2034,9 @@ export const AdminAcampamentos = () => {
               position: 'fixed',
               inset: 0,
               zIndex: 9998,
-              cursor: 'default'
+              cursor: 'default',
+              background: 'rgba(0, 0, 0, 0.45)',
+              backdropFilter: 'blur(2px)'
             }}
             onClick={() => setCaixaPadrinhos(null)}
           />
@@ -1662,9 +2045,13 @@ export const AdminAcampamentos = () => {
             className="glass-panel"
             style={{
               position: 'fixed',
-              top: `${caixaPadrinhos.pos.top}px`,
-              left: `${caixaPadrinhos.pos.left}px`,
-              // width: '280px',
+              top: window.innerWidth <= 768 ? '50%' : `${caixaPadrinhos.pos?.top || 100}px`,
+              left: window.innerWidth <= 768 ? '50%' : `${caixaPadrinhos.pos?.left || 100}px`,
+              transform: window.innerWidth <= 768 ? 'translate(-50%, -50%)' : 'none',
+              width: '320px',
+              maxWidth: 'calc(100vw - 32px)',
+              maxHeight: '85vh',
+              overflowY: 'auto',
               zIndex: 9999,
               background: 'var(--bg-primary, #0f172a)',
               border: '1px solid rgba(245, 158, 11, 0.35)',
@@ -1763,7 +2150,9 @@ export const AdminAcampamentos = () => {
               position: 'fixed',
               inset: 0,
               zIndex: 9998,
-              cursor: 'default'
+              cursor: 'default',
+              background: 'rgba(0, 0, 0, 0.45)',
+              backdropFilter: 'blur(2px)'
             }}
             onClick={() => setModalFilhos({ isOpen: false, titularNome: '', conjugeNome: '', dependentes: [], pos: null })}
           />
@@ -1772,9 +2161,12 @@ export const AdminAcampamentos = () => {
             className="glass-panel"
             style={{
               position: 'fixed',
-              top: `${modalFilhos.pos?.top || 100}px`,
-              left: `${modalFilhos.pos?.left || 100}px`,
-              maxWidth: '390px',
+              top: window.innerWidth <= 768 ? '50%' : `${modalFilhos.pos?.top || 100}px`,
+              left: window.innerWidth <= 768 ? '50%' : `${modalFilhos.pos?.left || 100}px`,
+              transform: window.innerWidth <= 768 ? 'translate(-50%, -50%)' : 'none',
+              width: '380px',
+              maxWidth: 'calc(100vw - 32px)',
+              maxHeight: '85vh',
               overflowY: 'auto',
               zIndex: 9999,
               background: 'var(--bg-primary, #0f172a)',
@@ -1957,7 +2349,9 @@ export const AdminAcampamentos = () => {
               position: 'fixed',
               inset: 0,
               zIndex: 9998,
-              cursor: 'default'
+              cursor: 'default',
+              background: 'rgba(0, 0, 0, 0.45)',
+              backdropFilter: 'blur(2px)'
             }}
             onClick={() => setCaixaValor(null)}
           />
@@ -1966,12 +2360,13 @@ export const AdminAcampamentos = () => {
             className="glass-panel"
             style={{
               position: 'fixed',
-              top: `${caixaValor.pos?.top || 100}px`,
-              left: `${caixaValor.pos?.left || 100}px`,
+              top: window.innerWidth <= 768 ? '50%' : `${caixaValor.pos?.top || 100}px`,
+              left: window.innerWidth <= 768 ? '50%' : `${caixaValor.pos?.left || 100}px`,
+              transform: window.innerWidth <= 768 ? 'translate(-50%, -50%)' : 'none',
               width: '370px',
               maxWidth: 'calc(100vw - 32px)',
               overflowY: 'auto',
-              maxHeight: '480px',
+              maxHeight: '85vh',
               zIndex: 9999,
               background: 'var(--bg-primary, #0f172a)',
               border: '1px solid rgba(59, 130, 246, 0.35)',
