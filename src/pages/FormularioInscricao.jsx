@@ -1696,228 +1696,6 @@ CREATE INDEX IF NOT EXISTS idx_apc_acampamento_criador_id ON public.apc_acampame
         </div>
 
         {/* ========================================================================= */}
-        {/* DEPENDENTES (FILHOS) - Visível quando Padrinho ou Madrinha */}
-        {/* ========================================================================= */}
-        {(formData.tipo_pessoa === 'PADRINHO' || formData.tipo_pessoa === 'MADRINHA') && (
-          <div className="glass-panel form-section-card" style={{ padding: '1.25rem', marginBottom: '1.25rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
-              <div className="section-header" style={{ marginBottom: 0 }}>
-                <Users size={20} color="var(--accent-primary)" />
-                <div>
-                  <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 'bold' }}>Dependentes (Filhos / Mascotes)</h3>
-                  <p style={{ margin: '0.2rem 0 0', fontSize: '0.825rem', color: 'var(--text-secondary)' }}>
-                    Cadastre os filhos com os respectivos dados cadastrais e ficha médica completa.
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={handleAbrirModalNovoDependente}
-                className="btn btn-primary"
-                style={{ padding: '0.45rem 1rem', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.875rem', fontWeight: 600 }}
-              >
-                <Plus size={16} /> Adicionar Dependente
-              </button>
-            </div>
-
-            {avisoDependentesConjuge && (
-              <div style={{
-                background: 'rgba(59, 130, 246, 0.08)',
-                border: '1px solid rgba(59, 130, 246, 0.25)',
-                borderRadius: '8px',
-                padding: '0.65rem 0.85rem',
-                marginBottom: '0.85rem',
-                color: '#1d4ed8',
-                fontSize: '0.85rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem'
-              }}>
-                <CheckCircle2 size={18} color="#2563eb" />
-                <span>{avisoDependentesConjuge}</span>
-              </div>
-            )}
-
-            {dependentes.length === 0 ? (
-              <div style={{
-                textAlign: 'center',
-                padding: '1.5rem 1rem',
-                background: 'var(--bg-secondary)',
-                borderRadius: '8px',
-                border: '1px dashed var(--border-color)'
-              }}>
-                <Users size={32} color="var(--text-secondary)" style={{ opacity: 0.5, marginBottom: '0.5rem' }} />
-                <p style={{ color: 'var(--text-primary)', margin: '0 0 0.35rem', fontWeight: 500, fontSize: '0.9rem' }}>
-                  Nenhum dependente cadastrado até o momento.
-                </p>
-                <p style={{ color: 'var(--text-secondary)', margin: '0 0 0.75rem', fontSize: '0.85rem' }}>
-                  Clique no botão acima para adicionar um dependente com seus dados e ficha médica.
-                </p>
-                <button
-                  type="button"
-                  onClick={handleAbrirModalNovoDependente}
-                  className="btn btn-secondary"
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', padding: '0.4rem 0.85rem' }}
-                >
-                  <Plus size={15} /> Adicionar Primeiro Dependente
-                </button>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                {dependentes.map((dep, index) => {
-                  const idadeDep = calcularIdade(dep.data_nascimento);
-                  const temRestricoes = dep.restricao_alimentar === 'SIM';
-                  const temAlergias = dep.alergia_medicamento === 'SIM' || dep.alergia_alimento === 'SIM';
-                  const temMedicamento = dep.medicamento_continuo === 'SIM';
-                  const temProblema = dep.problema_saude === 'SIM';
-                  const temRespiratoria = dep.doenca_respiratoria === 'SIM';
-
-                  return (
-                    <div
-                      key={index}
-                      style={{
-                        background: 'var(--bg-secondary)',
-                        border: '1px solid var(--border-color)',
-                        borderRadius: '10px',
-                        padding: '0.85rem 1rem',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '0.5rem',
-                        transition: 'border-color 0.2s ease, box-shadow 0.2s ease'
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.65rem' }}>
-                        <div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
-                            <h4 style={{ margin: 0, fontSize: '1.05rem', color: 'var(--text-primary)', fontWeight: 'bold' }}>
-                              {dep.nome || 'Dependente sem nome'}
-                            </h4>
-                            <span
-                              style={{
-                                fontSize: '0.75rem',
-                                padding: '0.15rem 0.5rem',
-                                borderRadius: '999px',
-                                fontWeight: 600,
-                                background: dep.acampamento
-                                  ? (dep.mascote ? 'rgba(245, 158, 11, 0.15)' : 'rgba(16, 185, 129, 0.15)')
-                                  : 'rgba(148, 163, 184, 0.15)',
-                                color: dep.acampamento
-                                  ? (dep.mascote ? '#d97706' : '#10b981')
-                                  : 'var(--text-secondary)',
-                                border: dep.acampamento
-                                  ? (dep.mascote ? '1px solid rgba(245, 158, 11, 0.3)' : '1px solid rgba(16, 185, 129, 0.3)')
-                                  : '1px solid rgba(148, 163, 184, 0.3)'
-                              }}
-                            >
-                              {dep.acampamento
-                                ? (dep.mascote ? '✓ Vai para o Acampamento (Mascote)' : '✓ Vai para o Acampamento')
-                                : 'Não vai para o Acampamento'}
-                            </span>
-                            {dep.pessoa_id && formData.conjuge_id && dep.pessoa_id === formData.conjuge_id && (
-                              <span
-                                style={{
-                                  fontSize: '0.725rem',
-                                  padding: '0.15rem 0.5rem',
-                                  borderRadius: '999px',
-                                  fontWeight: 600,
-                                  background: 'rgba(59, 130, 246, 0.12)',
-                                  color: '#2563eb',
-                                  border: '1px solid rgba(59, 130, 246, 0.25)'
-                                }}
-                              >
-                                Vindo do cônjuge
-                              </span>
-                            )}
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', marginTop: '0.3rem', color: 'var(--text-secondary)', fontSize: '0.825rem', flexWrap: 'wrap' }}>
-                            <span>
-                              <strong>Nascimento:</strong> {dep.data_nascimento ? formatarDataBR(dep.data_nascimento) : 'Não informado'}
-                              {idadeDep && ` (${idadeDep} anos)`}
-                            </span>
-                            {dep.tipo_sanguineo && (
-                              <span>
-                                <strong>Tipo Sanguíneo:</strong> {dep.tipo_sanguineo}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        <div style={{ display: 'flex', gap: '0.4rem' }}>
-                          <button
-                            type="button"
-                            onClick={() => handleAbrirModalEditarDependente(index)}
-                            className="btn btn-secondary"
-                            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.35rem 0.75rem', fontSize: '0.825rem' }}
-                            title="Editar Dados e Ficha Médica"
-                          >
-                            <Edit3 size={15} /> Editar
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveDependente(index)}
-                            className="btn btn-secondary"
-                            style={{ color: 'var(--danger)', padding: '0.35rem 0.65rem' }}
-                            title="Remover Dependente"
-                          >
-                            <Trash2 size={15} />
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Resumo da Ficha Médica */}
-                      <div style={{
-                        paddingTop: '0.45rem',
-                        borderTop: '1px solid var(--border-color)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        flexWrap: 'wrap',
-                        gap: '0.4rem',
-                        fontSize: '0.775rem'
-                      }}>
-                        <span style={{ color: 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontWeight: 600 }}>
-                          <HeartPulse size={14} color="var(--accent-primary)" /> Ficha Médica:
-                        </span>
-
-                        {temProblema && (
-                          <span style={{ padding: '0.15rem 0.5rem', borderRadius: '4px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.25)' }}>
-                            Problema crônico: {dep.problema_saude_qual || 'Sim'}
-                          </span>
-                        )}
-                        {temMedicamento && (
-                          <span style={{ padding: '0.15rem 0.5rem', borderRadius: '4px', background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.25)' }}>
-                            Medicamento: {dep.medicamento_continuo_qual || 'Sim'}
-                          </span>
-                        )}
-                        {temRestricoes && (
-                          <span style={{ padding: '0.15rem 0.5rem', borderRadius: '4px', background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.25)' }}>
-                            Restrição alimentar: {dep.restricao_alimentar_qual || 'Sim'}
-                          </span>
-                        )}
-                        {temAlergias && (
-                          <span style={{ padding: '0.15rem 0.5rem', borderRadius: '4px', background: 'rgba(236, 72, 153, 0.1)', color: '#ec4899', border: '1px solid rgba(236, 72, 153, 0.25)' }}>
-                            Alergia: {[dep.alergia_medicamento === 'SIM' ? dep.alergia_medicamento_qual : null, dep.alergia_alimento === 'SIM' ? dep.alergia_alimento_qual : null].filter(Boolean).join(', ') || 'Sim'}
-                          </span>
-                        )}
-                        {temRespiratoria && (
-                          <span style={{ padding: '0.15rem 0.5rem', borderRadius: '4px', background: 'rgba(139, 92, 246, 0.1)', color: '#8b5cf6', border: '1px solid rgba(139, 92, 246, 0.25)' }}>
-                            Doença respiratória {dep.usa_bombinha === 'SIM' ? '(Usa bombinha)' : ''}
-                          </span>
-                        )}
-                        {!temProblema && !temMedicamento && !temRestricoes && !temAlergias && !temRespiratoria && (
-                          <span style={{ color: 'var(--text-secondary)' }}>
-                            Sem restrições relatadas
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ========================================================================= */}
         {/* SEÇÃO 2: CONTATOS DE EMERGÊNCIA E RESPONSÁVEIS */}
         {/* ========================================================================= */}
         <div className="glass-panel form-section-card">
@@ -2562,7 +2340,6 @@ CREATE INDEX IF NOT EXISTS idx_apc_acampamento_criador_id ON public.apc_acampame
             </div>
           </div>
         </div> */}
-
         {/* ========================================================================= */}
         {/* SEÇÃO 5: TERMOS DE ACEITE E AUTORIZAÇÕES (LGPD E IMAGEM) */}
         {/* ========================================================================= */}
@@ -2622,6 +2399,252 @@ CREATE INDEX IF NOT EXISTS idx_apc_acampamento_criador_id ON public.apc_acampame
             </div>
           </div>
         </div>
+
+        {/* ========================================================================= */}
+        {/* DEPENDENTES (FILHOS) - Visível quando Padrinho ou Madrinha */}
+        {/* ========================================================================= */}
+        {(formData.tipo_pessoa === 'PADRINHO' || formData.tipo_pessoa === 'MADRINHA') && (
+          <div
+            className="glass-panel form-section-card"
+            style={{
+              padding: '1.25rem',
+              marginBottom: '1.25rem',
+              background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(37, 99, 235, 0.03) 100%)',
+              border: '1px solid #2563eb',
+              borderRadius: '12px',
+              boxShadow: '0 4px 16px -2px rgba(59, 130, 246, 0.08)'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+              <div className="section-header" style={{ marginBottom: 0, borderBottom: 'none', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div style={{
+                  width: '38px',
+                  height: '38px',
+                  borderRadius: '10px',
+                  background: 'rgba(59, 130, 246, 0.15)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'var(--accent-primary)',
+                  flexShrink: 0
+                }}>
+                  <Users size={20} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 'bold' }}>Informações dos Dependentes (Filhos)</h3>
+                  <p style={{ margin: '0.2rem 0 0', fontSize: '0.825rem', color: 'var(--text-secondary)' }}>
+                    Cadastre seus filhos com os respectivos dados cadastrais e ficha médica completa.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleAbrirModalNovoDependente}
+                className="btn btn-primary"
+                style={{ padding: '0.45rem 1rem', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.875rem', fontWeight: 600 }}
+              >
+                <Plus size={16} /> Adicionar Dependente
+              </button>
+            </div>
+
+            {avisoDependentesConjuge && (
+              <div style={{
+                background: 'rgba(59, 130, 246, 0.08)',
+                border: '1px solid rgba(59, 130, 246, 0.25)',
+                borderRadius: '8px',
+                padding: '0.65rem 0.85rem',
+                marginBottom: '0.85rem',
+                color: '#1d4ed8',
+                fontSize: '0.85rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}>
+                <CheckCircle2 size={18} color="#2563eb" />
+                <span>{avisoDependentesConjuge}</span>
+              </div>
+            )}
+
+            {dependentes.length === 0 ? (
+              <div style={{
+                textAlign: 'center',
+                padding: '1.5rem 1rem',
+                background: 'var(--bg-primary)',
+                borderRadius: '8px',
+                border: '1px dashed rgba(59, 130, 246, 0.35)'
+              }}>
+                <Users size={32} color="var(--text-secondary)" style={{ opacity: 0.5, marginBottom: '0.5rem' }} />
+                <p style={{ color: 'var(--text-primary)', margin: '0 0 0.35rem', fontWeight: 500, fontSize: '0.9rem' }}>
+                  Nenhum dependente cadastrado até o momento.
+                </p>
+                <p style={{ color: 'var(--text-secondary)', margin: '0 0 0.75rem', fontSize: '0.85rem' }}>
+                  Clique no botão acima para adicionar um dependente com seus dados e ficha médica.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleAbrirModalNovoDependente}
+                  className="btn btn-secondary"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', padding: '0.4rem 0.85rem' }}
+                >
+                  <Plus size={15} /> Adicionar Primeiro Dependente
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {dependentes.map((dep, index) => {
+                  const idadeDep = calcularIdade(dep.data_nascimento);
+                  const temRestricoes = dep.restricao_alimentar === 'SIM';
+                  const temAlergias = dep.alergia_medicamento === 'SIM' || dep.alergia_alimento === 'SIM';
+                  const temMedicamento = dep.medicamento_continuo === 'SIM';
+                  const temProblema = dep.problema_saude === 'SIM';
+                  const temRespiratoria = dep.doenca_respiratoria === 'SIM';
+
+                  return (
+                    <div
+                      key={index}
+                      style={{
+                        background: 'var(--bg-primary)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '10px',
+                        padding: '0.85rem 1rem',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.5rem',
+                        transition: 'border-color 0.2s ease, box-shadow 0.2s ease'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.65rem' }}>
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
+                            <h4 style={{ margin: 0, fontSize: '1.05rem', color: 'var(--text-primary)', fontWeight: 'bold' }}>
+                              {dep.nome || 'Dependente sem nome'}
+                            </h4>
+                            <span
+                              style={{
+                                fontSize: '0.75rem',
+                                padding: '0.15rem 0.5rem',
+                                borderRadius: '999px',
+                                fontWeight: 600,
+                                background: dep.acampamento
+                                  ? (dep.mascote ? 'rgba(245, 158, 11, 0.15)' : 'rgba(16, 185, 129, 0.15)')
+                                  : 'rgba(148, 163, 184, 0.15)',
+                                color: dep.acampamento
+                                  ? (dep.mascote ? '#d97706' : '#10b981')
+                                  : 'var(--text-secondary)',
+                                border: dep.acampamento
+                                  ? (dep.mascote ? '1px solid rgba(245, 158, 11, 0.3)' : '1px solid rgba(16, 185, 129, 0.3)')
+                                  : '1px solid rgba(148, 163, 184, 0.3)'
+                              }}
+                            >
+                              {dep.acampamento
+                                ? (dep.mascote ? '✓ Vai para o Acampamento (Mascote)' : '✓ Vai para o Acampamento')
+                                : 'Não vai para o Acampamento'}
+                            </span>
+                            {dep.pessoa_id && formData.conjuge_id && dep.pessoa_id === formData.conjuge_id && (
+                              <span
+                                style={{
+                                  fontSize: '0.725rem',
+                                  padding: '0.15rem 0.5rem',
+                                  borderRadius: '999px',
+                                  fontWeight: 600,
+                                  background: 'rgba(59, 130, 246, 0.12)',
+                                  color: '#2563eb',
+                                  border: '1px solid rgba(59, 130, 246, 0.25)'
+                                }}
+                              >
+                                Vindo do cônjuge
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', marginTop: '0.3rem', color: 'var(--text-secondary)', fontSize: '0.825rem', flexWrap: 'wrap' }}>
+                            <span>
+                              <strong>Nascimento:</strong> {dep.data_nascimento ? formatarDataBR(dep.data_nascimento) : 'Não informado'}
+                              {idadeDep && ` (${idadeDep} anos)`}
+                            </span>
+                            {dep.tipo_sanguineo && (
+                              <span>
+                                <strong>Tipo Sanguíneo:</strong> {dep.tipo_sanguineo}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '0.4rem' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleAbrirModalEditarDependente(index)}
+                            className="btn btn-secondary"
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.35rem 0.75rem', fontSize: '0.825rem' }}
+                            title="Editar Dados e Ficha Médica"
+                          >
+                            <Edit3 size={15} /> Editar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveDependente(index)}
+                            className="btn btn-secondary"
+                            style={{ color: 'var(--danger)', padding: '0.35rem 0.65rem' }}
+                            title="Remover Dependente"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Resumo da Ficha Médica */}
+                      <div style={{
+                        paddingTop: '0.45rem',
+                        borderTop: '1px solid var(--border-color)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        flexWrap: 'wrap',
+                        gap: '0.4rem',
+                        fontSize: '0.775rem'
+                      }}>
+                        <span style={{ color: 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontWeight: 600 }}>
+                          <HeartPulse size={14} color="var(--accent-primary)" /> Ficha Médica:
+                        </span>
+
+                        {temProblema && (
+                          <span style={{ padding: '0.15rem 0.5rem', borderRadius: '4px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.25)' }}>
+                            Problema crônico: {dep.problema_saude_qual || 'Sim'}
+                          </span>
+                        )}
+                        {temMedicamento && (
+                          <span style={{ padding: '0.15rem 0.5rem', borderRadius: '4px', background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.25)' }}>
+                            Medicamento: {dep.medicamento_continuo_qual || 'Sim'}
+                          </span>
+                        )}
+                        {temRestricoes && (
+                          <span style={{ padding: '0.15rem 0.5rem', borderRadius: '4px', background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.25)' }}>
+                            Restrição alimentar: {dep.restricao_alimentar_qual || 'Sim'}
+                          </span>
+                        )}
+                        {temAlergias && (
+                          <span style={{ padding: '0.15rem 0.5rem', borderRadius: '4px', background: 'rgba(236, 72, 153, 0.1)', color: '#ec4899', border: '1px solid rgba(236, 72, 153, 0.25)' }}>
+                            Alergia: {[dep.alergia_medicamento === 'SIM' ? dep.alergia_medicamento_qual : null, dep.alergia_alimento === 'SIM' ? dep.alergia_alimento_qual : null].filter(Boolean).join(', ') || 'Sim'}
+                          </span>
+                        )}
+                        {temRespiratoria && (
+                          <span style={{ padding: '0.15rem 0.5rem', borderRadius: '4px', background: 'rgba(139, 92, 246, 0.1)', color: '#8b5cf6', border: '1px solid rgba(139, 92, 246, 0.25)' }}>
+                            Doença respiratória {dep.usa_bombinha === 'SIM' ? '(Usa bombinha)' : ''}
+                          </span>
+                        )}
+                        {!temProblema && !temMedicamento && !temRestricoes && !temAlergias && !temRespiratoria && (
+                          <span style={{ color: 'var(--text-secondary)' }}>
+                            Sem restrições relatadas
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+
 
         {/* ========================================================================= */}
         {/* SEÇÃO 6: CONFIRMAÇÃO DE INSCRIÇÃO NO EVENTO ATIVO */}

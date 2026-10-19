@@ -831,14 +831,25 @@ export const CadastroPessoa = () => {
                             border: '1px solid var(--border-color)',
                             fontWeight: '600'
                           }}>
-                            Ano {p.ano}
+                            {p.ano}
                           </span>
                         )}
                       </div>
 
-                      {p.cpf && (
-                        <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
-                          {formatarCPF(p.cpf)}
+                      {p.telefone && (
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.3rem',
+                          fontSize: '0.725rem',
+                          color: 'var(--text-secondary)',
+                          background: 'var(--bg-secondary)',
+                          padding: '0.15rem 0.45rem',
+                          borderRadius: '4px',
+                          border: '1px solid var(--border-color)'
+                        }}>
+                          <Phone size={11} />
+                          <span>{p.telefone}</span>
                         </span>
                       )}
                     </div>
@@ -867,76 +878,48 @@ export const CadastroPessoa = () => {
                           </strong>
                         </div>
                       )}
-
-                      {(p.telefone || p.email) && (
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '0.15rem' }}>
-                          {p.telefone && (
-                            <span style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '0.3rem',
-                              fontSize: '0.725rem',
-                              color: 'var(--text-secondary)',
-                              background: 'var(--bg-secondary)',
-                              padding: '0.15rem 0.45rem',
-                              borderRadius: '4px',
-                              border: '1px solid var(--border-color)'
-                            }}>
-                              <Phone size={11} />
-                              <span>{p.telefone}</span>
-                            </span>
-                          )}
-                          {p.email && (
-                            <span style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '0.3rem',
-                              fontSize: '0.725rem',
-                              color: 'var(--text-secondary)',
-                              background: 'var(--bg-secondary)',
-                              padding: '0.15rem 0.45rem',
-                              borderRadius: '4px',
-                              border: '1px solid var(--border-color)'
-                            }}>
-                              <Mail size={11} />
-                              <span>{p.email}</span>
-                            </span>
-                          )}
-                        </div>
-                      )}
                     </div>
 
                     {/* Rodapé / Ações */}
-                    <div className="pessoa-card-actions">
+                    <div className="pessoa-card-actions" style={{ justifyContent: 'flex-end', gap: '0.85rem', paddingTop: '0.1rem', borderTop: '1px solid var(--border-color)' }}>
                       <Link
                         to={`/editar-pessoa/${p.id}`}
-                        className="btn btn-secondary"
                         style={{
-                          flex: 1,
+                          display: 'inline-flex',
+                          alignItems: 'center',
                           justifyContent: 'center',
-                          padding: '0.45rem 0.5rem',
-                          fontSize: '0.775rem',
-                          gap: '0.35rem'
+                          padding: 0,
+                          background: 'transparent',
+                          border: 'none',
+                          color: 'var(--text-secondary)',
+                          cursor: 'pointer',
+                          transition: 'color 0.15s ease'
                         }}
+                        onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent-primary)')}
+                        onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-secondary)')}
                         title="Editar Pessoa"
                       >
-                        <Edit2 size={13} />
-                        <span>Editar</span>
+                        <Edit2 size={16} />
                       </Link>
                       <button
                         type="button"
                         onClick={() => handleDelete(p.id)}
-                        className="btn btn-danger"
                         style={{
-                          padding: '0.45rem 0.75rem',
-                          fontSize: '0.775rem',
-                          display: 'flex',
+                          display: 'inline-flex',
                           alignItems: 'center',
-                          justifyContent: 'center'
+                          justifyContent: 'center',
+                          padding: 0,
+                          background: 'transparent',
+                          border: 'none',
+                          color: 'var(--text-secondary)',
+                          cursor: 'pointer',
+                          transition: 'color 0.15s ease'
                         }}
+                        onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--error)')}
+                        onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-secondary)')}
                         title="Remover Pessoa"
                       >
-                        <Trash2 size={14} />
+                        <Trash2 size={16} />
                       </button>
                     </div>
                   </div>
