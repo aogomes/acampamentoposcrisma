@@ -990,3 +990,62 @@ tr:last-child td {
   padding-top: 0.65rem;
   border-top: 1px solid var(--border-color);
 }
+
+/* Inscrições Acampamento - Responsividade Desktop x Mobile */
+.inscricoes-desktop-table {
+  display: block;
+  overflow-x: auto;
+}
+
+.inscricoes-mobile-list {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .inscricoes-desktop-table {
+    display: none !important;
+  }
+
+  .inscricoes-mobile-list {
+    display: flex !important;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+}
+
+.inscricao-card-mobile {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 0.9rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.inscricao-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.inscricao-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.inscricao-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid var(--border-color);
+}

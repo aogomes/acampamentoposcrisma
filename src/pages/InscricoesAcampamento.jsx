@@ -10,7 +10,8 @@ import {
   Edit,
   Users,
   ChevronDown,
-  X
+  X,
+  Calendar
 } from 'lucide-react';
 
 const calcularIdade = (dataNascimento) => {
@@ -457,65 +458,271 @@ export const MinhasInscricoesAcampamento = () => {
           </button>
         </div>
       ) : (
-        <div className="glass-panel" style={{ padding: 0, overflowX: 'auto', borderRadius: '10px' }}>
-          <table className="table-compact" style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)' }}>
-                <th style={{ textAlign: 'left', padding: '0.65rem 1rem' }}>Participante</th>
-                <th style={{ textAlign: 'center', padding: '0.65rem 0.85rem' }}>Dependentes</th>
-                <th style={{ textAlign: 'left', padding: '0.65rem 0.85rem' }}>Tipo</th>
-                <th style={{ textAlign: 'left', padding: '0.65rem 0.85rem' }}>Evento</th>
-                <th style={{ textAlign: 'center', padding: '0.65rem 0.85rem' }}>Inscrição</th>
-                <th style={{ textAlign: 'right', padding: '0.65rem 1rem' }}>Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {inscricoesFiltradas.map((item) => {
-                const isMinha = item.pessoa_id === pessoaProfile?.id;
-                const participante = item.apc_pessoa;
-                const evento = item.apc_evento;
-                const dataFormatada = item.created_at ? new Date(item.created_at).toLocaleDateString('pt-BR') : '-';
-                const tipoUpper = participante?.tipo_pessoa?.toUpperCase();
-                const isPadrinhoOuMadrinha = tipoUpper === 'PADRINHO' || tipoUpper === 'MADRINHA';
-                const deps = item.dependentes || [];
-                const depsCount = deps.length;
+        <>
+          {/* Tabela para Desktop */}
+          <div className="glass-panel inscricoes-desktop-table" style={{ padding: 0, borderRadius: '10px' }}>
+            <table className="table-compact" style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)' }}>
+                  <th style={{ textAlign: 'left', padding: '0.65rem 1rem' }}>Participante</th>
+                  <th style={{ textAlign: 'center', padding: '0.65rem 0.85rem' }}>Dependentes</th>
+                  <th style={{ textAlign: 'left', padding: '0.65rem 0.85rem' }}>Tipo</th>
+                  <th style={{ textAlign: 'left', padding: '0.65rem 0.85rem' }}>Evento</th>
+                  <th style={{ textAlign: 'center', padding: '0.65rem 0.85rem' }}>Inscrição</th>
+                  <th style={{ textAlign: 'right', padding: '0.65rem 1rem' }}>Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {inscricoesFiltradas.map((item) => {
+                  const isMinha = item.pessoa_id === pessoaProfile?.id;
+                  const participante = item.apc_pessoa;
+                  const evento = item.apc_evento;
+                  const dataFormatada = item.created_at ? new Date(item.created_at).toLocaleDateString('pt-BR') : '-';
+                  const tipoUpper = participante?.tipo_pessoa?.toUpperCase();
+                  const isPadrinhoOuMadrinha = tipoUpper === 'PADRINHO' || tipoUpper === 'MADRINHA';
+                  const deps = item.dependentes || [];
+                  const depsCount = deps.length;
 
-                return (
-                  <tr key={item.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                    <td style={{ padding: '0.6rem 1rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                        <strong style={{ color: 'var(--text-primary)', fontSize: '0.9rem' }}>
-                          {participante?.nome || 'Nome não informado'}
-                        </strong>
-                        {isMinha ? (
-                          <span style={{
-                            fontSize: '0.65rem',
-                            fontWeight: '700',
-                            padding: '0.12rem 0.45rem',
-                            borderRadius: '999px',
-                            background: '#dbeafe',
-                            color: '#1e40af'
-                          }}>
-                            TITULAR (VOCÊ)
-                          </span>
+                  return (
+                    <tr key={item.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                      <td style={{ padding: '0.6rem 1rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                          <strong style={{ color: 'var(--text-primary)', fontSize: '0.9rem' }}>
+                            {participante?.nome || 'Nome não informado'}
+                          </strong>
+                          {isMinha ? (
+                            <span style={{
+                              fontSize: '0.65rem',
+                              fontWeight: '700',
+                              padding: '0.12rem 0.45rem',
+                              borderRadius: '999px',
+                              background: '#dbeafe',
+                              color: '#1e40af'
+                            }}>
+                              TITULAR (VOCÊ)
+                            </span>
+                          ) : (
+                            <span style={{
+                              fontSize: '0.65rem',
+                              fontWeight: '700',
+                              padding: '0.12rem 0.45rem',
+                              borderRadius: '999px',
+                              background: '#d1fae5',
+                              color: '#065f46'
+                            }}>
+                              INSCRITO POR VOCÊ
+                            </span>
+                          )}
+                        </div>
+                      </td>
+
+                      <td style={{ padding: '0.6rem 0.85rem', textAlign: 'center' }}>
+                        {isPadrinhoOuMadrinha ? (
+                          depsCount > 0 ? (
+                            <button
+                              type="button"
+                              onClick={(e) => handleOpenDependentes(e, item)}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.35rem',
+                                padding: '0.25rem 0.65rem',
+                                borderRadius: '999px',
+                                fontSize: '0.78rem',
+                                fontWeight: '600',
+                                background: 'rgba(37, 99, 235, 0.1)',
+                                color: '#2563eb',
+                                border: '1px solid rgba(37, 99, 235, 0.3)',
+                                cursor: 'pointer',
+                                transition: 'all 0.15s ease'
+                              }}
+                              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(37, 99, 235, 0.18)'}
+                              onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(37, 99, 235, 0.1)'}
+                              title="Clique para ver quem são os dependentes"
+                            >
+                              <Users size={13} />
+                              <span>{depsCount} {depsCount === 1 ? 'dependente' : 'dependentes'}</span>
+                              <ChevronDown size={12} style={{ opacity: 0.7 }} />
+                            </button>
+                          ) : (
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.3rem',
+                                fontSize: '0.75rem',
+                                color: 'var(--text-secondary)',
+                                padding: '0.2rem 0.55rem',
+                                borderRadius: '6px',
+                                background: 'var(--bg-secondary)',
+                                border: '1px solid var(--border-color)',
+                                opacity: 0.8
+                              }}
+                              title="Nenhum dependente cadastrado"
+                            >
+                              <Users size={12} style={{ opacity: 0.6 }} />
+                              0 dependentes
+                            </span>
+                          )
                         ) : (
-                          <span style={{
-                            fontSize: '0.65rem',
-                            fontWeight: '700',
-                            padding: '0.12rem 0.45rem',
-                            borderRadius: '999px',
-                            background: '#d1fae5',
-                            color: '#065f46'
-                          }}>
-                            INSCRITO POR VOCÊ
+                          <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }} title="Não aplicável">
+                            —
                           </span>
                         )}
-                      </div>
-                    </td>
+                      </td>
 
-                    <td style={{ padding: '0.6rem 0.85rem', textAlign: 'center' }}>
-                      {isPadrinhoOuMadrinha ? (
-                        depsCount > 0 ? (
+                      <td style={{ padding: '0.6rem 0.85rem' }}>
+                        <span style={{
+                          fontSize: '0.75rem',
+                          fontWeight: '600',
+                          padding: '0.15rem 0.45rem',
+                          borderRadius: '5px',
+                          background: 'var(--bg-secondary)',
+                          color: 'var(--text-secondary)',
+                          border: '1px solid var(--border-color)'
+                        }}>
+                          {participante?.tipo_pessoa || 'PARTICIPANTE'}
+                        </span>
+                      </td>
+
+                      <td style={{ padding: '0.6rem 0.85rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: '#15803d', fontWeight: 500 }}>
+                          <Tent size={14} />
+                          <span>{evento?.descricao || 'Acampamento'}</span>
+                        </div>
+                      </td>
+
+                      <td style={{ padding: '0.6rem 0.85rem', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.825rem' }}>
+                        {dataFormatada}
+                      </td>
+
+                      <td style={{ padding: '0.6rem 1rem', textAlign: 'right' }}>
+                        <button
+                          onClick={() => navigate(`/inscricao/${participante?.id}?eventoId=${evento?.id || ''}`)}
+                          className="btn btn-secondary"
+                          title="Editar Inscrição"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.35rem',
+                            padding: '0.3rem 0.65rem',
+                            fontSize: '0.8rem',
+                            borderRadius: '6px',
+                            fontWeight: '600'
+                          }}
+                        >
+                          <Edit size={13} />
+                          <span>Editar</span>
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Visualização Mobile: Cards Organizados */}
+          <div className="inscricoes-mobile-list">
+            {inscricoesFiltradas.map((item) => {
+              const isMinha = item.pessoa_id === pessoaProfile?.id;
+              const participante = item.apc_pessoa;
+              const evento = item.apc_evento;
+              const dataFormatada = item.created_at ? new Date(item.created_at).toLocaleDateString('pt-BR') : '-';
+              const tipoUpper = participante?.tipo_pessoa?.toUpperCase();
+              const isPadrinhoOuMadrinha = tipoUpper === 'PADRINHO' || tipoUpper === 'MADRINHA';
+              const deps = item.dependentes || [];
+              const depsCount = deps.length;
+
+              const cardBorderAccent = isPadrinhoOuMadrinha
+                ? '#10b981'
+                : tipoUpper === 'AFILHADO'
+                  ? '#f59e0b'
+                  : '#2563eb';
+
+              return (
+                <div
+                  key={`mobile-${item.id}`}
+                  className="inscricao-card-mobile"
+                  style={{ borderLeft: `4px solid ${cardBorderAccent}` }}
+                >
+                  {/* Cabeçalho do Card Mobile */}
+                  <div className="inscricao-card-header">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                      <span style={{
+                        fontSize: '0.725rem',
+                        fontWeight: '700',
+                        padding: '0.15rem 0.5rem',
+                        borderRadius: '6px',
+                        background: 'var(--bg-secondary)',
+                        color: 'var(--text-secondary)',
+                        border: '1px solid var(--border-color)'
+                      }}>
+                        {participante?.tipo_pessoa || 'PARTICIPANTE'}
+                      </span>
+
+                      {isMinha ? (
+                        <span style={{
+                          fontSize: '0.65rem',
+                          fontWeight: '700',
+                          padding: '0.15rem 0.45rem',
+                          borderRadius: '999px',
+                          background: '#dbeafe',
+                          color: '#1e40af'
+                        }}>
+                          TITULAR (VOCÊ)
+                        </span>
+                      ) : (
+                        <span style={{
+                          fontSize: '0.65rem',
+                          fontWeight: '700',
+                          padding: '0.15rem 0.45rem',
+                          borderRadius: '999px',
+                          background: '#d1fae5',
+                          color: '#065f46'
+                        }}>
+                          INSCRITO POR VOCÊ
+                        </span>
+                      )}
+                    </div>
+
+                    <span style={{
+                      fontSize: '0.725rem',
+                      color: 'var(--text-secondary)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.25rem'
+                    }}>
+                      <Calendar size={12} />
+                      <span>{dataFormatada}</span>
+                    </span>
+                  </div>
+
+                  {/* Corpo do Card Mobile */}
+                  <div className="inscricao-card-body">
+                    <div>
+                      <strong style={{ fontSize: '0.95rem', color: 'var(--text-primary)', display: 'block' }}>
+                        {participante?.nome || 'Nome não informado'}
+                      </strong>
+                    </div>
+
+                    {/* Evento */}
+                    <div style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                      color: '#15803d',
+                      fontSize: '0.825rem',
+                      fontWeight: 500
+                    }}>
+                      <Tent size={14} />
+                      <span>{evento?.descricao || 'Acampamento'}</span>
+                    </div>
+
+                    {/* Dependentes no Card Mobile (caso Padrinho ou Madrinha) */}
+                    {isPadrinhoOuMadrinha && (
+                      <div style={{ marginTop: '0.2rem' }}>
+                        {depsCount > 0 ? (
                           <button
                             type="button"
                             onClick={(e) => handleOpenDependentes(e, item)}
@@ -523,101 +730,69 @@ export const MinhasInscricoesAcampamento = () => {
                               display: 'inline-flex',
                               alignItems: 'center',
                               gap: '0.35rem',
-                              padding: '0.25rem 0.65rem',
-                              borderRadius: '999px',
-                              fontSize: '0.78rem',
+                              padding: '0.3rem 0.65rem',
+                              borderRadius: '8px',
+                              fontSize: '0.775rem',
                               fontWeight: '600',
                               background: 'rgba(37, 99, 235, 0.1)',
                               color: '#2563eb',
                               border: '1px solid rgba(37, 99, 235, 0.3)',
                               cursor: 'pointer',
-                              transition: 'all 0.15s ease'
+                              width: 'fit-content'
                             }}
-                            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(37, 99, 235, 0.18)'}
-                            onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(37, 99, 235, 0.1)'}
-                            title="Clique para ver quem são os dependentes"
+                            title="Clique para ver detalhes dos dependentes"
                           >
                             <Users size={13} />
                             <span>{depsCount} {depsCount === 1 ? 'dependente' : 'dependentes'}</span>
+                            <span style={{ fontSize: '0.7rem', opacity: 0.8 }}>(ver)</span>
                             <ChevronDown size={12} style={{ opacity: 0.7 }} />
                           </button>
                         ) : (
-                          <span
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '0.3rem',
-                              fontSize: '0.75rem',
-                              color: 'var(--text-secondary)',
-                              padding: '0.2rem 0.55rem',
-                              borderRadius: '6px',
-                              background: 'var(--bg-secondary)',
-                              border: '1px solid var(--border-color)',
-                              opacity: 0.8
-                            }}
-                            title="Nenhum dependente cadastrado"
-                          >
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.3rem',
+                            fontSize: '0.75rem',
+                            color: 'var(--text-secondary)',
+                            padding: '0.2rem 0.5rem',
+                            borderRadius: '6px',
+                            background: 'var(--bg-secondary)',
+                            border: '1px solid var(--border-color)',
+                            width: 'fit-content',
+                            opacity: 0.8
+                          }}>
                             <Users size={12} style={{ opacity: 0.6 }} />
-                            0 dependentes
+                            0 dependentes vinculados
                           </span>
-                        )
-                      ) : (
-                        <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }} title="Não aplicável">
-                          —
-                        </span>
-                      )}
-                    </td>
-
-                    <td style={{ padding: '0.6rem 0.85rem' }}>
-                      <span style={{
-                        fontSize: '0.75rem',
-                        fontWeight: '600',
-                        padding: '0.15rem 0.45rem',
-                        borderRadius: '5px',
-                        background: 'var(--bg-secondary)',
-                        color: 'var(--text-secondary)',
-                        border: '1px solid var(--border-color)'
-                      }}>
-                        {participante?.tipo_pessoa || 'PARTICIPANTE'}
-                      </span>
-                    </td>
-
-                    <td style={{ padding: '0.6rem 0.85rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: '#15803d', fontWeight: 500 }}>
-                        <Tent size={14} />
-                        <span>{evento?.descricao || 'Acampamento'}</span>
+                        )}
                       </div>
-                    </td>
+                    )}
+                  </div>
 
-                    <td style={{ padding: '0.6rem 0.85rem', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.825rem' }}>
-                      {dataFormatada}
-                    </td>
-
-                    <td style={{ padding: '0.6rem 1rem', textAlign: 'right' }}>
-                      <button
-                        onClick={() => navigate(`/inscricao/${participante?.id}?eventoId=${evento?.id || ''}`)}
-                        className="btn btn-secondary"
-                        title="Editar Inscrição"
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.35rem',
-                          padding: '0.3rem 0.65rem',
-                          fontSize: '0.8rem',
-                          borderRadius: '6px',
-                          fontWeight: '600'
-                        }}
-                      >
-                        <Edit size={13} />
-                        <span>Editar</span>
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                  {/* Ações do Card Mobile */}
+                  <div className="inscricao-card-actions">
+                    <button
+                      onClick={() => navigate(`/inscricao/${participante?.id}?eventoId=${evento?.id || ''}`)}
+                      className="btn btn-secondary"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.35rem',
+                        padding: '0.35rem 0.75rem',
+                        fontSize: '0.8rem',
+                        borderRadius: '6px',
+                        fontWeight: '600'
+                      }}
+                    >
+                      <Edit size={13} />
+                      <span>Editar Inscrição</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
       )}
 
       {/* Popover / Caixinha suspensa de Dependentes (Padrinho / Madrinha) */}
