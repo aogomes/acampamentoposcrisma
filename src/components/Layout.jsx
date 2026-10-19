@@ -101,7 +101,8 @@ export const Layout = ({ children }) => {
         <div className="sidebar-brand">
           <div className="sidebar-logo">A</div>
           <div className="sidebar-brand-text">
-            <span>Pós-Crisma</span>
+            <span style={{ fontSize: '14px' }}>Pós-Crisma</span>
+            <span style={{ fontSize: '10px', color: '#3d49fdff' }}>Paróquia Santa Maria dos Pobres</span>
           </div>
         </div>
         <button className="sidebar-toggle" onClick={toggleMobileMenu}>
@@ -115,7 +116,8 @@ export const Layout = ({ children }) => {
           <div className="sidebar-brand">
             <div className="sidebar-logo">A</div>
             <div className="sidebar-brand-text">
-              <span>Pós-Crisma</span>
+              <span style={{ fontSize: '14px' }}>Pós-Crisma</span>
+              <span style={{ fontSize: '10px', color: '#3d49fdff' }}>Paróquia Santa Maria dos Pobres</span>
             </div>
           </div>
           <button className="sidebar-toggle d-none d-md-flex" onClick={toggleSidebar}>

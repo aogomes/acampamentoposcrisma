@@ -1111,8 +1111,8 @@ CREATE INDEX IF NOT EXISTS idx_apc_acampamento_criador_id ON public.apc_acampame
               color: 'white',
               padding: '0.2rem 0.65rem',
               borderRadius: '999px',
-              fontSize: '1.25rem',
-              fontWeight: '700',
+              fontSize: '1rem',
+              fontWeight: '600',
               letterSpacing: '0.05em',
               textTransform: 'uppercase'
             }}
@@ -1131,7 +1131,7 @@ CREATE INDEX IF NOT EXISTS idx_apc_acampamento_criador_id ON public.apc_acampame
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '0.4rem',
-                fontSize: '0.85rem',
+                fontSize: '0.65rem',
                 padding: '0.45rem 0.85rem'
               }}
             >
@@ -1147,7 +1147,7 @@ CREATE INDEX IF NOT EXISTS idx_apc_acampamento_criador_id ON public.apc_acampame
               display: 'inline-flex',
               alignItems: 'center',
               gap: '0.4rem',
-              fontSize: '0.85rem',
+              fontSize: '0.65rem',
               padding: '0.45rem 0.85rem',
               textDecoration: 'none'
             }}
@@ -1169,7 +1169,7 @@ CREATE INDEX IF NOT EXISTS idx_apc_acampamento_criador_id ON public.apc_acampame
               {eventoSelecionado?.tema || ''}
             </span>
             <h3 className="banner-subtitle">
-              {'Paróquia Santa Maria dos Pobres - Paranoá-DF'}
+              {'Paróquia Santa Maria dos Pobres'}
             </h3>
           </div>
 
@@ -1701,7 +1701,7 @@ CREATE INDEX IF NOT EXISTS idx_apc_acampamento_criador_id ON public.apc_acampame
         <div className="glass-panel form-section-card">
           <div className="section-header">
             <Phone size={22} color="var(--accent-primary)" />
-            <h3>2. Contatos de Emergência e Responsáveis</h3>
+            <h3>2. Contatos de Emergência</h3>
           </div>
 
           <div className="form-group">
