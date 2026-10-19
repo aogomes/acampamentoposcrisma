@@ -1501,7 +1501,7 @@ CREATE INDEX IF NOT EXISTS idx_apc_acampamento_criador_id ON public.apc_acampame
                   value={formData.conjuge_id}
                   onChange={handleChange}
                 >
-                  <option value="">-- Selecione o cônjuge (se houver) --</option>
+                  <option value="">-- Selecione o cônjuge --</option>
                   {potenciaisConjuges.map(c => (
                     <option key={c.id} value={c.id}>
                       {c.nome} {c.ano ? `(Turma ${c.ano})` : ''}
@@ -1512,14 +1512,14 @@ CREATE INDEX IF NOT EXISTS idx_apc_acampamento_criador_id ON public.apc_acampame
             ) : (
               <div className="form-group">
                 <label className="form-label" htmlFor="padrinhos_catequistas">
-                  Nome dos Padrinhos ou Catequistas
+                  Nome dos Padrinhos
                 </label>
                 <input
                   id="padrinhos_catequistas"
                   name="padrinhos_catequistas"
                   type="text"
                   className="form-input"
-                  placeholder="Ex: João e Maria ou Catequista André"
+                  placeholder="Ex: João e Maria"
                   value={formData.padrinhos_catequistas}
                   onChange={handleChange}
                 />
@@ -1672,7 +1672,7 @@ CREATE INDEX IF NOT EXISTS idx_apc_acampamento_criador_id ON public.apc_acampame
 
           {formData.tipo_pessoa === 'AFILHADO' && padrinhos.length > 0 && (
             <div className="form-group" style={{ marginTop: '0.5rem' }}>
-              <label className="form-label">Vincular o Padrinho</label>
+              <label className="form-label">Selecione o Padrinho (Opcional)</label>
               <select
                 className="form-input"
                 value={formData.vinculo_padrinho_id}
@@ -1688,7 +1688,7 @@ CREATE INDEX IF NOT EXISTS idx_apc_acampamento_criador_id ON public.apc_acampame
               >
                 <option value="">-- Selecione --</option>
                 {padrinhos.map(p => (
-                  <option key={p.id} value={p.id}>{p.nome}</option>
+                  <option key={p.id} value={p.id}>{p.nome} - Turma {p.ano}</option>
                 ))}
               </select>
             </div>

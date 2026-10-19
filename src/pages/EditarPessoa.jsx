@@ -759,7 +759,7 @@ export const EditarPessoa = () => {
           </div>
 
           <div className="form-grid">
-            <div className="form-group" style={{ gridColumn: 'span 2' }}>
+            <div className="form-group">
               <label className="form-label" htmlFor="nome">Nome Completo do Participante *</label>
               <input
                 id="nome"
@@ -770,6 +770,20 @@ export const EditarPessoa = () => {
                 value={formData.nome}
                 onChange={handleChange}
                 required
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label" htmlFor="padrinhos_catequistas">
+                Nome dos Padrinhos
+              </label>
+              <input
+                id="padrinhos_catequistas"
+                name="padrinhos_catequistas"
+                type="text"
+                className="form-input"
+                placeholder="Ex: João e Maria"
+                value={formData.padrinhos_catequistas}
+                onChange={handleChange}
               />
             </div>
           </div>
