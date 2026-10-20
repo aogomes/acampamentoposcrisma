@@ -1389,9 +1389,6 @@ export const AdminAcampamentos = () => {
             <>
               {/* Controles para Mobile: Contador e Ordenação Rápida */}
               <div className="participantes-mobile-controls">
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                  <strong style={{ color: 'var(--text-primary)' }}>{filteredAcampamentos.length}</strong> {filteredAcampamentos.length === 1 ? 'inscrição' : 'inscrições'}
-                </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                   <label htmlFor="mobile-sort-select" style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
                     <ArrowUpDown size={13} />
@@ -1502,7 +1499,6 @@ export const AdminAcampamentos = () => {
                               }}
                             >
                               <Users size={12} />
-                              <span>Padrinhos</span>
                             </button>
                           )}
 
@@ -1617,7 +1613,7 @@ export const AdminAcampamentos = () => {
                                 padding: '0.1rem 0.4rem',
                                 borderRadius: '4px'
                               }}>
-                                <Check size={12} strokeWidth={3} /> Vai
+                                <Check size={12} strokeWidth={3} />
                               </span>
                             ) : (
                               <span style={{
@@ -1630,7 +1626,7 @@ export const AdminAcampamentos = () => {
                                 padding: '0.1rem 0.4rem',
                                 borderRadius: '4px'
                               }}>
-                                <X size={12} /> Não vai
+                                <X size={12} />
                               </span>
                             )}
                           </div>
@@ -1661,7 +1657,6 @@ export const AdminAcampamentos = () => {
                               <span>
                                 {vaiAcampamentoCount} {vaiAcampamentoCount === 1 ? 'filho no acampamento' : 'filhos no acampamento'}
                               </span>
-                              <span style={{ fontSize: '0.675rem', opacity: 0.8 }}>(ver)</span>
                             </button>
                           </div>
                         )}
@@ -1694,14 +1689,13 @@ export const AdminAcampamentos = () => {
                                 ) : isParcial ? (
                                   <span>Pago: <strong>{formatCurrency(a.totalPago)}</strong> • Falta: <strong>{formatCurrency(Math.max(0, valorTotal - a.totalPago))}</strong></span>
                                 ) : (
-                                  <span>Pagamento ainda não realizado</span>
+                                  <span></span>
                                 )}
                               </div>
                             )}
                           </div>
 
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', color: 'var(--accent-primary)', fontSize: '0.75rem', fontWeight: '600', flexShrink: 0 }}>
-                            <span>Detalhes</span>
                             <ArrowRight size={13} />
                           </div>
                         </div>
