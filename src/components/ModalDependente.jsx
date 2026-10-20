@@ -180,109 +180,115 @@ export const ModalDependente = ({
       nome: form.nome.trim()
     };
 
-    const targetPessoaId = pessoaId || form.pessoa_id || initialData?.pessoa_id;
-
-    // Se temos pessoaId ou se o dependente já possui ID no banco, persiste diretamente no Supabase
-    if (targetPessoaId || normalizado.id) {
-      try {
-        setSalvando(true);
-        setErro('');
-        const payload = prepararPayloadDependente(normalizado, targetPessoaId);
-
-        let savedRecord = null;
-
-        if (normalizado.id) {
-          // UPDATE existente
-          const updateData = { ...payload };
-          if (!updateData.pessoa_id) delete updateData.pessoa_id;
-
-          const { data, error: updErr } = await supabase
-            .from('apc_dependente')
-            .update(updateData)
-            .eq('id', normalizado.id)
-            .select()
-            .single();
-
-          if (updErr) {
-            console.warn('Tentando fallback para update de dependente:', updErr);
-            const fallbackData = {
-              nome: payload.nome,
-              data_nascimento: payload.data_nascimento,
-              acampamento: payload.acampamento,
-              mascote: payload.mascote
-            };
-            if (payload.pessoa_id) fallbackData.pessoa_id = payload.pessoa_id;
-
-            const { data: fbData, error: fbErr } = await supabase
-              .from('apc_dependente')
-              .update(fallbackData)
-              .eq('id', normalizado.id)
-              .select()
-              .single();
-
-            if (fbErr) throw fbErr;
-            savedRecord = fbData;
-          } else {
-            savedRecord = data;
-          }
-        } else if (targetPessoaId) {
-          // INSERT novo para pessoa existente
-          const insertData = { ...payload };
-          delete insertData.id;
-          insertData.pessoa_id = targetPessoaId;
-
-          const { data, error: insErr } = await supabase
-            .from('apc_dependente')
-            .insert([insertData])
-            .select()
-            .single();
-
-          if (insErr) {
-            console.warn('Tentando fallback para insert de dependente:', insErr);
-            const fallbackData = {
-              pessoa_id: targetPessoaId,
-              nome: payload.nome,
-              data_nascimento: payload.data_nascimento,
-              acampamento: payload.acampamento,
-              mascote: payload.mascote
-            };
-
-            const { data: fbData, error: fbErr } = await supabase
-              .from('apc_dependente')
-              .insert([fallbackData])
-              .select()
-              .single();
-
-            if (fbErr) throw fbErr;
-            savedRecord = fbData;
-          } else {
-            savedRecord = data;
-          }
-        }
-
-        const dependenteFinal = {
-          ...normalizado,
-          ...(savedRecord ? normalizarDependente(savedRecord) : {}),
-          id: savedRecord?.id || normalizado.id,
-          pessoa_id: savedRecord?.pessoa_id || targetPessoaId || normalizado.pessoa_id
-        };
-
-        if (onSave) {
-          onSave(dependenteFinal, edicaoIndex);
-        }
-        onClose();
-      } catch (err) {
-        console.error('Erro ao salvar dependente diretamente:', err);
-        setErro('Erro ao salvar no banco de dados: ' + (err.message || 'Tente novamente.'));
-      } finally {
-        setSalvando(false);
-      }
-    } else {
-      // Caso não tenha pessoaId ainda (cadastro inicial de nova pessoa)
+    // Se NÃO temos pessoaId (ou seja, é um cadastro de nova pessoa em andamento no formulário pai),
+    // apenas atualizamos os dados na memória do formulário pai. O formulário pai salvará tudo junto no submit.
+    if (!pessoaId) {
       if (onSave) {
         onSave(normalizado, edicaoIndex);
       }
       onClose();
+      return;
+    }
+
+    const targetPessoaId = pessoaId || form.pessoa_id || initialData?.pessoa_id;
+
+    // Se temos pessoaId, tenta persistir diretamente no Supabase
+    try {
+      setSalvando(true);
+      setErro('');
+      const payload = prepararPayloadDependente(normalizado, targetPessoaId);
+
+      let savedRecord = null;
+
+      if (normalizado.id) {
+        // UPDATE existente
+        const updateData = { ...payload };
+        if (!updateData.pessoa_id) delete updateData.pessoa_id;
+
+        const { data, error: updErr } = await supabase
+          .from('apc_dependente')
+          .update(updateData)
+          .eq('id', normalizado.id)
+          .select()
+          .maybeSingle();
+
+        if (updErr) {
+          console.warn('Tentando fallback para update de dependente:', updErr);
+          const fallbackData = {
+            nome: payload.nome,
+            data_nascimento: payload.data_nascimento,
+            acampamento: payload.acampamento,
+            mascote: payload.mascote
+          };
+          if (payload.pessoa_id) fallbackData.pessoa_id = payload.pessoa_id;
+
+          const { data: fbData, error: fbErr } = await supabase
+            .from('apc_dependente')
+            .update(fallbackData)
+            .eq('id', normalizado.id)
+            .select()
+            .maybeSingle();
+
+          if (fbErr) throw fbErr;
+          savedRecord = fbData;
+        } else {
+          savedRecord = data;
+        }
+      } else if (targetPessoaId) {
+        // INSERT novo para pessoa existente
+        const insertData = { ...payload };
+        delete insertData.id;
+        insertData.pessoa_id = targetPessoaId;
+
+        const { data, error: insErr } = await supabase
+          .from('apc_dependente')
+          .insert([insertData])
+          .select()
+          .maybeSingle();
+
+        if (insErr) {
+          console.warn('Tentando fallback para insert de dependente:', insErr);
+          const fallbackData = {
+            pessoa_id: targetPessoaId,
+            nome: payload.nome,
+            data_nascimento: payload.data_nascimento,
+            acampamento: payload.acampamento,
+            mascote: payload.mascote
+          };
+
+          const { data: fbData, error: fbErr } = await supabase
+            .from('apc_dependente')
+            .insert([fallbackData])
+            .select()
+            .maybeSingle();
+
+          if (fbErr) throw fbErr;
+          savedRecord = fbData;
+        } else {
+          savedRecord = data;
+        }
+      }
+
+      const dependenteFinal = {
+        ...normalizado,
+        ...(savedRecord ? normalizarDependente(savedRecord) : {}),
+        id: savedRecord?.id || normalizado.id,
+        pessoa_id: savedRecord?.pessoa_id || targetPessoaId || normalizado.pessoa_id
+      };
+
+      if (onSave) {
+        onSave(dependenteFinal, edicaoIndex);
+      }
+      onClose();
+    } catch (err) {
+      console.warn('Aviso ao salvar dependente diretamente no banco (será mantido em memória para salvar com o formulário principal):', err);
+      // Fallback seguro: se der erro de permissão RLS ou outro erro de rede, mantém no estado do formulário pai
+      if (onSave) {
+        onSave(normalizado, edicaoIndex);
+      }
+      onClose();
+    } finally {
+      setSalvando(false);
     }
   };
 

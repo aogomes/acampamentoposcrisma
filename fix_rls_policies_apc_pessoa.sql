@@ -158,7 +158,13 @@ CREATE POLICY "Permitir update dependente para autenticados"
 ON public.apc_dependente FOR UPDATE
 TO authenticated
 USING (
-  pessoa_id IN (SELECT id FROM public.apc_pessoa WHERE user_id = auth.uid())
+  pessoa_id IN (
+    SELECT id FROM public.apc_pessoa WHERE user_id = auth.uid()
+    UNION
+    SELECT conjuge_id FROM public.apc_pessoa WHERE user_id = auth.uid() AND conjuge_id IS NOT NULL
+    UNION
+    SELECT id FROM public.apc_pessoa WHERE conjuge_id = (SELECT id FROM public.apc_pessoa WHERE user_id = auth.uid() LIMIT 1)
+  )
   OR pessoa_id IN (
     SELECT pessoa_id FROM public.apc_acampamento 
     WHERE criador_id = (SELECT id FROM public.apc_pessoa WHERE user_id = auth.uid() LIMIT 1)
@@ -173,7 +179,13 @@ CREATE POLICY "Permitir delete dependente para autenticados"
 ON public.apc_dependente FOR DELETE
 TO authenticated
 USING (
-  pessoa_id IN (SELECT id FROM public.apc_pessoa WHERE user_id = auth.uid())
+  pessoa_id IN (
+    SELECT id FROM public.apc_pessoa WHERE user_id = auth.uid()
+    UNION
+    SELECT conjuge_id FROM public.apc_pessoa WHERE user_id = auth.uid() AND conjuge_id IS NOT NULL
+    UNION
+    SELECT id FROM public.apc_pessoa WHERE conjuge_id = (SELECT id FROM public.apc_pessoa WHERE user_id = auth.uid() LIMIT 1)
+  )
   OR pessoa_id IN (
     SELECT pessoa_id FROM public.apc_acampamento 
     WHERE criador_id = (SELECT id FROM public.apc_pessoa WHERE user_id = auth.uid() LIMIT 1)

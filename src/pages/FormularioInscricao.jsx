@@ -712,9 +712,9 @@ export const FormularioInscricao = () => {
           .from('apc_pessoa')
           .insert([payloadCompleto])
           .select('id')
-          .single();
+          .maybeSingle();
         if (insErr) throw insErr;
-        if (newRow) pessoaIdSalva = newRow.id;
+        if (newRow?.id) pessoaIdSalva = newRow.id;
       }
 
       // Vínculo Padrinho/Madrinha caso seja Afilhado e tenha selecionado
