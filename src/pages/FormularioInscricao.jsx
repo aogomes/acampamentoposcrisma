@@ -20,8 +20,6 @@ import {
   Info,
   Save,
   HelpCircle,
-  Copy,
-  Check,
   Plus,
   Trash2,
   X,
@@ -31,7 +29,8 @@ import {
   Loader2,
   Search,
   RotateCcw,
-  UserPlus
+  UserPlus,
+  AlertTriangleIcon
 } from 'lucide-react';
 import { validarCPF, formatarCPF } from '../utils/cpf';
 import { ModalDependente } from '../components/ModalDependente';
@@ -130,10 +129,6 @@ export const FormularioInscricao = () => {
   const [loadingData, setLoadingData] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [sqlMissingError, setSqlMissingError] = useState(false);
-  const [copiedSql, setCopiedSql] = useState(false);
-  const [buscandoCpf, setBuscandoCpf] = useState(false);
-  const [cpfAviso, setCpfAviso] = useState('');
 
   const formatarDataBR = (dataStr) => {
     if (!dataStr) return '';
@@ -178,74 +173,6 @@ export const FormularioInscricao = () => {
     }
   };
 
-  const sqlMigrationCode = `-- Execute no Supabase SQL Editor:
-ALTER TABLE public.apc_pessoa 
-  ADD COLUMN IF NOT EXISTS padrinhos_catequistas TEXT,
-  ADD COLUMN IF NOT EXISTS rg TEXT,
-  ADD COLUMN IF NOT EXISTS cpf TEXT,
-  ADD COLUMN IF NOT EXISTS idade INTEGER,
-  ADD COLUMN IF NOT EXISTS contato_emergencia TEXT,
-  ADD COLUMN IF NOT EXISTS nome_responsavel TEXT,
-  ADD COLUMN IF NOT EXISTS tipo_sanguineo TEXT,
-  ADD COLUMN IF NOT EXISTS problema_saude BOOLEAN DEFAULT false,
-  ADD COLUMN IF NOT EXISTS problema_saude_qual TEXT,
-  ADD COLUMN IF NOT EXISTS historico_convulsao BOOLEAN DEFAULT false,
-  ADD COLUMN IF NOT EXISTS historico_convulsao_tempo TEXT,
-  ADD COLUMN IF NOT EXISTS tratamento_medico BOOLEAN DEFAULT false,
-  ADD COLUMN IF NOT EXISTS tratamento_medico_qual TEXT,
-  ADD COLUMN IF NOT EXISTS medicamento_continuo BOOLEAN DEFAULT false,
-  ADD COLUMN IF NOT EXISTS medicamento_continuo_qual TEXT,
-  ADD COLUMN IF NOT EXISTS medicamento_continuo_dosagem TEXT,
-  ADD COLUMN IF NOT EXISTS lesao_contusao BOOLEAN DEFAULT false,
-  ADD COLUMN IF NOT EXISTS lesao_contusao_qual TEXT,
-  ADD COLUMN IF NOT EXISTS restricao_alimentar BOOLEAN DEFAULT false,
-  ADD COLUMN IF NOT EXISTS restricao_alimentar_qual TEXT,
-  ADD COLUMN IF NOT EXISTS doenca_respiratoria BOOLEAN DEFAULT false,
-  ADD COLUMN IF NOT EXISTS usa_bombinha BOOLEAN DEFAULT false,
-  ADD COLUMN IF NOT EXISTS alergia_medicamento BOOLEAN DEFAULT false,
-  ADD COLUMN IF NOT EXISTS alergia_medicamento_qual TEXT,
-  ADD COLUMN IF NOT EXISTS alergia_alimento BOOLEAN DEFAULT false,
-  ADD COLUMN IF NOT EXISTS alergia_alimento_qual TEXT,
-  ADD COLUMN IF NOT EXISTS medicacao_sintomas TEXT,
-  ADD COLUMN IF NOT EXISTS cuidado_especial BOOLEAN DEFAULT false,
-  ADD COLUMN IF NOT EXISTS cuidado_especial_qual TEXT,
-  ADD COLUMN IF NOT EXISTS camiseta_infantil TEXT,
-  ADD COLUMN IF NOT EXISTS outras_informacoes TEXT,
-  ADD COLUMN IF NOT EXISTS aceite_termos_dados BOOLEAN DEFAULT false,
-  ADD COLUMN IF NOT EXISTS aceite_termo_imagem BOOLEAN DEFAULT false;
-
--- Ficha Médica e Cuidados de Saúde para Dependentes (Filhos/Mascotes):
-ALTER TABLE public.apc_dependente
-  ADD COLUMN IF NOT EXISTS acampamento BOOLEAN DEFAULT false,
-  ADD COLUMN IF NOT EXISTS tipo_sanguineo TEXT,
-  ADD COLUMN IF NOT EXISTS problema_saude BOOLEAN DEFAULT false,
-  ADD COLUMN IF NOT EXISTS problema_saude_qual TEXT,
-  ADD COLUMN IF NOT EXISTS historico_convulsao BOOLEAN DEFAULT false,
-  ADD COLUMN IF NOT EXISTS historico_convulsao_tempo TEXT,
-  ADD COLUMN IF NOT EXISTS tratamento_medico BOOLEAN DEFAULT false,
-  ADD COLUMN IF NOT EXISTS tratamento_medico_qual TEXT,
-  ADD COLUMN IF NOT EXISTS medicamento_continuo BOOLEAN DEFAULT false,
-  ADD COLUMN IF NOT EXISTS medicamento_continuo_qual TEXT,
-  ADD COLUMN IF NOT EXISTS medicamento_continuo_dosagem TEXT,
-  ADD COLUMN IF NOT EXISTS lesao_contusao BOOLEAN DEFAULT false,
-  ADD COLUMN IF NOT EXISTS lesao_contusao_qual TEXT,
-  ADD COLUMN IF NOT EXISTS restricao_alimentar BOOLEAN DEFAULT false,
-  ADD COLUMN IF NOT EXISTS restricao_alimentar_qual TEXT,
-  ADD COLUMN IF NOT EXISTS doenca_respiratoria BOOLEAN DEFAULT false,
-  ADD COLUMN IF NOT EXISTS usa_bombinha BOOLEAN DEFAULT false,
-  ADD COLUMN IF NOT EXISTS alergia_medicamento BOOLEAN DEFAULT false,
-  ADD COLUMN IF NOT EXISTS alergia_medicamento_qual TEXT,
-  ADD COLUMN IF NOT EXISTS alergia_alimento BOOLEAN DEFAULT false,
-  ADD COLUMN IF NOT EXISTS alergia_alimento_qual TEXT,
-  ADD COLUMN IF NOT EXISTS cuidado_especial BOOLEAN DEFAULT false,
-  ADD COLUMN IF NOT EXISTS cuidado_especial_qual TEXT,
-  ADD COLUMN IF NOT EXISTS medicacao_sintomas TEXT;
-
--- Vínculo de quem cadastrou/inscreveu no Acampamento (Pai/Mãe/Responsável):
-ALTER TABLE public.apc_acampamento
-  ADD COLUMN IF NOT EXISTS criador_id UUID REFERENCES public.apc_pessoa(id) ON DELETE SET NULL;
-CREATE INDEX IF NOT EXISTS idx_apc_acampamento_criador_id ON public.apc_acampamento(criador_id);`;
-
   useEffect(() => {
     fetchInitialData();
   }, [paramId, queryEventoId]);
@@ -261,6 +188,11 @@ CREATE INDEX IF NOT EXISTS idx_apc_acampamento_criador_id ON public.apc_acampame
     }
     return idadeCalc >= 0 ? idadeCalc.toString() : '';
   };
+
+  const idadeEfetiva = formData.idade !== '' && formData.idade !== undefined && formData.idade !== null
+    ? parseInt(formData.idade, 10)
+    : (formData.data_nascimento ? parseInt(calcularIdade(formData.data_nascimento), 10) : null);
+  const isMenorDeIdade = idadeEfetiva !== null && !isNaN(idadeEfetiva) && idadeEfetiva < 18;
 
   const normalizarDependente = (d) => {
     const vaiAcampamento = d?.acampamento !== undefined ? Boolean(d.acampamento) : Boolean(d?.mascote);
@@ -580,14 +512,6 @@ CREATE INDEX IF NOT EXISTS idx_apc_acampamento_criador_id ON public.apc_acampame
     });
   };
 
-
-
-  const handleCopySql = () => {
-    navigator.clipboard.writeText(sqlMigrationCode);
-    setCopiedSql(true);
-    setTimeout(() => setCopiedSql(false), 2500);
-  };
-
   const handleAbrirModalNovoDependente = () => {
     setDependenteEmEdicao(null);
     setDependenteEdicaoIndex(null);
@@ -637,7 +561,6 @@ CREATE INDEX IF NOT EXISTS idx_apc_acampamento_criador_id ON public.apc_acampame
     if (e) e.preventDefault();
     setError('');
     setSuccess('');
-    setSqlMissingError(false);
 
     // Validação explícita em Javascript (evita bloqueio silencioso do HTML5)
     const pendencias = [];
@@ -680,7 +603,7 @@ CREATE INDEX IF NOT EXISTS idx_apc_acampamento_criador_id ON public.apc_acampame
     }
 
     if (pendencias.length > 0) {
-      const msg = `Por favor, preencha os seguintes campos obrigatórios antes de salvar:\n• ` + pendencias.join('\n• ');
+      const msg = `Preencha os seguintes campos obrigatórios antes de salvar:\n\n• ` + pendencias.join('\n• ');
       registrarAuditoria({
         acao: 'SALVAR_INSCRICAO_VALIDACAO_PENDENTE',
         categoria: 'INSCRICAO',
@@ -689,7 +612,7 @@ CREATE INDEX IF NOT EXISTS idx_apc_acampamento_criador_id ON public.apc_acampame
         detalhes: { pendencias, nome: formData.nome }
       });
       setError(msg);
-      window.scrollTo({ top: 300, behavior: 'smooth' });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
 
@@ -697,14 +620,14 @@ CREATE INDEX IF NOT EXISTS idx_apc_acampamento_criador_id ON public.apc_acampame
 
     try {
       // Determinação segura do user_id:
-      let finalUserId = null;
+      let finalUserId = formData.user_id || null;
       if (isPropriaPessoa) {
         // É a própria pessoa logada em edição de seu perfil próprio
         finalUserId = formData.user_id || user?.id || null;
       } else if (!targetId && !pessoaProfile?.id && !isAdminOrGestor) {
         // Primeiro cadastro pessoal do usuário no sistema
         finalUserId = user?.id || null;
-      } else {
+      } else if (!targetId) {
         // Nova inscrição para terceiro/dependente ou inscrição adicional feita pelo usuário:
         // Mantém null para permitir múltiplas inscrições sem conflito de user_id
         finalUserId = null;
@@ -776,93 +699,21 @@ CREATE INDEX IF NOT EXISTS idx_apc_acampamento_criador_id ON public.apc_acampame
         }
       }
 
-      // Tenta salvar com todos os campos novos
-      let saveError = null;
-
+      // Salva os dados de apc_pessoa
       if (pessoaIdSalva) {
         const { error: updErr } = await supabase
           .from('apc_pessoa')
           .update(payloadCompleto)
           .eq('id', pessoaIdSalva);
-        saveError = updErr;
+        if (updErr) throw updErr;
       } else {
         const { data: newRow, error: insErr } = await supabase
           .from('apc_pessoa')
           .insert([payloadCompleto])
           .select('id')
           .single();
-        saveError = insErr;
+        if (insErr) throw insErr;
         if (newRow) pessoaIdSalva = newRow.id;
-      }
-
-      const isColumnError = saveError && (
-        saveError.code === '42703' ||
-        (saveError.message && (
-          saveError.message.toLowerCase().includes('column') ||
-          saveError.message.toLowerCase().includes('does not exist') ||
-          saveError.message.toLowerCase().includes('schema cache')
-        ))
-      );
-
-      // Se der erro de coluna inexistente no Postgres, salvamos os campos básicos compatíveis e alertamos
-      if (isColumnError) {
-        setSqlMissingError(true);
-        console.warn('Banco precisa de migração SQL. Salvando dados básicos como fallback...', saveError?.message);
-
-        // Fallback: salva apenas as colunas clássicas e concatena dados extras em necessidade_medica
-        const resumoSaude = `[FICHA MÉDICA COMPLETA]:
-• RG: ${formData.rg || '-'} | CPF: ${formData.cpf || '-'} | Idade: ${formData.idade || '-'}
-• Emergência: ${formData.contato_emergencia || '-'}
-• Responsável: ${formData.nome_responsavel || '-'} (${formData.fone_responsavel || '-'})
-• Tipo Sanguíneo: ${formData.tipo_sanguineo || '-'}
-• Problema Crônico: ${formData.problema_saude === 'SIM' ? formData.problema_saude_qual : 'Não'}
-• Convulsão/Epilepsia: ${formData.historico_convulsao === 'SIM' ? formData.historico_convulsao_tempo : 'Não'}
-• Tratamento: ${formData.tratamento_medico === 'SIM' ? formData.tratamento_medico_qual : 'Não'}
-• Medicamento Contínuo: ${formData.medicamento_continuo === 'SIM' ? `${formData.medicamento_continuo_qual} (${formData.medicamento_continuo_dosagem})` : 'Não'}
-• Lesão/Contusão: ${formData.lesao_contusao === 'SIM' ? formData.lesao_contusao_qual : 'Não'}
-• Restrição Alimentar: ${formData.restricao_alimentar === 'SIM' ? formData.restricao_alimentar_qual : 'Não'}
-• Respiração: ${formData.doenca_respiratoria === 'SIM' ? `Sim (Bombinha: ${formData.usa_bombinha})` : 'Não'}
-• Alergia Medicamento: ${formData.alergia_medicamento === 'SIM' ? formData.alergia_medicamento_qual : 'Não'}
-• Alergia Alimento: ${formData.alergia_alimento === 'SIM' ? formData.alergia_alimento_qual : 'Não'}
-• Febre/Dor: ${formData.medicacao_sintomas || '-'}
-• Cuidados Especiais: ${formData.cuidado_especial === 'SIM' ? formData.cuidado_especial_qual : 'Não'}
-• Camiseta Adulto: ${formData.camiseta || '-'} | Infantil: ${formData.camiseta_infantil || '-'}
-• Outras Informações: ${formData.outras_informacoes || '-'}`;
-
-        const payloadBasico = {
-          nome: formData.nome.trim(),
-          email: formData.email ? formData.email.trim() : null,
-          telefone: formData.telefone ? formData.telefone.trim() : null,
-          sexo: formData.sexo || null,
-          data_nascimento: formData.data_nascimento || null,
-          tipo_pessoa: formData.tipo_pessoa || 'AFILHADO',
-          ano: formData.ano ? parseInt(formData.ano) : 2026,
-          conjuge_id: formData.conjuge_id || null,
-          user_id: finalUserId,
-          nome_pai: formData.nome_pai || formData.nome_responsavel || null,
-          nome_mae: formData.nome_mae || null,
-          fone_responsavel: formData.fone_responsavel || null,
-          necessidade_medica: resumoSaude,
-          camiseta: formData.camiseta || null
-        };
-
-        if (pessoaIdSalva) {
-          const { error: updFallbackErr } = await supabase
-            .from('apc_pessoa')
-            .update(payloadBasico)
-            .eq('id', pessoaIdSalva);
-          if (updFallbackErr) throw updFallbackErr;
-        } else {
-          const { data: newRowFallback, error: insFallbackErr } = await supabase
-            .from('apc_pessoa')
-            .insert([payloadBasico])
-            .select('id')
-            .single();
-          if (insFallbackErr) throw insFallbackErr;
-          if (newRowFallback) pessoaIdSalva = newRowFallback.id;
-        }
-      } else if (saveError) {
-        throw saveError;
       }
 
       // Vínculo Padrinho/Madrinha caso seja Afilhado e tenha selecionado
@@ -973,34 +824,8 @@ CREATE INDEX IF NOT EXISTS idx_apc_acampamento_criador_id ON public.apc_acampame
               if (upsDepErr) throw upsDepErr;
             }
           } catch (depErr) {
-            console.warn('Erro ao salvar dependentes com novos campos, tentando fallback básico:', depErr);
-            const isDepColumnErr = depErr.code === '42703' || (depErr.message && depErr.message.toLowerCase().includes('column'));
-            if (isDepColumnErr) {
-              setSqlMissingError(true);
-              const fallbackInsert = depsToInsert.map(d => ({
-                pessoa_id: d.pessoa_id,
-                nome: d.nome,
-                data_nascimento: d.data_nascimento,
-                acampamento: d.acampamento,
-                mascote: d.mascote
-              }));
-              const fallbackUpdate = depsToUpdate.map(d => ({
-                id: d.id,
-                pessoa_id: d.pessoa_id,
-                nome: d.nome,
-                data_nascimento: d.data_nascimento,
-                acampamento: d.acampamento,
-                mascote: d.mascote
-              }));
-              if (fallbackInsert.length > 0) {
-                await supabase.from('apc_dependente').insert(fallbackInsert);
-              }
-              if (fallbackUpdate.length > 0) {
-                await supabase.from('apc_dependente').upsert(fallbackUpdate);
-              }
-            } else {
-              throw depErr;
-            }
+            console.error('Erro ao salvar dependentes:', depErr);
+            throw depErr;
           }
         }
       }
@@ -1021,16 +846,7 @@ CREATE INDEX IF NOT EXISTS idx_apc_acampamento_criador_id ON public.apc_acampame
 
           const { error: insAcampErr } = await supabase.from('apc_acampamento').insert([payloadInscricao]);
           if (insAcampErr) {
-            // Se falhar por causa da coluna criador_id ainda não adicionada no DB, tenta sem ela
-            if (insAcampErr.message && insAcampErr.message.includes('criador_id')) {
-              await supabase.from('apc_acampamento').insert([{
-                evento_id: eventoParaInscrever.id,
-                pessoa_id: pessoaIdSalva,
-                equipe: []
-              }]);
-            } else {
-              throw insAcampErr;
-            }
+            throw insAcampErr;
           }
           setJaInscritoEvento(true);
         } catch (evtErr) {
@@ -1079,8 +895,12 @@ CREATE INDEX IF NOT EXISTS idx_apc_acampamento_criador_id ON public.apc_acampame
           }
         }
       });
-      setError('Erro ao salvar formulário de inscrição: ' + (err.message || 'Verifique seus dados e tente novamente.'));
-      window.scrollTo({ top: 300, behavior: 'smooth' });
+      let mensagemErro = 'Erro ao salvar formulário de inscrição: ' + (err.message || 'Verifique seus dados e tente novamente.');
+      if (err.code === '42501' || err.message?.toLowerCase().includes('row-level security') || err.message?.toLowerCase().includes('policy')) {
+        mensagemErro = 'Você não possui permissão para alterar esta inscrição. Apenas o responsável que a realizou ou administradores podem editá-la.';
+      }
+      setError(mensagemErro);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
       setLoading(false);
     }
@@ -1093,8 +913,6 @@ CREATE INDEX IF NOT EXISTS idx_apc_acampamento_criador_id ON public.apc_acampame
       </div>
     );
   }
-
-  const isMenorDeIdade = formData.idade !== '' && parseInt(formData.idade) < 18;
 
   return (
     <div className="main-content" style={{ maxWidth: '960px', margin: '0 auto' }}>
@@ -1240,6 +1058,10 @@ CREATE INDEX IF NOT EXISTS idx_apc_acampamento_criador_id ON public.apc_acampame
             <DollarSign size={16} />
             <span>O valor será destinado ao custeio das despesas de <strong>hospedagem, transporte e alimentação{eventoSelecionado?.inclui_camiseta ? ' (inclui camiseta)' : ''}</strong> do participante, bem como dos custos relacionados às atividades do acampamento.</span>
           </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: '#1e40af' }}>
+            <Info size={16} />
+            <span style={{ fontWeight: '600' }}>Informamos que no valor do investimento <strong>NÃO</strong> está inclusa a camiseta.</span>
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: '#b91c1c' }}>
             <AlertCircle size={16} />
             <span><strong>Atenção:</strong> Todos os participantes devem portar Documento de Identificação oficial no dia.</span>
@@ -1251,56 +1073,16 @@ CREATE INDEX IF NOT EXISTS idx_apc_acampamento_criador_id ON public.apc_acampame
         </div>
       </div>
 
-      {/* Alerta de erro de migração SQL caso as colunas ainda não existam no Supabase */}
-      {sqlMissingError && (
-        <div
-          className="glass-panel"
-          style={{
-            padding: '1.5rem',
-            marginBottom: '2rem',
-            border: '2px solid #f59e0b',
-            background: 'rgba(254, 243, 199, 0.9)',
-            color: '#92400e'
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem' }}>
-            <div>
-              <h4 style={{ margin: '0 0 0.5rem 0', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <AlertCircle size={20} color="#d97706" />
-                Novas colunas no banco de dados necessárias
-              </h4>
-              <p style={{ margin: '0 0 0.75rem 0', fontSize: '0.9rem' }}>
-                Os dados básicos foram salvos e a ficha médica foi registrada no campo geral. Para salvar todos os campos em colunas individuais nativas, execute o script SQL abaixo no <strong>SQL Editor do Supabase</strong>:
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={handleCopySql}
-              className="btn btn-secondary"
-              style={{ padding: '0.5rem 0.75rem', fontSize: '0.85rem', whiteSpace: 'nowrap' }}
-            >
-              {copiedSql ? <Check size={16} color="#16a34a" /> : <Copy size={16} />}
-              {copiedSql ? 'Copiado!' : 'Copiar SQL'}
-            </button>
+      {error && (
+        <div className="alert alert-error" style={{ marginBottom: '1rem', whiteSpace: 'pre-line', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--error)', padding: '1rem', borderRadius: '8px', color: '#b91c1c' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: '600', marginBottom: '0.25rem' }}>
+            <AlertCircle size={18} /> <span>Atenção!</span>
           </div>
-          <pre
-            style={{
-              background: '#1e293b',
-              color: '#f8fafc',
-              padding: '1rem',
-              borderRadius: '8px',
-              fontSize: '0.75rem',
-              overflowX: 'auto',
-              maxHeight: '160px',
-              margin: 0
-            }}
-          >
-            {sqlMigrationCode}
-          </pre>
+          <div style={{ marginLeft: '1.25rem', lineHeight: '1.5' }}>
+            {error}
+          </div>
         </div>
       )}
-
-      {error && <div className="alert alert-error" style={{ marginBottom: '1.5rem' }}>{error}</div>}
       {success && (
         <div className="alert alert-success" style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
           <span>{success}</span>
@@ -2691,11 +2473,12 @@ CREATE INDEX IF NOT EXISTS idx_apc_acampamento_criador_id ON public.apc_acampame
               color: '#b91c1c'
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 'bold', marginBottom: '0.25rem' }}>
-              <AlertCircle size={20} />
-              <span>Atenção: Não foi possível salvar</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: '600', marginBottom: '0.25rem' }}>
+              <AlertCircle size={18} /> <span>Atenção!</span>
             </div>
-            {error}
+            <div style={{ marginLeft: '1.25rem', lineHeight: '1.5' }}>
+              {error}
+            </div>
           </div>
         )}
 

@@ -28,18 +28,24 @@ ON public.apc_pessoa FOR SELECT
 TO authenticated
 USING (true);
 
--- INSERT: Qualquer usuário logado pode cadastrar sua ficha de inscrição
+-- INSERT: Qualquer usuário logado pode cadastrar ficha de inscrição
 CREATE POLICY "Permitir insert para autenticados"
 ON public.apc_pessoa FOR INSERT
 TO authenticated
 WITH CHECK (true);
 
--- UPDATE: O próprio usuário pode atualizar seu cadastro (user_id = auth.uid()) OU ADMIN/GESTOR podem atualizar qualquer pessoa
+-- UPDATE: O próprio usuário pode atualizar seu cadastro (user_id = auth.uid()),
+-- ou atualizar inscrições de terceiros que ele próprio cadastrou no acampamento (criador_id),
+-- ou ADMIN/GESTOR podem atualizar qualquer pessoa
 CREATE POLICY "Permitir update para autenticados"
 ON public.apc_pessoa FOR UPDATE
 TO authenticated
 USING (
   user_id = auth.uid()
+  OR id IN (
+    SELECT pessoa_id FROM public.apc_acampamento 
+    WHERE criador_id = (SELECT id FROM public.apc_pessoa WHERE user_id = auth.uid() LIMIT 1)
+  )
   OR EXISTS (
     SELECT 1 FROM public.apc_perfil 
     WHERE user_id = auth.uid() AND perfil IN ('ADMIN', 'GESTOR')
@@ -81,6 +87,7 @@ ON public.apc_acampamento FOR UPDATE
 TO authenticated
 USING (
   pessoa_id IN (SELECT id FROM public.apc_pessoa WHERE user_id = auth.uid())
+  OR criador_id = (SELECT id FROM public.apc_pessoa WHERE user_id = auth.uid() LIMIT 1)
   OR EXISTS (
     SELECT 1 FROM public.apc_perfil 
     WHERE user_id = auth.uid() AND perfil IN ('ADMIN', 'GESTOR')
@@ -92,6 +99,7 @@ ON public.apc_acampamento FOR DELETE
 TO authenticated
 USING (
   pessoa_id IN (SELECT id FROM public.apc_pessoa WHERE user_id = auth.uid())
+  OR criador_id = (SELECT id FROM public.apc_pessoa WHERE user_id = auth.uid() LIMIT 1)
   OR EXISTS (
     SELECT 1 FROM public.apc_perfil 
     WHERE user_id = auth.uid() AND perfil IN ('ADMIN', 'GESTOR')
@@ -133,6 +141,8 @@ ALTER TABLE public.apc_dependente ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Permitir select dependente para autenticados" ON public.apc_dependente;
 DROP POLICY IF EXISTS "Permitir insert dependente para autenticados" ON public.apc_dependente;
+DROP POLICY IF EXISTS "Permitir update dependente para autenticados" ON public.apc_dependente;
+DROP POLICY IF EXISTS "Permitir delete dependente para autenticados" ON public.apc_dependente;
 
 CREATE POLICY "Permitir select dependente para autenticados"
 ON public.apc_dependente FOR SELECT
@@ -143,3 +153,33 @@ CREATE POLICY "Permitir insert dependente para autenticados"
 ON public.apc_dependente FOR INSERT
 TO authenticated
 WITH CHECK (true);
+
+CREATE POLICY "Permitir update dependente para autenticados"
+ON public.apc_dependente FOR UPDATE
+TO authenticated
+USING (
+  pessoa_id IN (SELECT id FROM public.apc_pessoa WHERE user_id = auth.uid())
+  OR pessoa_id IN (
+    SELECT pessoa_id FROM public.apc_acampamento 
+    WHERE criador_id = (SELECT id FROM public.apc_pessoa WHERE user_id = auth.uid() LIMIT 1)
+  )
+  OR EXISTS (
+    SELECT 1 FROM public.apc_perfil 
+    WHERE user_id = auth.uid() AND perfil IN ('ADMIN', 'GESTOR')
+  )
+);
+
+CREATE POLICY "Permitir delete dependente para autenticados"
+ON public.apc_dependente FOR DELETE
+TO authenticated
+USING (
+  pessoa_id IN (SELECT id FROM public.apc_pessoa WHERE user_id = auth.uid())
+  OR pessoa_id IN (
+    SELECT pessoa_id FROM public.apc_acampamento 
+    WHERE criador_id = (SELECT id FROM public.apc_pessoa WHERE user_id = auth.uid() LIMIT 1)
+  )
+  OR EXISTS (
+    SELECT 1 FROM public.apc_perfil 
+    WHERE user_id = auth.uid() AND perfil IN ('ADMIN', 'GESTOR')
+  )
+);
