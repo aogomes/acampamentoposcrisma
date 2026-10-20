@@ -192,7 +192,8 @@ export const FormularioInscricao = () => {
   const idadeEfetiva = formData.idade !== '' && formData.idade !== undefined && formData.idade !== null
     ? parseInt(formData.idade, 10)
     : (formData.data_nascimento ? parseInt(calcularIdade(formData.data_nascimento), 10) : null);
-  const isMenorDeIdade = idadeEfetiva !== null && !isNaN(idadeEfetiva) && idadeEfetiva < 18;
+
+  const isMenorDeIdade = (idadeEfetiva !== null && !isNaN(idadeEfetiva) && idadeEfetiva < 18) || formData.tipo_pessoa === 'AFILHADO';
 
   const normalizarDependente = (d) => {
     const vaiAcampamento = d?.acampamento !== undefined ? Boolean(d.acampamento) : Boolean(d?.mascote);
@@ -1058,7 +1059,7 @@ export const FormularioInscricao = () => {
             <DollarSign size={16} />
             <span>O valor será destinado ao custeio das despesas de <strong>hospedagem, transporte e alimentação{eventoSelecionado?.inclui_camiseta ? ' (inclui camiseta)' : ''}</strong> do participante, bem como dos custos relacionados às atividades do acampamento.</span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: '#1e40af' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: '#b91c1c' }}>
             <Info size={16} />
             <span style={{ fontWeight: '600' }}>Informamos que no valor do investimento <strong>NÃO</strong> está inclusa a camiseta.</span>
           </div>
@@ -1073,6 +1074,7 @@ export const FormularioInscricao = () => {
         </div>
       </div>
 
+      {/* Mensagem de Erro ou Sucesso (para visualização imediata) */}
       {error && (
         <div className="alert alert-error" style={{ marginBottom: '1rem', whiteSpace: 'pre-line', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--error)', padding: '1rem', borderRadius: '8px', color: '#b91c1c' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: '600', marginBottom: '0.25rem' }}>
@@ -1340,11 +1342,6 @@ export const FormularioInscricao = () => {
                 value={formData.idade}
                 onChange={handleChange}
               />
-              {isMenorDeIdade && (
-                <span style={{ fontSize: '0.75rem', color: '#d97706', fontWeight: 'bold' }}>
-                  ⚠️ Menor de idade (necessário preencher dados e autorizações dos pais/responsáveis)
-                </span>
-              )}
             </div>
           </div>
 
@@ -1502,7 +1499,7 @@ export const FormularioInscricao = () => {
             />
           </div>
 
-          <div
+          {formData.tipo_pessoa === 'AFILHADO' && (<div
             style={{
               background: isMenorDeIdade ? 'rgba(245, 158, 11, 0.08)' : 'var(--bg-secondary)',
               border: isMenorDeIdade ? '1px solid rgba(245, 158, 11, 0.3)' : '1px solid var(--border-color)',
@@ -1512,7 +1509,7 @@ export const FormularioInscricao = () => {
             }}
           >
             <h4 style={{ margin: '0 0 0.65rem 0', fontSize: '0.95rem', fontWeight: 'bold', color: isMenorDeIdade ? '#b45309' : 'var(--text-primary)' }}>
-              Dados dos Pais ou Responsáveis (Obrigatório para menores de 18 anos)
+              Dados dos Pais ou Responsáveis (Obrigatório para todos os Afilhados)
             </h4>
 
             <div className="form-grid">
@@ -1548,7 +1545,7 @@ export const FormularioInscricao = () => {
                 />
               </div>
             </div>
-          </div>
+          </div>)}
         </div>
 
         {/* ========================================================================= */}
@@ -2459,20 +2456,9 @@ export const FormularioInscricao = () => {
           </div>
         )}
 
-        {/* Alerta de Erro ou Sucesso no rodapé (para visualização imediata) */}
+        {/* Mensagem de Erro ou Sucesso no rodapé (para visualização imediata) */}
         {error && (
-          <div
-            className="alert alert-error"
-            style={{
-              marginBottom: '1rem',
-              whiteSpace: 'pre-line',
-              background: 'rgba(239, 68, 68, 0.1)',
-              border: '1px solid var(--error)',
-              padding: '1rem',
-              borderRadius: '8px',
-              color: '#b91c1c'
-            }}
-          >
+          <div className="alert alert-error" style={{ marginBottom: '1rem', whiteSpace: 'pre-line', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--error)', padding: '1rem', borderRadius: '8px', color: '#b91c1c' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: '600', marginBottom: '0.25rem' }}>
               <AlertCircle size={18} /> <span>Atenção!</span>
             </div>

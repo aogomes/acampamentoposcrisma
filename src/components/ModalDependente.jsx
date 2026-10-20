@@ -1017,7 +1017,7 @@ export const ListaDependentes = ({
         <div className="section-header" style={{ marginBottom: 0 }}>
           <Users size={20} color="var(--accent-primary)" />
           <div>
-            <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 'bold' }}>Dependentes (Filhos / Mascotes)</h3>
+            <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 'bold' }}>Informações dos Dependentes (Filhos)</h3>
             <p style={{ margin: '0.2rem 0 0', fontSize: '0.825rem', color: 'var(--text-secondary)' }}>
               Cadastre os filhos com os respectivos dados cadastrais e ficha médica completa.
             </p>
