@@ -165,6 +165,51 @@ export const exportarRelatorioExcelEvento = async (evento) => {
     }
   }
 
+  // Mapa com todas as pessoas do evento para resolução de cônjuges e familiares
+  const pessoasMap = {};
+  acampamentos.forEach(a => {
+    if (a.apc_pessoa?.id) {
+      pessoasMap[a.apc_pessoa.id] = a.apc_pessoa;
+    }
+  });
+
+  // Busca cônjuges que possam ter sido vinculados mas não estão inscritos no evento
+  const conjugeIdsParaBuscar = new Set();
+  acampamentos.forEach(a => {
+    const cId = a.apc_pessoa?.conjuge_id;
+    if (cId && !pessoasMap[cId]) {
+      conjugeIdsParaBuscar.add(cId);
+    }
+  });
+
+  if (conjugeIdsParaBuscar.size > 0) {
+    const { data: conjugesExtras } = await supabase
+      .from('apc_pessoa')
+      .select('id, nome, telefone')
+      .in('id', [...conjugeIdsParaBuscar]);
+
+    if (conjugesExtras) {
+      conjugesExtras.forEach(c => {
+        pessoasMap[c.id] = c;
+      });
+    }
+  }
+
+  // Função para identificar o nome do cônjuge de forma bidirecional
+  const obterNomeConjuge = (p) => {
+    if (!p) return '';
+    // 1. Pelo vínculo direto de conjuge_id
+    if (p.conjuge_id && pessoasMap[p.conjuge_id]) {
+      return pessoasMap[p.conjuge_id].nome || '';
+    }
+    // 2. Por reciprocidade (quando o outro cônjuge apontou para esta pessoa)
+    const parceiroReciproco = Object.values(pessoasMap).find(outra => outra && outra.conjuge_id === p.id);
+    if (parceiroReciproco) {
+      return parceiroReciproco.nome || '';
+    }
+    return '';
+  };
+
   // 3. Busca dependentes (filhos / mascotes)
   const dependentesMap = {};
   const todosDependentes = [];
@@ -321,6 +366,7 @@ export const exportarRelatorioExcelEvento = async (evento) => {
       'Nº': index + 1,
       'Nome Completo': p.nome || '',
       'Como Irá Participar': p.tipo_pessoa || '',
+      'Cônjuge': p.tipo_pessoa === 'PADRINHO' || p.tipo_pessoa === 'MADRINHA' ? obterNomeConjuge(p) : 'Não se aplica',
       // 'Equipe no Evento': acamp.equipe || 'Não definida',
       'Data de Nascimento': formatarData(dataNasc),
       'Idade': idade,

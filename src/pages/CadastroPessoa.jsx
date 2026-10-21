@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
@@ -15,6 +15,7 @@ export const CadastroPessoa = () => {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterTipo, setFilterTipo] = useState('TODOS');
+  const [filterAno, setFilterAno] = useState('TODOS');
   const [sortOrder, setSortOrder] = useState('nome-asc');
 
   const [isCreating, setIsCreating] = useState(false);
@@ -99,7 +100,7 @@ export const CadastroPessoa = () => {
             const padrinho = pessoasData.find(p2 => p2.id === vinculo.padrinho_id);
             const madrinha = pessoasData.find(p2 => p2.id === vinculo.madrinha_id);
             mapped.ano = vinculo.ano;
-            mapped.nomePadrinhos = `${padrinho?.nome || 'N/D'} e ${madrinha?.nome || 'N/D'}`;
+            mapped.nomePadrinhos = `${padrinho?.nome || 'N/D'}\n e ${madrinha?.nome || 'N/D'}`;
           }
         } else if ((p.tipo_pessoa === 'PADRINHO' || p.tipo_pessoa === 'MADRINHA') && p.conjuge_id) {
           const conjuge = pessoasData.find(p2 => p2.id === p.conjuge_id);
@@ -685,12 +686,17 @@ export const CadastroPessoa = () => {
     };
   };
 
+  const anosDisponiveis = useMemo(() => {
+    return Array.from(new Set(pessoas.map(p => p.ano).filter(Boolean))).sort((a, b) => Number(b) - Number(a));
+  }, [pessoas]);
+
   const filteredPessoas = pessoas.filter(p => {
     const matchesSearch = p.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (p.email && p.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (p.cpf && p.cpf.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesTipo = filterTipo === 'TODOS' || p.tipo_pessoa === filterTipo;
-    return matchesSearch && matchesTipo;
+    const matchesAno = filterAno === 'TODOS' || (p.ano && p.ano.toString() === filterAno.toString());
+    return matchesSearch && matchesTipo && matchesAno;
   }).sort((a, b) => {
     if (sortOrder === 'nome-desc') {
       return (b.nome || '').localeCompare(a.nome || '', 'pt-BR');
@@ -757,6 +763,18 @@ export const CadastroPessoa = () => {
               <option value="PADRINHO">Padrinhos</option>
               <option value="MADRINHA">Madrinhas</option>
               <option value="VOLUNTARIO">Voluntários</option>
+            </select>
+          </div>
+          <div className="form-group" style={{ width: '160px', marginBottom: 0 }}>
+            <select
+              className="form-input"
+              value={filterAno}
+              onChange={(e) => setFilterAno(e.target.value)}
+            >
+              <option value="TODOS">Todos os Anos</option>
+              {anosDisponiveis.map(ano => (
+                <option key={ano} value={ano}>{ano}</option>
+              ))}
             </select>
           </div>
         </div>
@@ -936,7 +954,31 @@ export const CadastroPessoa = () => {
                     <th>Cônjuge</th>
                     <th>Tipo</th>
                     <th>Padrinhos</th>
-                    <th>Ano</th>
+                    <th style={{ minWidth: '130px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.4rem' }}>
+                        <span>Ano</span>
+                        <select
+                          value={filterAno}
+                          onChange={(e) => setFilterAno(e.target.value)}
+                          style={{
+                            padding: '0.15rem 0.35rem',
+                            fontSize: '0.75rem',
+                            borderRadius: '4px',
+                            border: '1px solid var(--border-color)',
+                            background: filterAno !== 'TODOS' ? 'rgba(59, 130, 246, 0.15)' : 'var(--bg-secondary)',
+                            color: filterAno !== 'TODOS' ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                            cursor: 'pointer',
+                            fontWeight: filterAno !== 'TODOS' ? 'bold' : 'normal'
+                          }}
+                          title="Filtrar por Ano"
+                        >
+                          <option value="TODOS">Todos</option>
+                          {anosDisponiveis.map(ano => (
+                            <option key={ano} value={ano}>{ano}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </th>
                     <th style={{ textAlign: 'right' }}>Ações</th>
                   </tr>
                 </thead>
@@ -945,10 +987,10 @@ export const CadastroPessoa = () => {
                     const badge = getTipoBadgeInfo(p.tipo_pessoa);
                     return (
                       <tr key={p.id}>
-                        <td style={{ fontWeight: '500' }}>{p.nome}</td>
+                        <td style={{ fontSize: '0.9rem', fontWeight: '500', color: 'var(--text-primary)' }}>{p.nome}</td>
                         <td style={{ color: 'var(--text-secondary)' }}>
                           {p.nomeConjuge ? (
-                            <span style={{ fontSize: '0.9rem' }}>{p.nomeConjuge}</span>
+                            <span style={{ fontSize: '0.75rem' }}>{p.nomeConjuge}</span>
                           ) : (
                             <span style={{ color: 'var(--text-secondary)' }}>-</span>
                           )}
@@ -967,25 +1009,25 @@ export const CadastroPessoa = () => {
                             {badge.label}
                           </span>
                         </td>
-                        <td style={{ color: 'var(--text-secondary)' }}>{p.nomePadrinhos || '-'}</td>
+                        <td style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', whiteSpace: 'pre-line' }}>{p.nomePadrinhos || '-'}</td>
                         <td>{p.ano || '-'}</td>
                         <td style={{ textAlign: 'right' }}>
-                          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                          <div style={{ display: 'flex', gap: '0.2rem', justifyContent: 'flex-end' }}>
                             <Link
                               to={`/editar-pessoa/${p.id}`}
                               className="btn btn-secondary"
-                              style={{ padding: '0.4rem 0.75rem', fontSize: '0.875rem' }}
+                              style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem' }}
                               title="Editar Pessoa"
                             >
-                              <Edit2 size={16} />
+                              <Edit2 size={14} />
                             </Link>
                             <button
                               onClick={() => handleDelete(p.id)}
                               className="btn btn-secondary"
-                              style={{ padding: '0.4rem 0.75rem', fontSize: '0.875rem', color: 'var(--error)' }}
+                              style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem', color: 'var(--error)' }}
                               title="Remover Pessoa"
                             >
-                              <Trash2 size={16} />
+                              <Trash2 size={14} />
                             </button>
                           </div>
                         </td>

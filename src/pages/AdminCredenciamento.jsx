@@ -61,14 +61,6 @@ export const AdminCredenciamento = () => {
 
       if (error) throw error;
 
-      registrarAuditoria({
-        acao: 'ADMIN_MUDAR_PERFIL',
-        categoria: 'ADMIN',
-        nivel: 'WARNING',
-        descricao: `Administrador alterou perfil do usuário para ${novoPerfil}`,
-        detalhes: { target_user_id: userId, novo_perfil: novoPerfil }
-      });
-
       setMessage('Perfil atualizado com sucesso!');
       setUsuarios(usuarios.map(u => u.user_id === userId ? { ...u, perfil: novoPerfil } : u));
     } catch (err) {
@@ -119,14 +111,6 @@ export const AdminCredenciamento = () => {
       });
 
       if (error) throw error;
-
-      registrarAuditoria({
-        acao: 'ADMIN_RESET_SENHA',
-        categoria: 'ADMIN',
-        nivel: 'WARNING',
-        descricao: `Administrador resetou a senha do usuário ${modalReset.usuario.nome}`,
-        detalhes: { target_user_id: modalReset.usuario.user_id, target_email: modalReset.usuario.email }
-      });
 
       setMessage(`Senha de ${modalReset.usuario.nome} resetada com sucesso! O usuário deverá alterá-la no primeiro acesso.`);
 

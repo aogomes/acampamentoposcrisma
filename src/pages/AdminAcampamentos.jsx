@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { Tent, Plus, Trash2, Edit2, Search, Filter, ArrowLeft, DollarSign, CheckCircle2, Users, X, Check, ArrowUpDown, ArrowUp, ArrowDown, ArrowRight, FileSpreadsheet } from 'lucide-react';
@@ -148,78 +148,226 @@ export const AdminAcampamentos = () => {
   const [equipesDisponiveis, setEquipesDisponiveis] = useState([]);
   const [modalFilhos, setModalFilhos] = useState({
     isOpen: false,
+    inscricaoId: null,
     titularNome: '',
     conjugeNome: '',
-    dependentes: []
+    dependentes: [],
+    pos: null
   });
+  const popoverFilhosRef = useRef(null);
+
+  useEffect(() => {
+    if (!modalFilhos.isOpen) return;
+
+    const handleClickOutside = (e) => {
+      if (popoverFilhosRef.current && !popoverFilhosRef.current.contains(e.target)) {
+        setModalFilhos(prev => ({ ...prev, isOpen: false, inscricaoId: null }));
+      }
+    };
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setModalFilhos(prev => ({ ...prev, isOpen: false, inscricaoId: null }));
+      }
+    };
+
+    const handleScroll = (e) => {
+      if (popoverFilhosRef.current && !popoverFilhosRef.current.contains(e.target)) {
+        setModalFilhos(prev => ({ ...prev, isOpen: false, inscricaoId: null }));
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('scroll', handleScroll, true);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('scroll', handleScroll, true);
+    };
+  }, [modalFilhos.isOpen]);
+
   const [caixaPadrinhos, setCaixaPadrinhos] = useState(null);
   const [caixaValor, setCaixaValor] = useState(null);
+  const popoverPadrinhosRef = useRef(null);
+  const popoverValorRef = useRef(null);
+  const padrinhosTimeoutRef = useRef(null);
 
-  const handleOpenPadrinhos = (e, pessoa) => {
-    e.stopPropagation();
+  useEffect(() => {
+    if (!caixaPadrinhos?.isOpen) return;
+
+    const handleScroll = () => {
+      setCaixaPadrinhos(null);
+    };
+
+    window.addEventListener('scroll', handleScroll, true);
+    return () => {
+      window.removeEventListener('scroll', handleScroll, true);
+    };
+  }, [caixaPadrinhos?.isOpen]);
+
+  useEffect(() => {
+    if (!caixaValor?.isOpen) return;
+
+    const handleClickOutside = (e) => {
+      if (popoverValorRef.current && !popoverValorRef.current.contains(e.target)) {
+        setCaixaValor(null);
+      }
+    };
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setCaixaValor(null);
+      }
+    };
+
+    const handleScroll = (e) => {
+      if (popoverValorRef.current && !popoverValorRef.current.contains(e.target)) {
+        setCaixaValor(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('scroll', handleScroll, true);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('scroll', handleScroll, true);
+    };
+  }, [caixaValor?.isOpen]);
+
+  const handleMouseEnterPadrinhos = (e, pessoa) => {
+    if (padrinhosTimeoutRef.current) {
+      clearTimeout(padrinhosTimeoutRef.current);
+      padrinhosTimeoutRef.current = null;
+    }
+
     const rect = e.currentTarget.getBoundingClientRect();
-    const popoverWidth = 280;
+    const popoverWidth = 300;
 
-    let left = rect.left;
+    const buttonCenter = rect.left + (rect.width / 2);
+    let left = buttonCenter - (popoverWidth / 2);
     if (left + popoverWidth > window.innerWidth - 16) {
       left = window.innerWidth - popoverWidth - 16;
     }
     if (left < 16) left = 16;
 
-    let top = rect.bottom + 6;
-    if (top + 190 > window.innerHeight) {
-      top = Math.max(16, rect.top - 190);
+    const espacoAbaixo = window.innerHeight - rect.bottom;
+    const espacoAcima = rect.top;
+    let top = 'auto';
+    let bottom = 'auto';
+
+    if (espacoAbaixo >= 180 || espacoAbaixo >= espacoAcima) {
+      top = rect.bottom + 8;
+    } else {
+      bottom = window.innerHeight - rect.top + 8;
     }
 
     setCaixaPadrinhos({
       isOpen: true,
+      pessoaId: pessoa?.id,
       afilhadoNome: pessoa?.nome,
       padrinho: pessoa?.vinculo?.padrinho,
       madrinha: pessoa?.vinculo?.madrinha,
       padrinhosTexto: pessoa?.padrinhos_catequistas,
-      pos: { top, left }
+      pos: { top, bottom, left }
     });
+  };
+
+  const handleMouseLeavePadrinhos = () => {
+    padrinhosTimeoutRef.current = setTimeout(() => {
+      setCaixaPadrinhos(null);
+    }, 120);
+  };
+
+  const handleTogglePadrinhos = (e, pessoa) => {
+    e.stopPropagation();
+    if (caixaPadrinhos?.isOpen && caixaPadrinhos?.pessoaId === pessoa?.id) {
+      setCaixaPadrinhos(null);
+    } else {
+      handleMouseEnterPadrinhos(e, pessoa);
+    }
   };
 
   const handleOpenFilhos = (e, a) => {
     e.stopPropagation();
-    const rect = e.currentTarget.getBoundingClientRect();
-    const popoverWidth = 350;
+    if (modalFilhos.isOpen && modalFilhos.inscricaoId === a.id) {
+      setModalFilhos({ isOpen: false, inscricaoId: null, titularNome: '', conjugeNome: '', dependentes: [], pos: null });
+      return;
+    }
 
-    let left = rect.left;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const popoverWidth = 380;
+
+    // Centraliza horizontalmente em relação ao botão clicado
+    const buttonCenter = rect.left + (rect.width / 2);
+    let left = buttonCenter - (popoverWidth / 2);
     if (left + popoverWidth > window.innerWidth - 16) {
       left = window.innerWidth - popoverWidth - 16;
     }
     if (left < 16) left = 16;
 
-    let top = rect.bottom + 6;
-    if (top + 280 > window.innerHeight) {
-      top = Math.max(16, rect.top - 280);
+    // Cálculo vertical inteligente:
+    // Se abrir para baixo: top = rect.bottom + 8
+    // Se abrir para cima: bottom = window.innerHeight - rect.top + 8 (ancorando a base logo acima do botão!)
+    const espacoAbaixo = window.innerHeight - rect.bottom;
+    const espacoAcima = rect.top;
+    let top = 'auto';
+    let bottom = 'auto';
+    let maxHeight = 450;
+
+    if (espacoAbaixo >= 220 || espacoAbaixo >= espacoAcima) {
+      top = rect.bottom + 8;
+      maxHeight = Math.max(150, Math.min(espacoAbaixo - 20, 480));
+    } else {
+      bottom = window.innerHeight - rect.top + 8;
+      maxHeight = Math.max(150, Math.min(espacoAcima - 20, 480));
     }
 
     setModalFilhos({
       isOpen: true,
+      inscricaoId: a.id,
       titularNome: a.apc_pessoa?.nome,
       conjugeNome: a.apc_pessoa?.conjuge?.nome,
       dependentes: a.apc_pessoa?.dependentes_agrupados || [],
-      pos: { top, left }
+      pos: { top, bottom, left, maxHeight }
     });
   };
 
   const handleOpenValor = (e, a, valorTotal, itensValor) => {
     e.stopPropagation();
-    const rect = e.currentTarget.getBoundingClientRect();
-    const popoverWidth = 360;
+    if (caixaValor?.isOpen && caixaValor?.acampamentoId === a.id) {
+      setCaixaValor(null);
+      return;
+    }
 
-    let left = rect.left;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const popoverWidth = 370;
+
+    // Centraliza horizontalmente em relação ao elemento clicado
+    const buttonCenter = rect.left + (rect.width / 2);
+    let left = buttonCenter - (popoverWidth / 2);
     if (left + popoverWidth > window.innerWidth - 16) {
       left = window.innerWidth - popoverWidth - 16;
     }
     if (left < 16) left = 16;
 
-    let top = rect.bottom + 6;
-    if (top + 340 > window.innerHeight) {
-      top = Math.max(16, rect.top - 340);
+    // Cálculo vertical inteligente:
+    // Se abrir para baixo: top = rect.bottom + 8
+    // Se abrir para cima: bottom = window.innerHeight - rect.top + 8
+    const espacoAbaixo = window.innerHeight - rect.bottom;
+    const espacoAcima = rect.top;
+    let top = 'auto';
+    let bottom = 'auto';
+    let maxHeight = 500;
+
+    if (espacoAbaixo >= 250 || espacoAbaixo >= espacoAcima) {
+      top = rect.bottom + 8;
+      maxHeight = Math.max(180, Math.min(espacoAbaixo - 20, 520));
+    } else {
+      bottom = window.innerHeight - rect.top + 8;
+      maxHeight = Math.max(180, Math.min(espacoAcima - 20, 520));
     }
 
     setCaixaValor({
@@ -231,7 +379,7 @@ export const AdminAcampamentos = () => {
       totalPago: a.totalPago || 0,
       itensPago: a.itensPago || [],
       acampamentoId: a.id,
-      pos: { top, left }
+      pos: { top, bottom, left, maxHeight }
     });
   };
 
@@ -1482,8 +1630,10 @@ export const AdminAcampamentos = () => {
                           {tipo === 'AFILHADO' && (
                             <button
                               type="button"
-                              onClick={(e) => handleOpenPadrinhos(e, a.apc_pessoa)}
-                              title="Clique para ver os padrinhos"
+                              onClick={(e) => handleTogglePadrinhos(e, a.apc_pessoa)}
+                              onMouseEnter={(e) => handleMouseEnterPadrinhos(e, a.apc_pessoa)}
+                              onMouseLeave={handleMouseLeavePadrinhos}
+                              title="Padrinhos do afilhado (passe o mouse para ver)"
                               style={{
                                 background: 'rgba(245, 158, 11, 0.12)',
                                 border: '1px solid rgba(245, 158, 11, 0.3)',
@@ -1804,11 +1954,11 @@ export const AdminAcampamentos = () => {
                           <td>{a.apc_pessoa?.ano}</td>
                           <td>
                             <div style={{ alignItems: 'center', flexWrap: 'wrap', gap: '0.35rem' }}>
-                              <span style={{ fontWeight: '600', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'help' }} title="Sim, vai para o Acampamento">
+                              <span style={{ fontWeight: '500', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'help' }} title="Sim, vai para o Acampamento">
                                 {a.apc_pessoa?.nome} <Check size={12} color="var(--success)" />
                               </span>
                               {a.apc_pessoa?.conjuge && (
-                                <span style={{ fontWeight: '600', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'help' }} title={a.conjuge_inscricao ? "Sim, vai para o Acampamento" : "Não vai para o Acampamento"}>
+                                <span style={{ fontWeight: '500', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'help' }} title={a.conjuge_inscricao ? "Sim, vai para o Acampamento" : "Não vai para o Acampamento"}>
                                   {a.apc_pessoa.conjuge.nome}
                                   {a.conjuge_inscricao ? (
                                     <Check size={12} color="var(--success)" />
@@ -1896,8 +2046,10 @@ export const AdminAcampamentos = () => {
                                   {tipo === 'AFILHADO' && (
                                     <button
                                       type="button"
-                                      onClick={(e) => handleOpenPadrinhos(e, a.apc_pessoa)}
-                                      title="Clique para ver os padrinhos"
+                                      onClick={(e) => handleTogglePadrinhos(e, a.apc_pessoa)}
+                                      onMouseEnter={(e) => handleMouseEnterPadrinhos(e, a.apc_pessoa)}
+                                      onMouseLeave={handleMouseLeavePadrinhos}
+                                      title="Padrinhos do afilhado (passe o mouse para ver)"
                                       style={{
                                         background: 'rgba(245, 158, 11, 0.12)',
                                         border: '1px solid rgba(245, 158, 11, 0.3)',
@@ -1909,12 +2061,6 @@ export const AdminAcampamentos = () => {
                                         alignItems: 'center',
                                         justifyContent: 'center',
                                         transition: 'all 0.15s ease'
-                                      }}
-                                      onMouseEnter={(e) => {
-                                        e.currentTarget.style.background = 'rgba(245, 158, 11, 0.25)';
-                                      }}
-                                      onMouseLeave={(e) => {
-                                        e.currentTarget.style.background = 'rgba(245, 158, 11, 0.12)';
                                       }}
                                     >
                                       <Users size={12} />
@@ -1946,12 +2092,12 @@ export const AdminAcampamentos = () => {
                                     {formatCurrency(valorTotal)}
                                   </span>
                                   <span style={{ fontSize: '0.725rem', color: 'var(--text-secondary)' }}>
-                                    ({itensValor.length === 0 ? 'Isento' : itensValor.length === 1 ? '1 pessoa' : `${itensValor.length} pessoas`})
+                                    {itensValor.length === 0 ? 'Isento' : itensValor.length === 1 ? '' : `(${itensValor.length})`}
                                   </span>
                                 </div>
 
                                 {/* Badge de Pagamento Recebido */}
-                                {valorTotal > 0 && (
+                                {/* {valorTotal > 0 && (
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                                     {(a.totalPago || 0) >= valorTotal ? (
                                       <span style={{
@@ -1991,7 +2137,7 @@ export const AdminAcampamentos = () => {
                                       </span>
                                     )}
                                   </div>
-                                )}
+                                )} */}
                               </div>
                             </div>
                           </td>
@@ -2020,547 +2166,519 @@ export const AdminAcampamentos = () => {
         </div>
       )}
 
-      {/* Caixinha suspensa / Popover de Padrinhos para Afilhados */}
+      {/* Popover / Caixinha suspensa de Padrinhos para Afilhados (Não modal / Hover) */}
       {caixaPadrinhos?.isOpen && (
-        <>
-          <div
-            style={{
-              position: 'fixed',
-              inset: 0,
-              zIndex: 9998,
-              cursor: 'default',
-              background: 'rgba(0, 0, 0, 0.45)',
-              backdropFilter: 'blur(2px)'
-            }}
-            onClick={() => setCaixaPadrinhos(null)}
-          />
+        <div
+          ref={popoverPadrinhosRef}
+          className="glass-panel"
+          onMouseEnter={() => {
+            if (padrinhosTimeoutRef.current) {
+              clearTimeout(padrinhosTimeoutRef.current);
+              padrinhosTimeoutRef.current = null;
+            }
+          }}
+          onMouseLeave={handleMouseLeavePadrinhos}
+          style={{
+            position: 'fixed',
+            top: window.innerWidth <= 768 ? '50%' : (caixaPadrinhos.pos?.top !== 'auto' && caixaPadrinhos.pos?.top !== undefined ? `${caixaPadrinhos.pos.top}px` : 'auto'),
+            bottom: window.innerWidth <= 768 ? 'auto' : (caixaPadrinhos.pos?.bottom !== 'auto' && caixaPadrinhos.pos?.bottom !== undefined ? `${caixaPadrinhos.pos.bottom}px` : 'auto'),
+            left: window.innerWidth <= 768 ? '50%' : `${caixaPadrinhos.pos?.left || 100}px`,
+            transform: window.innerWidth <= 768 ? 'translate(-50%, -50%)' : 'none',
+            width: '320px',
+            maxWidth: 'calc(100vw - 32px)',
+            maxHeight: '85vh',
+            overflowY: 'auto',
+            zIndex: 9999,
+            background: 'var(--bg-primary, #0f172a)',
+            border: '1px solid rgba(245, 158, 11, 0.4)',
+            borderRadius: '12px',
+            boxShadow: '0 14px 32px -4px rgba(0, 0, 0, 0.55), 0 0 12px rgba(245, 158, 11, 0.15)',
+            padding: '0.85rem 1rem',
+            pointerEvents: 'auto'
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.65rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+              <div style={{
+                width: '24px',
+                height: '24px',
+                borderRadius: '6px',
+                background: 'rgba(245, 158, 11, 0.15)',
+                color: '#d97706',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <Users size={14} />
+              </div>
+              <div>
+                <h4 style={{ margin: 0, fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-primary)' }}>
+                  Afilhado(a)
+                </h4>
+                <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                  {caixaPadrinhos.afilhadoNome}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setCaixaPadrinhos(null)}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--text-secondary)',
+                cursor: 'pointer',
+                padding: '0.2rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+              title="Fechar"
+            >
+              <X size={15} />
+            </button>
+          </div>
 
-          <div
-            className="glass-panel"
-            style={{
-              position: 'fixed',
-              top: window.innerWidth <= 768 ? '50%' : `${caixaPadrinhos.pos?.top || 100}px`,
-              left: window.innerWidth <= 768 ? '50%' : `${caixaPadrinhos.pos?.left || 100}px`,
-              transform: window.innerWidth <= 768 ? 'translate(-50%, -50%)' : 'none',
-              width: '320px',
-              maxWidth: 'calc(100vw - 32px)',
-              maxHeight: '85vh',
-              overflowY: 'auto',
-              zIndex: 9999,
-              background: 'var(--bg-primary, #0f172a)',
-              border: '1px solid rgba(245, 158, 11, 0.35)',
-              borderRadius: '12px',
-              boxShadow: '0 15px 35px -5px rgba(0, 0, 0, 0.6), 0 0 15px rgba(245, 158, 11, 0.1)',
-              padding: '0.85rem 1rem'
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.65rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                <div style={{
-                  width: '24px',
-                  height: '24px',
-                  borderRadius: '6px',
-                  background: 'rgba(245, 158, 11, 0.15)',
-                  color: '#d97706',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}>
-                  <Users size={14} />
-                </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem', fontSize: '0.775rem' }}>
+            {caixaPadrinhos.padrinho || caixaPadrinhos.madrinha ? (
+              <>
                 <div>
-                  <h4 style={{ margin: 0, fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-primary)' }}>
-                    Afilhado(a)
-                  </h4>
-                  <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
-                    {caixaPadrinhos.afilhadoNome}
-                  </p>
+                  <span style={{ fontSize: '0.68rem', textTransform: 'uppercase', color: 'var(--text-secondary)', fontWeight: '600', letterSpacing: '0.04em' }}>
+                    Padrinho
+                  </span>
+                  <div style={{ fontWeight: '600', color: caixaPadrinhos.padrinho ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+                    {caixaPadrinhos.padrinho?.nome || 'Não vinculado'}
+                  </div>
+                </div>
+
+                <div>
+                  <span style={{ fontSize: '0.68rem', textTransform: 'uppercase', color: 'var(--text-secondary)', fontWeight: '600', letterSpacing: '0.04em' }}>
+                    Madrinha
+                  </span>
+                  <div style={{ fontWeight: '600', color: caixaPadrinhos.madrinha ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+                    {caixaPadrinhos.madrinha?.nome || 'Não vinculada'}
+                  </div>
+                </div>
+              </>
+            ) : caixaPadrinhos.padrinhosTexto ? (
+              <div>
+                <span style={{ fontSize: '0.68rem', textTransform: 'uppercase', color: 'var(--text-secondary)', fontWeight: '600' }}>
+                  Padrinhos Informados
+                </span>
+                <div style={{ fontWeight: '600', color: 'var(--text-primary)' }}>
+                  {caixaPadrinhos.padrinhosTexto}
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => setCaixaPadrinhos(null)}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: 'var(--text-secondary)',
-                  cursor: 'pointer',
-                  padding: '0.2rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-                title="Fechar"
-              >
-                <X size={15} />
-              </button>
+            ) : (
+              <div style={{ color: 'var(--text-secondary)', fontStyle: 'italic', padding: '0.25rem 0' }}>
+                Nenhum padrinho vinculado no sistema.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Popover / Caixinha suspensa de Filhos / Dependentes (Não modal) */}
+      {modalFilhos.isOpen && (
+        <div
+          ref={popoverFilhosRef}
+          className="glass-panel"
+          style={{
+            position: 'fixed',
+            top: window.innerWidth <= 768 ? '50%' : (modalFilhos.pos?.top !== 'auto' && modalFilhos.pos?.top !== undefined ? `${modalFilhos.pos.top}px` : 'auto'),
+            bottom: window.innerWidth <= 768 ? 'auto' : (modalFilhos.pos?.bottom !== 'auto' && modalFilhos.pos?.bottom !== undefined ? `${modalFilhos.pos.bottom}px` : 'auto'),
+            left: window.innerWidth <= 768 ? '50%' : `${modalFilhos.pos?.left || 100}px`,
+            transform: window.innerWidth <= 768 ? 'translate(-50%, -50%)' : 'none',
+            width: '380px',
+            maxWidth: 'calc(100vw - 32px)',
+            maxHeight: window.innerWidth <= 768 ? '85vh' : `${modalFilhos.pos?.maxHeight || 450}px`,
+            overflowY: 'auto',
+            zIndex: 9999,
+            background: 'var(--bg-primary, #0f172a)',
+            border: '1px solid rgba(16, 185, 129, 0.4)',
+            borderRadius: '14px',
+            boxShadow: '0 16px 36px -6px rgba(0, 0, 0, 0.55), 0 0 15px rgba(16, 185, 129, 0.15)',
+            padding: '0.85rem 1rem',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.75rem'
+          }}
+        >
+          {/* Cabeçalho */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+              <div style={{
+                width: '26px',
+                height: '26px',
+                borderRadius: '6px',
+                background: 'rgba(16, 185, 129, 0.15)',
+                color: 'var(--success)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <Users size={15} />
+              </div>
+              <div>
+                <h4 style={{ margin: 0, fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-primary)' }}>
+                  Filhos / Dependentes
+                </h4>
+                <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                  {modalFilhos.titularNome}{modalFilhos.conjugeNome ? ` e ${modalFilhos.conjugeNome}` : ''} • {modalFilhos.dependentes.filter(d => Boolean(d.acampamento !== undefined ? d.acampamento : d.mascote)).length} filho(s) no acampamento
+                </p>
+              </div>
             </div>
+            <button
+              type="button"
+              onClick={() => setModalFilhos({ isOpen: false, inscricaoId: null, titularNome: '', conjugeNome: '', dependentes: [], pos: null })}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--text-secondary)',
+                cursor: 'pointer',
+                padding: '0.2rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+              title="Fechar"
+            >
+              <X size={16} />
+            </button>
+          </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem', fontSize: '0.775rem' }}>
-              {caixaPadrinhos.padrinho || caixaPadrinhos.madrinha ? (
-                <>
-                  <div>
-                    <span style={{ fontSize: '0.68rem', textTransform: 'uppercase', color: 'var(--text-secondary)', fontWeight: '600', letterSpacing: '0.04em' }}>
-                      Padrinho
-                    </span>
-                    <div style={{ fontWeight: '600', color: caixaPadrinhos.padrinho ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
-                      {caixaPadrinhos.padrinho?.nome || 'Não vinculado'}
+          {/* Lista dos Filhos */}
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {modalFilhos.dependentes.map(d => {
+              const idade = calcularIdade(d.data_nascimento);
+              const vaiAcampamento = Boolean(d.acampamento !== undefined ? d.acampamento : d.mascote);
+              const ehMascote = vaiAcampamento && Boolean(d.mascote);
+
+              return (
+                <div
+                  key={d.id}
+                  style={{
+                    background: 'var(--bg-secondary)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '8px',
+                    padding: '0.25rem 0.1rem',
+                    display: 'flex',
+                    flexDirection: 'column',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.4rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
+                      <strong style={{ fontSize: '0.825rem', color: 'var(--text-primary)' }}>
+                        {d.nome}
+                      </strong>
+                      {idade !== null && (
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', background: 'rgba(255,255,255,0.06)', padding: '0.05rem 0.35rem', borderRadius: '4px' }}>
+                          {idade} ano{idade === 1 ? '' : 's'}
+                        </span>
+                      )}
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', flexShrink: 0 }}>
+                      {ehMascote && (
+                        <span style={{
+                          fontSize: '0.65rem',
+                          fontWeight: '700',
+                          background: '#fef3c7',
+                          color: '#b45309',
+                          border: '1px solid #fde68a',
+                          padding: '0.1rem 0.4rem',
+                          borderRadius: '999px'
+                        }}>
+                          Mascote
+                        </span>
+                      )}
+
+                      <span
+                        style={{
+                          fontSize: '0.675rem',
+                          fontWeight: '600',
+                          padding: '0.1rem 0.4rem',
+                          borderRadius: '999px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.25rem',
+                          background: vaiAcampamento ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.1)',
+                          color: vaiAcampamento ? '#059669' : '#dc2626',
+                          border: vaiAcampamento ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(239, 68, 68, 0.25)'
+                        }} title={vaiAcampamento ? 'Vai para o acampamento' : 'Não vai para o acampamento'}
+                      >
+                        {vaiAcampamento ? (
+                          <>
+                            <CheckCircle2 size={11} color="#059669" />
+                          </>
+                        ) : (
+                          <>
+                            <X size={11} color="#dc2626" />
+                          </>
+                        )}
+                      </span>
                     </div>
                   </div>
 
-                  <div>
-                    <span style={{ fontSize: '0.68rem', textTransform: 'uppercase', color: 'var(--text-secondary)', fontWeight: '600', letterSpacing: '0.04em' }}>
-                      Madrinha
-                    </span>
-                    <div style={{ fontWeight: '600', color: caixaPadrinhos.madrinha ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
-                      {caixaPadrinhos.madrinha?.nome || 'Não vinculada'}
+                  {/* Detalhes Médicos se houver */}
+                  {(d.problema_saude === 'SIM' || d.problema_saude === true || d.medicamento_continuo === 'SIM' || d.medicamento_continuo === true || d.restricao_alimentar === 'SIM' || d.restricao_alimentar === true || d.alergia_medicamento === 'SIM' || d.alergia_medicamento === true || d.alergia_alimento === 'SIM' || d.alergia_alimento === true || d.cuidado_especial === 'SIM' || d.cuidado_especial === true) && (
+                    <div style={{
+                      marginTop: '0.15rem',
+                      paddingTop: '0.25rem',
+                      borderTop: '1px solid var(--border-color)',
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: '0.25rem',
+                      fontSize: '0.675rem'
+                    }}>
+                      {(d.problema_saude === 'SIM' || d.problema_saude === true) && (
+                        <span style={{ color: '#ef4444', background: 'rgba(239, 68, 68, 0.08)', padding: '0.1rem 0.35rem', borderRadius: '4px' }}>
+                          Problema: {d.problema_saude_qual || 'Sim'}
+                        </span>
+                      )}
+                      {(d.medicamento_continuo === 'SIM' || d.medicamento_continuo === true) && (
+                        <span style={{ color: '#2563eb', background: 'rgba(37, 99, 235, 0.08)', padding: '0.1rem 0.35rem', borderRadius: '4px' }}>
+                          Medicamento: {d.medicamento_continuo_qual || 'Sim'}
+                        </span>
+                      )}
+                      {(d.restricao_alimentar === 'SIM' || d.restricao_alimentar === true) && (
+                        <span style={{ color: '#d97706', background: 'rgba(217, 119, 6, 0.08)', padding: '0.1rem 0.35rem', borderRadius: '4px' }}>
+                          Restrição: {d.restricao_alimentar_qual || 'Sim'}
+                        </span>
+                      )}
+                      {(d.alergia_medicamento === 'SIM' || d.alergia_medicamento === true || d.alergia_alimento === 'SIM' || d.alergia_alimento === true) && (
+                        <span style={{ color: '#ec4899', background: 'rgba(236, 72, 153, 0.08)', padding: '0.1rem 0.35rem', borderRadius: '4px' }}>
+                          Alergia: {[d.alergia_medicamento_qual, d.alergia_alimento_qual].filter(Boolean).join(', ') || 'Sim'}
+                        </span>
+                      )}
+                      {(d.cuidado_especial === 'SIM' || d.cuidado_especial === true) && (
+                        <span style={{ color: '#8b5cf6', background: 'rgba(139, 92, 246, 0.08)', padding: '0.1rem 0.35rem', borderRadius: '4px' }}>
+                          Cuidado Especial: {d.cuidado_especial_qual || 'Sim'}
+                        </span>
+                      )}
                     </div>
-                  </div>
-                </>
-              ) : caixaPadrinhos.padrinhosTexto ? (
-                <div>
-                  <span style={{ fontSize: '0.68rem', textTransform: 'uppercase', color: 'var(--text-secondary)', fontWeight: '600' }}>
-                    Padrinhos Informados
-                  </span>
-                  <div style={{ fontWeight: '600', color: 'var(--text-primary)' }}>
-                    {caixaPadrinhos.padrinhosTexto}
-                  </div>
+                  )}
                 </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Popover / Caixinha suspensa de Detalhamento do Valor e Pagamentos (Não modal) */}
+      {caixaValor?.isOpen && (
+        <div
+          ref={popoverValorRef}
+          className="glass-panel"
+          style={{
+            position: 'fixed',
+            top: window.innerWidth <= 768 ? '50%' : (caixaValor.pos?.top !== 'auto' && caixaValor.pos?.top !== undefined ? `${caixaValor.pos.top}px` : 'auto'),
+            bottom: window.innerWidth <= 768 ? 'auto' : (caixaValor.pos?.bottom !== 'auto' && caixaValor.pos?.bottom !== undefined ? `${caixaValor.pos.bottom}px` : 'auto'),
+            left: window.innerWidth <= 768 ? '50%' : `${caixaValor.pos?.left || 100}px`,
+            transform: window.innerWidth <= 768 ? 'translate(-50%, -50%)' : 'none',
+            width: '370px',
+            maxWidth: 'calc(100vw - 32px)',
+            overflowY: 'auto',
+            maxHeight: window.innerWidth <= 768 ? '85vh' : `${caixaValor.pos?.maxHeight || 500}px`,
+            zIndex: 9999,
+            background: 'var(--bg-primary, #0f172a)',
+            border: '1px solid rgba(59, 130, 246, 0.4)',
+            borderRadius: '14px',
+            boxShadow: '0 16px 36px -6px rgba(0, 0, 0, 0.55), 0 0 15px rgba(59, 130, 246, 0.15)',
+            padding: '1rem',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.85rem'
+          }}
+        >
+          {/* Cabeçalho */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <div style={{
+                width: '28px',
+                height: '28px',
+                borderRadius: '6px',
+                background: 'rgba(59, 130, 246, 0.15)',
+                color: 'var(--accent, #3b82f6)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <DollarSign size={16} />
+              </div>
+              <div>
+                <h4 style={{ margin: 0, fontSize: '0.875rem', fontWeight: '700', color: 'var(--text-primary)' }}>
+                  Detalhamento Financeiro
+                </h4>
+                <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                  {caixaValor.titularNome}{caixaValor.conjugeNome ? ` e ${caixaValor.conjugeNome}` : ''}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setCaixaValor(null)}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--text-secondary)',
+                cursor: 'pointer',
+                padding: '0.2rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+              title="Fechar"
+            >
+              <X size={16} />
+            </button>
+          </div>
+
+          {/* Seção 1: Valores Previstos */}
+          <div>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {caixaValor.itensValor && caixaValor.itensValor.length > 0 ? (
+                caixaValor.itensValor.map((item, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      background: 'var(--bg-secondary)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '6px',
+                      padding: '0.3rem 0.5rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '0.5rem'
+                    }}
+                  >
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-primary)', fontWeight: '500' }}>
+                      {item.descricao}
+                    </span>
+                    <span style={{
+                      fontSize: '0.775rem',
+                      fontWeight: '700',
+                      color: item.valor > 0 ? 'var(--text-primary)' : 'var(--text-secondary)',
+                      whiteSpace: 'nowrap'
+                    }}>
+                      {item.valor > 0 ? formatCurrency(item.valor) : 'Isento'}
+                    </span>
+                  </div>
+                ))
               ) : (
-                <div style={{ color: 'var(--text-secondary)', fontStyle: 'italic', padding: '0.25rem 0' }}>
-                  Nenhum padrinho vinculado no sistema.
+                <div style={{
+                  padding: '0.5rem',
+                  textAlign: 'center',
+                  fontSize: '0.75rem',
+                  color: 'var(--text-secondary)',
+                  fontStyle: 'italic',
+                  background: 'var(--bg-secondary)',
+                  borderRadius: '6px'
+                }}>
+                  Sem cobrança cadastrada / isento.
                 </div>
               )}
             </div>
           </div>
-        </>
-      )}
 
-      {/* Popover / Caixinha suspensa de Filhos / Dependentes */}
-      {modalFilhos.isOpen && (
-        <>
-          <div
-            style={{
-              position: 'fixed',
-              inset: 0,
-              zIndex: 9998,
-              cursor: 'default',
-              background: 'rgba(0, 0, 0, 0.45)',
-              backdropFilter: 'blur(2px)'
-            }}
-            onClick={() => setModalFilhos({ isOpen: false, titularNome: '', conjugeNome: '', dependentes: [], pos: null })}
-          />
-
-          <div
-            className="glass-panel"
-            style={{
-              position: 'fixed',
-              top: window.innerWidth <= 768 ? '50%' : `${modalFilhos.pos?.top || 100}px`,
-              left: window.innerWidth <= 768 ? '50%' : `${modalFilhos.pos?.left || 100}px`,
-              transform: window.innerWidth <= 768 ? 'translate(-50%, -50%)' : 'none',
-              width: '380px',
-              maxWidth: 'calc(100vw - 32px)',
-              maxHeight: '85vh',
-              overflowY: 'auto',
-              zIndex: 9999,
-              background: 'var(--bg-primary, #0f172a)',
-              border: '1px solid rgba(16, 185, 129, 0.35)',
-              borderRadius: '14px',
-              boxShadow: '0 20px 40px -8px rgba(0, 0, 0, 0.6), 0 0 15px rgba(16, 185, 129, 0.1)',
-              padding: '0.85rem 1rem',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '0.75rem'
-            }}
-          >
-            {/* Cabeçalho */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                <div style={{
-                  width: '26px',
-                  height: '26px',
-                  borderRadius: '6px',
-                  background: 'rgba(16, 185, 129, 0.15)',
-                  color: 'var(--success)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}>
-                  <Users size={15} />
-                </div>
-                <div>
-                  <h4 style={{ margin: 0, fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-primary)' }}>
-                    Filhos / Dependentes
-                  </h4>
-                  <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
-                    {modalFilhos.titularNome}{modalFilhos.conjugeNome ? ` e ${modalFilhos.conjugeNome}` : ''} • {modalFilhos.dependentes.filter(d => Boolean(d.acampamento !== undefined ? d.acampamento : d.mascote)).length} filho(s) no acampamento
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setModalFilhos({ isOpen: false, titularNome: '', conjugeNome: '', dependentes: [], pos: null })}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: 'var(--text-secondary)',
-                  cursor: 'pointer',
-                  padding: '0.2rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-                title="Fechar"
-              >
-                <X size={16} />
-              </button>
+          {/* Seção 2: Pagamentos Recebidos */}
+          <div>
+            <div style={{ fontSize: '0.6rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.02em', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
+              Pagamentos Recebidos
             </div>
-
-            {/* Lista dos Filhos */}
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              {modalFilhos.dependentes.map(d => {
-                const idade = calcularIdade(d.data_nascimento);
-                const vaiAcampamento = Boolean(d.acampamento !== undefined ? d.acampamento : d.mascote);
-                const ehMascote = vaiAcampamento && Boolean(d.mascote);
-
-                return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+              {caixaValor.itensPago && caixaValor.itensPago.length > 0 ? (
+                caixaValor.itensPago.map((pg, idx) => (
                   <div
-                    key={d.id}
+                    key={pg.id || idx}
                     style={{
-                      background: 'var(--bg-secondary)',
-                      border: '1px solid var(--border-color)',
-                      borderRadius: '8px',
-                      padding: '0.25rem 0.1rem',
+                      background: 'rgba(16, 185, 129, 0.08)',
+                      border: '1px solid rgba(16, 185, 129, 0.25)',
+                      borderRadius: '6px',
+                      padding: '0.3rem 0.5rem',
                       display: 'flex',
-                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '0.5rem'
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.4rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
-                        <strong style={{ fontSize: '0.825rem', color: 'var(--text-primary)' }}>
-                          {d.nome}
-                        </strong>
-                        {idade !== null && (
-                          <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', background: 'rgba(255,255,255,0.06)', padding: '0.05rem 0.35rem', borderRadius: '4px' }}>
-                            {idade} ano{idade === 1 ? '' : 's'}
-                          </span>
-                        )}
-                      </div>
-
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', flexShrink: 0 }}>
-                        {ehMascote && (
-                          <span style={{
-                            fontSize: '0.65rem',
-                            fontWeight: '700',
-                            background: '#fef3c7',
-                            color: '#b45309',
-                            border: '1px solid #fde68a',
-                            padding: '0.1rem 0.4rem',
-                            borderRadius: '999px'
-                          }}>
-                            Mascote
-                          </span>
-                        )}
-
-                        <span
-                          style={{
-                            fontSize: '0.675rem',
-                            fontWeight: '600',
-                            padding: '0.1rem 0.4rem',
-                            borderRadius: '999px',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '0.25rem',
-                            background: vaiAcampamento ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.1)',
-                            color: vaiAcampamento ? '#059669' : '#dc2626',
-                            border: vaiAcampamento ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(239, 68, 68, 0.25)'
-                          }} title={vaiAcampamento ? 'Vai para o acampamento' : 'Não vai para o acampamento'}
-                        >
-                          {vaiAcampamento ? (
-                            <>
-                              <CheckCircle2 size={11} color="#059669" />
-                            </>
-                          ) : (
-                            <>
-                              <X size={11} color="#dc2626" />
-                            </>
-                          )}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Detalhes Médicos se houver */}
-                    {(d.problema_saude === 'SIM' || d.problema_saude === true || d.medicamento_continuo === 'SIM' || d.medicamento_continuo === true || d.restricao_alimentar === 'SIM' || d.restricao_alimentar === true || d.alergia_medicamento === 'SIM' || d.alergia_medicamento === true || d.alergia_alimento === 'SIM' || d.alergia_alimento === true || d.cuidado_especial === 'SIM' || d.cuidado_especial === true) && (
-                      <div style={{
-                        marginTop: '0.15rem',
-                        paddingTop: '0.25rem',
-                        borderTop: '1px solid var(--border-color)',
-                        display: 'flex',
-                        flexWrap: 'wrap',
-                        gap: '0.25rem',
-                        fontSize: '0.675rem'
-                      }}>
-                        {(d.problema_saude === 'SIM' || d.problema_saude === true) && (
-                          <span style={{ color: '#ef4444', background: 'rgba(239, 68, 68, 0.08)', padding: '0.1rem 0.35rem', borderRadius: '4px' }}>
-                            Problema: {d.problema_saude_qual || 'Sim'}
-                          </span>
-                        )}
-                        {(d.medicamento_continuo === 'SIM' || d.medicamento_continuo === true) && (
-                          <span style={{ color: '#2563eb', background: 'rgba(37, 99, 235, 0.08)', padding: '0.1rem 0.35rem', borderRadius: '4px' }}>
-                            Medicamento: {d.medicamento_continuo_qual || 'Sim'}
-                          </span>
-                        )}
-                        {(d.restricao_alimentar === 'SIM' || d.restricao_alimentar === true) && (
-                          <span style={{ color: '#d97706', background: 'rgba(217, 119, 6, 0.08)', padding: '0.1rem 0.35rem', borderRadius: '4px' }}>
-                            Restrição: {d.restricao_alimentar_qual || 'Sim'}
-                          </span>
-                        )}
-                        {(d.alergia_medicamento === 'SIM' || d.alergia_medicamento === true || d.alergia_alimento === 'SIM' || d.alergia_alimento === true) && (
-                          <span style={{ color: '#ec4899', background: 'rgba(236, 72, 153, 0.08)', padding: '0.1rem 0.35rem', borderRadius: '4px' }}>
-                            Alergia: {[d.alergia_medicamento_qual, d.alergia_alimento_qual].filter(Boolean).join(', ') || 'Sim'}
-                          </span>
-                        )}
-                        {(d.cuidado_especial === 'SIM' || d.cuidado_especial === true) && (
-                          <span style={{ color: '#8b5cf6', background: 'rgba(139, 92, 246, 0.08)', padding: '0.1rem 0.35rem', borderRadius: '4px' }}>
-                            Cuidado Especial: {d.cuidado_especial_qual || 'Sim'}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* Popover / Caixinha suspensa de Detalhamento do Valor e Pagamentos */}
-      {caixaValor?.isOpen && (
-        <>
-          <div
-            style={{
-              position: 'fixed',
-              inset: 0,
-              zIndex: 9998,
-              cursor: 'default',
-              background: 'rgba(0, 0, 0, 0.45)',
-              backdropFilter: 'blur(2px)'
-            }}
-            onClick={() => setCaixaValor(null)}
-          />
-
-          <div
-            className="glass-panel"
-            style={{
-              position: 'fixed',
-              top: window.innerWidth <= 768 ? '50%' : `${caixaValor.pos?.top || 100}px`,
-              left: window.innerWidth <= 768 ? '50%' : `${caixaValor.pos?.left || 100}px`,
-              transform: window.innerWidth <= 768 ? 'translate(-50%, -50%)' : 'none',
-              width: '370px',
-              maxWidth: 'calc(100vw - 32px)',
-              overflowY: 'auto',
-              maxHeight: '85vh',
-              zIndex: 9999,
-              background: 'var(--bg-primary, #0f172a)',
-              border: '1px solid rgba(59, 130, 246, 0.35)',
-              borderRadius: '14px',
-              boxShadow: '0 20px 40px -8px rgba(0, 0, 0, 0.6), 0 0 15px rgba(59, 130, 246, 0.1)',
-              padding: '1rem',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '0.85rem'
-            }}
-          >
-            {/* Cabeçalho */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <div style={{
-                  width: '28px',
-                  height: '28px',
-                  borderRadius: '6px',
-                  background: 'rgba(59, 130, 246, 0.15)',
-                  color: 'var(--accent, #3b82f6)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}>
-                  <DollarSign size={16} />
-                </div>
-                <div>
-                  <h4 style={{ margin: 0, fontSize: '0.875rem', fontWeight: '700', color: 'var(--text-primary)' }}>
-                    Detalhamento Financeiro
-                  </h4>
-                  <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
-                    {caixaValor.titularNome}{caixaValor.conjugeNome ? ` e ${caixaValor.conjugeNome}` : ''}
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setCaixaValor(null)}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: 'var(--text-secondary)',
-                  cursor: 'pointer',
-                  padding: '0.2rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-                title="Fechar"
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            {/* Seção 1: Valores Previstos */}
-            <div>
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                {caixaValor.itensValor && caixaValor.itensValor.length > 0 ? (
-                  caixaValor.itensValor.map((item, idx) => (
-                    <div
-                      key={idx}
-                      style={{
-                        background: 'var(--bg-secondary)',
-                        border: '1px solid var(--border-color)',
-                        borderRadius: '6px',
-                        padding: '0.3rem 0.5rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        gap: '0.5rem'
-                      }}
-                    >
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <span style={{ fontSize: '0.75rem', color: 'var(--text-primary)', fontWeight: '500' }}>
-                        {item.descricao}
+                        {pg.descricao || 'Recebimento de inscrição'}
                       </span>
-                      <span style={{
-                        fontSize: '0.775rem',
-                        fontWeight: '700',
-                        color: item.valor > 0 ? 'var(--text-primary)' : 'var(--text-secondary)',
-                        whiteSpace: 'nowrap'
-                      }}>
-                        {item.valor > 0 ? formatCurrency(item.valor) : 'Isento'}
-                      </span>
-                    </div>
-                  ))
-                ) : (
-                  <div style={{
-                    padding: '0.5rem',
-                    textAlign: 'center',
-                    fontSize: '0.75rem',
-                    color: 'var(--text-secondary)',
-                    fontStyle: 'italic',
-                    background: 'var(--bg-secondary)',
-                    borderRadius: '6px'
-                  }}>
-                    Sem cobrança cadastrada / isento.
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Seção 2: Pagamentos Recebidos */}
-            <div>
-              <div style={{ fontSize: '0.6rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.02em', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
-                Pagamentos Recebidos
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-                {caixaValor.itensPago && caixaValor.itensPago.length > 0 ? (
-                  caixaValor.itensPago.map((pg, idx) => (
-                    <div
-                      key={pg.id || idx}
-                      style={{
-                        background: 'rgba(16, 185, 129, 0.08)',
-                        border: '1px solid rgba(16, 185, 129, 0.25)',
-                        borderRadius: '6px',
-                        padding: '0.3rem 0.5rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        gap: '0.5rem'
-                      }}
-                    >
-                      <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-primary)', fontWeight: '500' }}>
-                          {pg.descricao || 'Recebimento de inscrição'}
+                      {pg.data_recebimento && (
+                        <span style={{ fontSize: '0.675rem', color: 'var(--text-secondary)' }}>
+                          {new Date(pg.data_recebimento + 'T12:00:00').toLocaleDateString('pt-BR')}
                         </span>
-                        {pg.data_recebimento && (
-                          <span style={{ fontSize: '0.675rem', color: 'var(--text-secondary)' }}>
-                            {new Date(pg.data_recebimento + 'T12:00:00').toLocaleDateString('pt-BR')}
-                          </span>
-                        )}
-                      </div>
-                      <span style={{
-                        fontSize: '0.8rem',
-                        fontWeight: '700',
-                        color: '#10b981',
-                        whiteSpace: 'nowrap'
-                      }}>
-                        {formatCurrency(pg.valor)}
-                      </span>
+                      )}
                     </div>
-                  ))
-                ) : (
-                  <div style={{
-                    padding: '0.5rem',
-                    textAlign: 'center',
-                    fontSize: '0.75rem',
-                    color: 'var(--text-secondary)',
-                    fontStyle: 'italic',
-                    background: 'var(--bg-secondary)',
-                    borderRadius: '6px'
-                  }}>
-                    Nenhum pagamento registrado até o momento.
+                    <span style={{
+                      fontSize: '0.8rem',
+                      fontWeight: '700',
+                      color: '#10b981',
+                      whiteSpace: 'nowrap'
+                    }}>
+                      {formatCurrency(pg.valor)}
+                    </span>
                   </div>
-                )}
+                ))
+              ) : (
+                <div style={{
+                  padding: '0.5rem',
+                  textAlign: 'center',
+                  fontSize: '0.75rem',
+                  color: 'var(--text-secondary)',
+                  fontStyle: 'italic',
+                  background: 'var(--bg-secondary)',
+                  borderRadius: '6px'
+                }}>
+                  Nenhum pagamento registrado até o momento.
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Card Consolidado no Rodapé */}
+          <div style={{
+            background: 'var(--bg-secondary)',
+            border: '1px solid var(--border-color)',
+            borderRadius: '8px',
+            padding: '0.25rem',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, 1fr)',
+            gap: '0.2rem',
+            textAlign: 'center'
+          }}>
+            <div>
+              <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>Previsto</div>
+              <div style={{ fontSize: '0.85rem', fontWeight: '800', color: 'var(--text-primary)' }}>
+                {formatCurrency(caixaValor.valorTotal)}
               </div>
             </div>
-
-            {/* Card Consolidado no Rodapé */}
-            <div style={{
-              background: 'var(--bg-secondary)',
-              border: '1px solid var(--border-color)',
-              borderRadius: '8px',
-              padding: '0.25rem',
-              display: 'grid',
-              gridTemplateColumns: 'repeat(3, 1fr)',
-              gap: '0.2rem',
-              textAlign: 'center'
-            }}>
-              <div>
-                <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>Previsto</div>
-                <div style={{ fontSize: '0.85rem', fontWeight: '800', color: 'var(--text-primary)' }}>
-                  {formatCurrency(caixaValor.valorTotal)}
-                </div>
+            <div>
+              <div style={{ fontSize: '0.65rem', color: '#10b981' }}>Pago</div>
+              <div style={{ fontSize: '0.85rem', fontWeight: '800', color: '#10b981' }}>
+                {formatCurrency(caixaValor.totalPago)}
               </div>
-              <div>
-                <div style={{ fontSize: '0.65rem', color: '#10b981' }}>Pago</div>
-                <div style={{ fontSize: '0.85rem', fontWeight: '800', color: '#10b981' }}>
-                  {formatCurrency(caixaValor.totalPago)}
-                </div>
+            </div>
+            <div>
+              <div style={{ fontSize: '0.65rem', color: (caixaValor.valorTotal - (caixaValor.totalPago || 0)) > 0 ? '#f59e0b' : '#10b981' }}>
+                Saldo
               </div>
-              <div>
-                <div style={{ fontSize: '0.65rem', color: (caixaValor.valorTotal - (caixaValor.totalPago || 0)) > 0 ? '#f59e0b' : '#10b981' }}>
-                  Saldo
-                </div>
-                <div style={{
-                  fontSize: '0.85rem',
-                  fontWeight: '800',
-                  color: (caixaValor.valorTotal - (caixaValor.totalPago || 0)) > 0 ? '#f59e0b' : '#10b981'
-                }}>
-                  {caixaValor.valorTotal > 0
-                    ? ((caixaValor.valorTotal - (caixaValor.totalPago || 0)) > 0
-                      ? formatCurrency(caixaValor.valorTotal - (caixaValor.totalPago || 0))
-                      : 'Quitado ✓')
-                    : 'R$ 0,00'}
-                </div>
+              <div style={{
+                fontSize: '0.85rem',
+                fontWeight: '800',
+                color: (caixaValor.valorTotal - (caixaValor.totalPago || 0)) > 0 ? '#f59e0b' : '#10b981'
+              }}>
+                {caixaValor.valorTotal > 0
+                  ? ((caixaValor.valorTotal - (caixaValor.totalPago || 0)) > 0
+                    ? formatCurrency(caixaValor.valorTotal - (caixaValor.totalPago || 0))
+                    : 'Quitado ✓')
+                  : 'R$ 0,00'}
               </div>
             </div>
           </div>
-        </>
+        </div>
       )}
     </div>
   );
