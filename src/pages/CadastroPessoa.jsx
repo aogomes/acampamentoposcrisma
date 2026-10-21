@@ -101,6 +101,8 @@ export const CadastroPessoa = () => {
             const madrinha = pessoasData.find(p2 => p2.id === vinculo.madrinha_id);
             mapped.ano = vinculo.ano;
             mapped.nomePadrinhos = `${padrinho?.nome || 'N/D'}\n e ${madrinha?.nome || 'N/D'}`;
+          } else {
+            mapped.nomePadrinhos = `${p?.padrinhos_catequistas || ''}`;
           }
         } else if ((p.tipo_pessoa === 'PADRINHO' || p.tipo_pessoa === 'MADRINHA') && p.conjuge_id) {
           const conjuge = pessoasData.find(p2 => p2.id === p.conjuge_id);
