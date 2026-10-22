@@ -1280,7 +1280,7 @@ export const AdminAcampamentos = () => {
                 <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: 'var(--accent-primary)' }}>{totalParticipantes}</div>
               </div>
               {/* Card Único e Consolidado de Resumo Financeiro */}
-              <div style={{
+              {/* <div style={{
                 background: 'var(--bg-secondary)',
                 padding: '0.55rem 0.85rem',
                 borderRadius: '8px',
@@ -1329,7 +1329,7 @@ export const AdminAcampamentos = () => {
                     </div>
                   </div>
                 </div>
-              </div>
+              </div> */}
             </div>
           )}
 
