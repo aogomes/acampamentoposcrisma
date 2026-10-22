@@ -30,6 +30,22 @@ const getTipoLabel = (a) => {
   return tipo || '';
 };
 
+const getPadrinhosTexto = (a) => {
+  const p = a?.apc_pessoa;
+  if (!p || p.tipo_pessoa !== 'AFILHADO') return '-';
+
+  const padrinhoNome = p.vinculo?.padrinho?.nome;
+  const madrinhaNome = p.vinculo?.madrinha?.nome;
+
+  if (padrinhoNome && madrinhaNome) {
+    return `${padrinhoNome} e ${madrinhaNome}`;
+  }
+  if (padrinhoNome) return padrinhoNome;
+  if (madrinhaNome) return madrinhaNome;
+  if (p.padrinhos_catequistas) return p.padrinhos_catequistas;
+  return 'Não vinculado';
+};
+
 const calcularValorTotal = (acampamento, evento) => {
   if (!evento) return { total: 0, itens: [] };
 
@@ -113,6 +129,7 @@ const calcularValorTotal = (acampamento, evento) => {
 
 export const AdminAcampamentos = () => {
   const { userProfile } = useAuth();
+  const isAdmin = userProfile?.perfil === 'ADMIN';
   const { evento_id } = useParams();
 
   const [acampamentos, setAcampamentos] = useState([]);
@@ -923,6 +940,10 @@ export const AdminAcampamentos = () => {
         const countA = (a.apc_pessoa?.dependentes_agrupados || []).filter(d => Boolean(d.acampamento !== undefined ? d.acampamento : d.mascote)).length;
         const countB = (b.apc_pessoa?.dependentes_agrupados || []).filter(d => Boolean(d.acampamento !== undefined ? d.acampamento : d.mascote)).length;
         comparison = countA - countB;
+      } else if (sortField === 'padrinhos') {
+        const textA = getPadrinhosTexto(a);
+        const textB = getPadrinhosTexto(b);
+        comparison = textA.localeCompare(textB, 'pt-BR');
       }
 
       if (comparison !== 0) {
@@ -1264,7 +1285,7 @@ export const AdminAcampamentos = () => {
                 <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: 'var(--accent-primary)' }}>{countPadrinhos}</div>
               </div>
               <div style={{ background: 'var(--bg-secondary)', padding: '0.5rem', borderRadius: '8px', textAlign: 'center', border: '1px solid var(--border-color)' }}>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Filhos</div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Filhos (Mascotes)</div>
                 <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: 'var(--accent-primary)' }}>{countFilhos}</div>
               </div>
               <div style={{ background: 'var(--bg-secondary)', padding: '0.5rem', borderRadius: '8px', textAlign: 'center', border: '1px solid var(--border-color)' }}>
@@ -1560,6 +1581,8 @@ export const AdminAcampamentos = () => {
                     <option value="filhos-desc">Mais Filhos</option>
                     <option value="filhos-asc">Menos Filhos</option>
                     <option value="tipo-asc">Tipo</option>
+                    <option value="padrinhos-asc">Padrinhos (A-Z)</option>
+                    <option value="padrinhos-desc">Padrinhos (Z-A)</option>
                   </select>
                 </div>
               </div>
@@ -1567,7 +1590,6 @@ export const AdminAcampamentos = () => {
               {/* Visualização Mobile: Cards Modernos e Organizados */}
               <div className="participantes-mobile-list">
                 {filteredAcampamentos.map((a) => {
-                  const { total: valorTotal, itens: itensValor } = calcularValorTotal(a, currentEvento || a.apc_evento);
                   const dependentes = a.apc_pessoa?.dependentes_agrupados || [];
                   const vaiAcampamentoCount = dependentes.filter(d => Boolean(d.acampamento !== undefined ? d.acampamento : d.mascote)).length;
 
@@ -1598,128 +1620,110 @@ export const AdminAcampamentos = () => {
                     cardAccentColor = '#3b82f6';
                   }
 
-                  const isQuitado = valorTotal > 0 && (a.totalPago || 0) >= valorTotal;
-                  const isParcial = valorTotal > 0 && (a.totalPago || 0) > 0 && !isQuitado;
-                  const isPendente = valorTotal > 0 && (a.totalPago || 0) <= 0;
-                  const isIsento = valorTotal <= 0;
-
                   return (
                     <div
                       key={`mobile-${a.id}`}
                       className="participante-card-mobile"
                       style={{ borderLeft: `4px solid ${cardAccentColor}` }}
                     >
-                      {/* Topo do Card: Tipo, Ano e Status Financeiro */}
-                      <div className="participante-card-header">
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                      {/* Topo do Card: Tipo, Ano e Ações com Ícones na mesma linha */}
+                      <div
+                        className="participante-card-header"
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          flexWrap: 'nowrap',
+                          width: '100%'
+
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'nowrap', minWidth: 0 }}>
                           <span style={{
                             fontSize: '0.725rem',
                             fontWeight: '700',
-                            padding: '0.2rem 0.55rem',
+                            padding: '0.1rem 0.2rem',
                             borderRadius: '6px',
                             background: tipoBg,
                             color: tipoColor,
                             border: tipoBorder,
                             display: 'inline-flex',
                             alignItems: 'center',
-                            gap: '0.3rem'
+                            whiteSpace: 'nowrap',
+                            flexShrink: 0
                           }}>
                             {tipoLabel}
                           </span>
-
-                          {tipo === 'AFILHADO' && (
-                            <button
-                              type="button"
-                              onClick={(e) => handleTogglePadrinhos(e, a.apc_pessoa)}
-                              onMouseEnter={(e) => handleMouseEnterPadrinhos(e, a.apc_pessoa)}
-                              onMouseLeave={handleMouseLeavePadrinhos}
-                              title="Padrinhos do afilhado (passe o mouse para ver)"
-                              style={{
-                                background: 'rgba(245, 158, 11, 0.12)',
-                                border: '1px solid rgba(245, 158, 11, 0.3)',
-                                borderRadius: '6px',
-                                color: '#d97706',
-                                cursor: 'pointer',
-                                padding: '0.2rem 0.45rem',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '0.25rem',
-                                fontSize: '0.7rem',
-                                fontWeight: '600'
-                              }}
-                            >
-                              <Users size={12} />
-                            </button>
-                          )}
 
                           {a.apc_pessoa?.ano && (
                             <span style={{
                               fontSize: '0.7rem',
                               color: 'var(--text-secondary)',
                               background: 'var(--bg-secondary)',
-                              padding: '0.15rem 0.45rem',
                               borderRadius: '6px',
                               border: '1px solid var(--border-color)',
-                              fontWeight: '600'
+                              fontWeight: '600',
+                              whiteSpace: 'nowrap',
+                              flexShrink: 0
                             }}>
                               Ano {a.apc_pessoa.ano}
                             </span>
                           )}
                         </div>
 
-                        {/* Badge de Status de Pagamento */}
-                        <div>
-                          {isQuitado && (
-                            <span style={{
-                              fontSize: '0.7rem',
-                              fontWeight: '700',
-                              padding: '0.2rem 0.55rem',
-                              borderRadius: '999px',
-                              background: 'rgba(16, 185, 129, 0.15)',
-                              color: '#10b981',
-                              border: '1px solid rgba(16, 185, 129, 0.3)'
-                            }}>
-                              Quitado ✓
-                            </span>
-                          )}
-                          {isParcial && (
-                            <span style={{
-                              fontSize: '0.7rem',
-                              fontWeight: '600',
-                              padding: '0.2rem 0.55rem',
-                              borderRadius: '999px',
-                              background: 'rgba(245, 158, 11, 0.15)',
-                              color: '#d97706',
-                              border: '1px solid rgba(245, 158, 11, 0.3)'
-                            }}>
-                              Parcial
-                            </span>
-                          )}
-                          {isPendente && (
-                            <span style={{
-                              fontSize: '0.7rem',
-                              fontWeight: '600',
-                              padding: '0.2rem 0.55rem',
-                              borderRadius: '999px',
-                              background: 'rgba(239, 68, 68, 0.1)',
-                              color: '#ef4444',
-                              border: '1px solid rgba(239, 68, 68, 0.25)'
-                            }}>
-                              Pendente
-                            </span>
-                          )}
-                          {isIsento && (
-                            <span style={{
-                              fontSize: '0.7rem',
-                              fontWeight: '500',
-                              padding: '0.2rem 0.55rem',
-                              borderRadius: '999px',
-                              background: 'var(--bg-secondary)',
-                              color: 'var(--text-secondary)',
-                              border: '1px solid var(--border-color)'
-                            }}>
-                              Isento
-                            </span>
+                        {/* Ações Rápidas (Apenas Ícones na mesma linha) */}
+                        <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0, marginLeft: 'auto' }}>
+                          <Link
+                            to={`/admin/pagamentos/${a.id}`}
+                            state={{ from: `/admin/acampamentos/${evento_id}` }}
+                            className="btn btn-secondary"
+                            style={{
+                              padding: '0.35rem 0.45rem',
+                              borderRadius: '6px',
+                              color: 'var(--success)',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}
+                            title="Informações de Pagamentos"
+                          >
+                            <DollarSign size={13} />
+                          </Link>
+
+                          {isAdmin && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => handleEdit(a)}
+                                className="btn btn-primary"
+                                style={{
+                                  padding: '0.35rem 0.45rem',
+                                  borderRadius: '6px',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center'
+                                }}
+                                title="Editar Inscrição"
+                              >
+                                <Edit2 size={13} />
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => handleDelete(a)}
+                                className="btn btn-danger"
+                                style={{
+                                  padding: '0.35rem 0.45rem',
+                                  borderRadius: '6px',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center'
+                                }}
+                                title="Excluir Inscrição"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </>
                           )}
                         </div>
                       </div>
@@ -1811,98 +1815,59 @@ export const AdminAcampamentos = () => {
                           </div>
                         )}
 
-                        {/* Bloco de Valor e Pagamento */}
-                        <div
-                          className="participante-card-financeiro"
-                          onClick={(e) => handleOpenValor(e, a, valorTotal, itensValor)}
-                          title="Toque para abrir detalhamento de valores e pagamentos"
-                        >
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-                              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Total:</span>
-                              <span style={{
-                                fontWeight: '700',
-                                fontSize: '0.9rem',
-                                color: valorTotal > 0 ? 'var(--text-primary)' : 'var(--text-secondary)'
-                              }}>
-                                {formatCurrency(valorTotal)}
-                              </span>
-                              <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
-                                ({itensValor.length === 0 ? 'Isento' : itensValor.length === 1 ? '1 pessoa' : `${itensValor.length} pessoas`})
-                              </span>
-                            </div>
-
-                            {valorTotal > 0 && (
-                              <div style={{ fontSize: '0.72rem', color: isQuitado ? '#10b981' : isParcial ? '#d97706' : 'var(--text-secondary)' }}>
-                                {isQuitado ? (
-                                  <span>Total quitado integralmente</span>
-                                ) : isParcial ? (
-                                  <span>Pago: <strong>{formatCurrency(a.totalPago)}</strong> • Falta: <strong>{formatCurrency(Math.max(0, valorTotal - a.totalPago))}</strong></span>
-                                ) : (
-                                  <span></span>
-                                )}
-                              </div>
-                            )}
-                          </div>
-
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', color: 'var(--accent-primary)', fontSize: '0.75rem', fontWeight: '600', flexShrink: 0 }}>
-                            <ArrowRight size={13} />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Rodapé do Card: Ações */}
-                      <div className="participante-card-actions">
-                        <Link
-                          to={`/admin/pagamentos/${a.id}`}
-                          state={{ from: `/admin/acampamentos/${evento_id}` }}
-                          className="btn btn-secondary"
-                          style={{
-                            flex: 1,
-                            justifyContent: 'center',
-                            padding: '0.45rem 0.5rem',
-                            fontSize: '0.775rem',
-                            gap: '0.35rem',
-                            color: 'var(--success)'
-                          }}
-                          title="Pagamentos da Família"
-                        >
-                          <DollarSign size={14} />
-                          <span>Pagamentos</span>
-                        </Link>
-
-                        <button
-                          type="button"
-                          onClick={() => handleEdit(a)}
-                          className="btn btn-primary"
-                          style={{
-                            flex: 1,
-                            justifyContent: 'center',
-                            padding: '0.45rem 0.5rem',
-                            fontSize: '0.775rem',
-                            gap: '0.35rem'
-                          }}
-                          title="Editar Inscrição"
-                        >
-                          <Edit2 size={13} />
-                          <span>Editar</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(a)}
-                          className="btn btn-danger"
-                          style={{
-                            padding: '0.45rem 0.75rem',
-                            fontSize: '0.775rem',
+                        {/* Padrinhos em texto (se for afilhado) */}
+                        {tipo === 'AFILHADO' && (
+                          <div style={{
                             display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                          }}
-                          title="Excluir Inscrição"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                            alignItems: 'flex-start',
+                            gap: '0.4rem',
+                            fontSize: '0.75rem',
+                            padding: '0.35rem 0.55rem',
+                            background: 'var(--bg-secondary)',
+                            borderRadius: '6px',
+                            border: '1px solid var(--border-color)',
+                            marginTop: '0.15rem'
+                          }}>
+                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.72rem', fontWeight: '600', textTransform: 'uppercase' }}>
+                              Padrinhos:
+                            </span>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem', fontSize: '0.75rem' }}>
+                              {(() => {
+                                const p = a.apc_pessoa;
+                                const padrinho = p.vinculo?.padrinho;
+                                const madrinha = p.vinculo?.madrinha;
+                                const textoFicha = p.padrinhos_catequistas;
+
+                                if (padrinho || madrinha) {
+                                  return (
+                                    <>
+                                      {padrinho && (
+                                        <span style={{ color: 'var(--text-primary)', fontWeight: '500' }}>
+                                          {padrinho.nome}
+                                        </span>
+                                      )}
+                                      {madrinha && (
+                                        <span style={{ color: 'var(--text-primary)', fontWeight: '500' }}>
+                                          {madrinha.nome}
+                                        </span>
+                                      )}
+                                    </>
+                                  );
+                                }
+
+                                if (textoFicha) {
+                                  return (
+                                    <span style={{ color: 'var(--text-primary)' }}>
+                                      {textoFicha}
+                                    </span>
+                                  );
+                                }
+
+                                return <span style={{ color: 'var(--text-secondary)', fontStyle: 'italic' }}>Não vinculado</span>;
+                              })()}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -1938,7 +1903,12 @@ export const AdminAcampamentos = () => {
                           {renderSortIcon('tipo')}
                         </div>
                       </th>
-                      <th>Valor</th>
+                      <th onClick={() => handleSort('padrinhos')} style={{ cursor: 'pointer', userSelect: 'none' }} title="Clique para alternar ordenação por Padrinhos">
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                          <span>Padrinhos</span>
+                          {renderSortIcon('padrinhos')}
+                        </div>
+                      </th>
                       <th style={{ textAlign: 'right' }}>Ações</th>
                     </tr>
                   </thead>
@@ -2030,129 +2000,77 @@ export const AdminAcampamentos = () => {
                               }
 
                               return (
-                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
-                                  <span style={{
-                                    fontSize: '0.75rem',
-                                    fontWeight: '600',
-                                    padding: '0.15rem 0.5rem',
-                                    borderRadius: '5px',
-                                    background: bg,
-                                    color: color,
-                                    border: border,
-                                    whiteSpace: 'nowrap'
-                                  }}>
-                                    {label}
-                                  </span>
-                                  {tipo === 'AFILHADO' && (
-                                    <button
-                                      type="button"
-                                      onClick={(e) => handleTogglePadrinhos(e, a.apc_pessoa)}
-                                      onMouseEnter={(e) => handleMouseEnterPadrinhos(e, a.apc_pessoa)}
-                                      onMouseLeave={handleMouseLeavePadrinhos}
-                                      title="Padrinhos do afilhado (passe o mouse para ver)"
-                                      style={{
-                                        background: 'rgba(245, 158, 11, 0.12)',
-                                        border: '1px solid rgba(245, 158, 11, 0.3)',
-                                        borderRadius: '5px',
-                                        color: '#d97706',
-                                        cursor: 'pointer',
-                                        padding: '0.15rem 0.35rem',
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        transition: 'all 0.15s ease'
-                                      }}
-                                    >
-                                      <Users size={12} />
-                                    </button>
-                                  )}
-                                </div>
+                                <span style={{
+                                  fontSize: '0.75rem',
+                                  fontWeight: '600',
+                                  padding: '0.15rem 0.5rem',
+                                  borderRadius: '5px',
+                                  background: bg,
+                                  color: color,
+                                  border: border,
+                                  whiteSpace: 'nowrap'
+                                }}>
+                                  {label}
+                                </span>
                               );
                             })()}
                           </td>
 
-                          <td style={{ verticalAlign: 'middle' }}>
-                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}>
-                              <div
-                                onClick={(e) => handleOpenValor(e, a, valorTotal, itensValor)}
-                                title="Clique para detalhar valores e pagamentos"
-                                style={{
-                                  cursor: 'pointer',
-                                  display: 'inline-flex',
-                                  flexDirection: 'column',
-                                  gap: '0.2rem'
-                                }}
-                              >
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                                  <span style={{
-                                    fontWeight: '700',
-                                    fontSize: '0.9rem',
-                                    color: valorTotal > 0 ? 'var(--text-primary)' : 'var(--text-secondary)'
-                                  }}>
-                                    {formatCurrency(valorTotal)}
-                                  </span>
-                                  <span style={{ fontSize: '0.725rem', color: 'var(--text-secondary)' }}>
-                                    {itensValor.length === 0 ? 'Isento' : itensValor.length === 1 ? '' : `(${itensValor.length})`}
-                                  </span>
-                                </div>
+                          <td style={{ verticalAlign: 'middle', fontSize: '0.75rem' }}>
+                            {(() => {
+                              const p = a.apc_pessoa;
+                              if (p?.tipo_pessoa !== 'AFILHADO') {
+                                return <span style={{ color: 'var(--text-secondary)' }}></span>;
+                              }
 
-                                {/* Badge de Pagamento Recebido */}
-                                {/* {valorTotal > 0 && (
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                                    {(a.totalPago || 0) >= valorTotal ? (
-                                      <span style={{
-                                        fontSize: '0.675rem',
-                                        fontWeight: '700',
-                                        padding: '0.1rem 0.45rem',
-                                        borderRadius: '4px',
-                                        background: 'rgba(16, 185, 129, 0.12)',
-                                        color: '#10b981',
-                                        border: '1px solid rgba(16, 185, 129, 0.3)'
-                                      }}>
-                                        Quitado ✓
+                              const padrinho = p.vinculo?.padrinho;
+                              const madrinha = p.vinculo?.madrinha;
+                              const textoFicha = p.padrinhos_catequistas;
+
+                              if (padrinho || madrinha) {
+                                return (
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem' }}>
+                                    {padrinho && (
+                                      <span style={{ color: 'var(--text-primary)', fontWeight: '500' }}>
+                                        {padrinho.nome}
                                       </span>
-                                    ) : (a.totalPago || 0) > 0 ? (
-                                      <span style={{
-                                        fontSize: '0.675rem',
-                                        fontWeight: '600',
-                                        padding: '0.1rem 0.45rem',
-                                        borderRadius: '4px',
-                                        background: 'rgba(245, 158, 11, 0.12)',
-                                        color: '#d97706',
-                                        border: '1px solid rgba(245, 158, 11, 0.3)'
-                                      }}>
-                                        Pago: {formatCurrency(a.totalPago)} • Falta: {formatCurrency(Math.max(0, valorTotal - a.totalPago))}
-                                      </span>
-                                    ) : (
-                                      <span style={{
-                                        fontSize: '0.675rem',
-                                        fontWeight: '600',
-                                        padding: '0.1rem 0.45rem',
-                                        borderRadius: '4px',
-                                        background: 'var(--bg-secondary)',
-                                        color: 'var(--text-secondary)',
-                                        border: '1px solid var(--border-color)'
-                                      }}>
-                                        Pendente
+                                    )}
+                                    {madrinha && (
+                                      <span style={{ color: 'var(--text-primary)', fontWeight: '500' }}>
+                                        {madrinha.nome}
                                       </span>
                                     )}
                                   </div>
-                                )} */}
-                              </div>
-                            </div>
+                                );
+                              }
+
+                              if (textoFicha) {
+                                return (
+                                  <span style={{ color: 'var(--text-primary)', fontSize: '0.75rem' }}>
+                                    {textoFicha}
+                                  </span>
+                                );
+                              }
+
+                              return <span style={{ color: 'var(--text-secondary)', fontStyle: 'italic', fontSize: '0.75rem' }}>Não vinculado</span>;
+                            })()}
                           </td>
 
                           <td style={{ textAlign: 'right', verticalAlign: 'middle' }}>
                             <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'flex-end' }}>
-                              <Link to={`/admin/pagamentos/${a.id}`} state={{ from: `/admin/acampamentos/${evento_id}` }} className="btn btn-secondary" style={{ padding: '0.4rem 0.5rem', color: 'var(--success)', display: 'flex', alignItems: 'center', gap: '0.25rem' }} title="Pagamentos da Família">
+                              <Link to={`/admin/pagamentos/${a.id}`} state={{ from: `/admin/acampamentos/${evento_id}` }} className="btn btn-secondary" style={{ padding: '0.4rem 0.5rem', color: 'var(--success)', display: 'flex', alignItems: 'center', gap: '0.25rem' }} title="Informações de Pagamentos">
                                 <DollarSign size={12} />
                               </Link>
-                              <button onClick={() => handleEdit(a)} className="btn btn-primary" style={{ padding: '0.4rem 0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }} title="Editar Família">
-                                <Edit2 size={12} />
-                              </button>
-                              <button onClick={() => handleDelete(a)} className="btn btn-danger" style={{ padding: '0.4rem 0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }} title="Excluir Inscrição da Família">
-                                <Trash2 size={12} />
-                              </button>
+                              {isAdmin && (
+                                <>
+                                  <button onClick={() => handleEdit(a)} className="btn btn-primary" style={{ padding: '0.4rem 0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }} title="Editar Família">
+                                    <Edit2 size={12} />
+                                  </button>
+                                  <button onClick={() => handleDelete(a)} className="btn btn-danger" style={{ padding: '0.4rem 0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }} title="Excluir Inscrição da Família">
+                                    <Trash2 size={12} />
+                                  </button>
+                                </>
+                              )}
                             </div>
                           </td>
                         </tr>
